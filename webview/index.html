@@ -87,8 +87,8 @@
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
 
     <script>
-        // Configuration
-        const WS_HOST = 'localhost';
+        // Configuration - use same host as the page is served from
+        const WS_HOST = window.location.hostname || 'localhost';
         const WS_PORT = '8081';
 
         // Authentication - HARDCODED FOR NOW
@@ -224,13 +224,6 @@
                     reconnectTimeout = setTimeout(connect, RECONNECT_DELAY);
                 };
 
-                // Handle terminal input
-                term.onData((data) => {
-                    if (ws && ws.readyState === WebSocket.OPEN) {
-                        ws.send(data);
-                    }
-                });
-
             } catch (error) {
                 console.error('Connection error:', error);
                 updateStatus('disconnected', `Failed to connect: ${error.message}`);
@@ -242,6 +235,13 @@
                 reconnectTimeout = setTimeout(connect, RECONNECT_DELAY);
             }
         }
+
+        // Handle terminal input (registered once, uses current ws variable)
+        term.onData((data) => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(data);
+            }
+        });
 
         // Start connection
         connect();

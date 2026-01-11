@@ -96,8 +96,14 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to get stdout pipe: %v", err)
 		return
 	}
+	stderr, err := session.StderrPipe()
+	if err != nil {
+		log.Printf("Failed to get stderr pipe: %v", err)
+		return
+	}
 
-	if err := session.Shell(); err != nil {
+	// Start shell in ~/projects/sample directory
+	if err := session.Start("cd ~/projects/sample && exec $SHELL -l"); err != nil {
 		log.Printf("Failed to start shell: %v", err)
 		return
 	}
@@ -128,9 +134,24 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	// Forward stdout to WebSocket
+	go func() {
+		buf := make([]byte, 1024)
+		for {
+			n, err := stdout.Read(buf)
+			if err != nil {
+				return
+			}
+			if err := conn.WriteMessage(websocket.TextMessage, buf[:n]); err != nil {
+				return
+			}
+		}
+	}()
+
+	// Forward stderr to WebSocket
 	for {
 		buf := make([]byte, 1024)
-		n, err := stdout.Read(buf)
+		n, err := stderr.Read(buf)
 		if err != nil {
 			return
 		}
