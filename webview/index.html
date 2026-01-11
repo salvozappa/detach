@@ -74,13 +74,125 @@
             overflow-y: auto;
             background-color: #000;
         }
+
+        /* Views */
+        .view {
+            display: none;
+            position: absolute;
+            top: 32px;
+            left: 0;
+            right: 0;
+            bottom: 50px;
+            overflow: hidden;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        /* Placeholder view styling */
+        .placeholder-view {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 16px;
+            color: #888;
+        }
+
+        .placeholder-view h2 {
+            color: #fff;
+            margin-bottom: 16px;
+            font-size: 18px;
+        }
+
+        .placeholder-section {
+            flex: 1;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Bottom Navigation */
+        #bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: #1a1a1a;
+            display: flex;
+            border-top: 1px solid #333;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:active {
+            background: #222;
+        }
+
+        .nav-btn.active {
+            color: #fff;
+            background: #333;
+        }
     </style>
 </head>
 <body>
     <div id="status" class="connecting">Connecting...</div>
-    <div id="terminal-container">
-        <div id="terminal"></div>
+
+    <!-- LLM View (Terminal) -->
+    <div id="view-llm" class="view active">
+        <div id="terminal-container">
+            <div id="terminal"></div>
+        </div>
     </div>
+
+    <!-- Code View (Placeholder) -->
+    <div id="view-code" class="view">
+        <div class="placeholder-view">
+            <h2>Code View</h2>
+            <div class="placeholder-section">
+                File Explorer
+            </div>
+            <div class="placeholder-section">
+                Code Diff Viewer
+            </div>
+        </div>
+    </div>
+
+    <!-- Git View (Placeholder) -->
+    <div id="view-git" class="view">
+        <div class="placeholder-view">
+            <h2>Git View</h2>
+            <div class="placeholder-section">
+                Staged Changes
+            </div>
+            <div class="placeholder-section">
+                Commit Message
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav id="bottom-nav">
+        <button class="nav-btn active" data-view="llm">LLM</button>
+        <button class="nav-btn" data-view="code">Code</button>
+        <button class="nav-btn" data-view="git">Git</button>
+    </nav>
 
     <!-- xterm.js library -->
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
@@ -186,15 +298,21 @@
         function handleViewportResize() {
             if (window.visualViewport) {
                 const viewport = window.visualViewport;
-                const container = document.getElementById('terminal-container');
-
-                // Calculate available height (viewport height minus status bar)
                 const statusBarHeight = 32;
-                const availableHeight = viewport.height - statusBarHeight;
+                const navBarHeight = 50;
 
-                // Set container height to fit above keyboard
-                container.style.height = `${availableHeight}px`;
-                container.style.bottom = 'auto';
+                // Calculate available height for views
+                const availableHeight = viewport.height - statusBarHeight - navBarHeight;
+
+                // Resize all views
+                document.querySelectorAll('.view').forEach(view => {
+                    view.style.height = `${availableHeight}px`;
+                    view.style.bottom = 'auto';
+                });
+
+                // Move nav bar to stay above keyboard
+                const navBar = document.getElementById('bottom-nav');
+                navBar.style.bottom = `${window.innerHeight - viewport.height}px`;
 
                 // Re-fit terminal to new dimensions
                 fitAddon.fit();
@@ -301,6 +419,30 @@
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(data);
             }
+        });
+
+        // View switching
+        function switchView(viewName) {
+            // Hide all views
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+            // Show selected view
+            document.getElementById(`view-${viewName}`).classList.add('active');
+            document.querySelector(`[data-view="${viewName}"]`).classList.add('active');
+
+            // Re-fit terminal if switching to LLM view
+            if (viewName === 'llm') {
+                setTimeout(() => {
+                    fitAddon.fit();
+                    sendTerminalSize();
+                }, 50);
+            }
+        }
+
+        // Nav button click handlers
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchView(btn.dataset.view));
         });
 
         // Start connection
