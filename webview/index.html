@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Detach.it Terminal</title>
+
+    <!-- xterm.js CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #status {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 8px 16px;
+            font-size: 12px;
+            text-align: center;
+            z-index: 1000;
+            transition: background-color 0.3s;
+        }
+
+        #status.connecting {
+            background-color: #ff9800;
+            color: #000;
+        }
+
+        #status.connected {
+            background-color: #4caf50;
+            color: #000;
+        }
+
+        #status.disconnected {
+            background-color: #f44336;
+            color: #fff;
+        }
+
+        #terminal-container {
+            position: absolute;
+            top: 32px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 8px;
+        }
+
+        #terminal {
+            width: 100%;
+            height: 100%;
+        }
+
+        .xterm {
+            height: 100%;
+            padding: 8px;
+        }
+
+        .xterm-viewport {
+            overflow-y: auto;
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div id="status" class="connecting">Connecting...</div>
+    <div id="terminal-container">
+        <div id="terminal"></div>
+    </div>
+
+    <!-- xterm.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+
+    <script>
+        // Configuration
+        const WS_HOST = '77.42.17.162';
+        const WS_PORT = '8081';
+
+        // Authentication - HARDCODED FOR NOW
+        const USERNAME = 'detach-dev';
+        const SSH_KEY = `-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACAmjH5nqKTZtgYgl1OZIPm1c6pqIDk2aYsjZvQTPpR9yAAAAJgMSf9vDEn/
+bwAAAAtzc2gtZWQyNTUxOQAAACAmjH5nqKTZtgYgl1OZIPm1c6pqIDk2aYsjZvQTPpR9yA
+AAAECc5cH6u/bMzmENz6Bwq7Z3QNtGMC74m1vsxsmeml/64iaMfmeopNm2BiCXU5kg+bVz
+qmogOTZpiyNm9BM+lH3IAAAAEHRocm9hd2F5X2Rldl9rZXkBAgMEBQ==
+-----END OPENSSH PRIVATE KEY-----`;  // keys/dev
+
+        const RECONNECT_DELAY = 3000; // 3 seconds
+
+        // Build WebSocket URL with authentication parameters
+        const authParams = new URLSearchParams({
+            user: USERNAME,
+            key: SSH_KEY
+        });
+        const WS_URL = `ws://${WS_HOST}:${WS_PORT}?${authParams.toString()}`;
+
+        // Status elements
+        const statusEl = document.getElementById('status');
+
+        // Initialize xterm.js
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+            theme: {
+                background: '#000000',
+                foreground: '#ffffff',
+                cursor: '#ffffff',
+                cursorAccent: '#000000',
+                selection: 'rgba(255, 255, 255, 0.3)',
+                black: '#000000',
+                red: '#e06c75',
+                green: '#98c379',
+                yellow: '#d19a66',
+                blue: '#61afef',
+                magenta: '#c678dd',
+                cyan: '#56b6c2',
+                white: '#abb2bf',
+                brightBlack: '#5c6370',
+                brightRed: '#e06c75',
+                brightGreen: '#98c379',
+                brightYellow: '#d19a66',
+                brightBlue: '#61afef',
+                brightMagenta: '#c678dd',
+                brightCyan: '#56b6c2',
+                brightWhite: '#ffffff'
+            },
+            allowTransparency: false,
+            scrollback: 10000
+        });
+
+        // Fit addon for responsive terminal sizing
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+
+        // Open terminal
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+        });
+
+        // Handle screen orientation change (mobile)
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                fitAddon.fit();
+            }, 100);
+        });
+
+        // WebSocket connection
+        let ws = null;
+        let reconnectTimeout = null;
+
+        function updateStatus(status, message) {
+            statusEl.className = status;
+            statusEl.textContent = message;
+        }
+
+        function connect() {
+            if (ws) {
+                ws.close();
+            }
+
+            updateStatus('connecting', 'Connecting to terminal...');
+
+            try {
+                ws = new WebSocket(WS_URL);
+
+                ws.onopen = () => {
+                    updateStatus('connected', `Connected to ${WS_HOST}:${WS_PORT}`);
+                    term.clear();
+
+                    // Auto-hide status after 2 seconds when connected
+                    setTimeout(() => {
+                        statusEl.style.opacity = '0.7';
+                    }, 2000);
+                };
+
+                ws.onmessage = (event) => {
+                    term.write(event.data);
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    updateStatus('disconnected', 'Connection error');
+                };
+
+                ws.onclose = () => {
+                    updateStatus('disconnected', `Disconnected. Reconnecting in ${RECONNECT_DELAY/1000}s...`);
+                    statusEl.style.opacity = '1';
+
+                    // Auto-reconnect
+                    if (reconnectTimeout) {
+                        clearTimeout(reconnectTimeout);
+                    }
+                    reconnectTimeout = setTimeout(connect, RECONNECT_DELAY);
+                };
+
+                // Handle terminal input
+                term.onData((data) => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(data);
+                    }
+                });
+
+            } catch (error) {
+                console.error('Connection error:', error);
+                updateStatus('disconnected', `Failed to connect: ${error.message}`);
+
+                // Retry connection
+                if (reconnectTimeout) {
+                    clearTimeout(reconnectTimeout);
+                }
+                reconnectTimeout = setTimeout(connect, RECONNECT_DELAY);
+            }
+        }
+
+        // Start connection
+        connect();
+
+        // Handle page visibility (reconnect when coming back to the page)
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && ws && ws.readyState !== WebSocket.OPEN) {
+                connect();
+            }
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (ws) {
+                ws.close();
+            }
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
+        });
+    </script>
+</body>
+</html>
