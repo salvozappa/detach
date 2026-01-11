@@ -39,7 +39,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key, err := os.ReadFile("keys/dev")
+	key, err := os.ReadFile("../keys/dev")
 	if err != nil {
 		log.Printf("Failed to read private key: %v", err)
 		return
