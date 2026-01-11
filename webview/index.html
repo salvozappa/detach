@@ -204,8 +204,10 @@
                     }, 2000);
                 };
 
+                ws.binaryType = 'arraybuffer';
                 ws.onmessage = (event) => {
-                    term.write(event.data);
+                    const data = new Uint8Array(event.data);
+                    term.write(data);
                 };
 
                 ws.onerror = (error) => {

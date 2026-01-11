@@ -102,17 +102,26 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Start shell in ~/projects/sample directory
-	if err := session.Start("cd ~/projects/sample && exec $SHELL -l"); err != nil {
-		log.Printf("Failed to start shell: %v", err)
+	// Start claude in ~/projects/sample directory
+	log.Println("Starting claude...")
+	if err := session.Start("bash -l -c 'cd ~/projects/sample && exec claude'"); err != nil {
+		log.Printf("Failed to start claude: %v", err)
 		return
 	}
+	log.Println("Claude started successfully")
+
+	// Channel to signal when session ends
+	done := make(chan error, 1)
+	go func() {
+		done <- session.Wait()
+	}()
 
 	// Handle incoming WebSocket messages (terminal input or resize commands)
 	go func() {
 		for {
 			_, p, err := conn.ReadMessage()
 			if err != nil {
+				log.Printf("WebSocket read error: %v", err)
 				return
 			}
 
@@ -128,6 +137,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			} else {
 				// Regular terminal input
 				if _, err := stdin.Write(p); err != nil {
+					log.Printf("Stdin write error: %v", err)
 					return
 				}
 			}
@@ -140,23 +150,37 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		for {
 			n, err := stdout.Read(buf)
 			if err != nil {
+				log.Printf("Stdout read ended: %v", err)
 				return
 			}
-			if err := conn.WriteMessage(websocket.TextMessage, buf[:n]); err != nil {
+			if err := conn.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
+				log.Printf("WebSocket write error (stdout): %v", err)
 				return
 			}
 		}
 	}()
 
 	// Forward stderr to WebSocket
-	for {
+	go func() {
 		buf := make([]byte, 1024)
-		n, err := stderr.Read(buf)
-		if err != nil {
-			return
+		for {
+			n, err := stderr.Read(buf)
+			if err != nil {
+				log.Printf("Stderr read ended: %v", err)
+				return
+			}
+			if err := conn.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
+				log.Printf("WebSocket write error (stderr): %v", err)
+				return
+			}
 		}
-		if err := conn.WriteMessage(websocket.TextMessage, buf[:n]); err != nil {
-			return
-		}
+	}()
+
+	// Wait for session to end
+	err = <-done
+	if err != nil {
+		log.Printf("Session ended with error: %v", err)
+	} else {
+		log.Println("Session ended normally")
 	}
 }
