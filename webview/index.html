@@ -152,6 +152,10 @@
         term.open(document.getElementById('terminal'));
         fitAddon.fit();
 
+        // WebSocket connection (declared early for use in resize handlers)
+        let ws = null;
+        let reconnectTimeout = null;
+
         // Send terminal size to server
         function sendTerminalSize() {
             if (ws && ws.readyState === WebSocket.OPEN) {
@@ -178,9 +182,33 @@
             }, 100);
         });
 
-        // WebSocket connection
-        let ws = null;
-        let reconnectTimeout = null;
+        // Handle mobile keyboard open/close using visualViewport API
+        function handleViewportResize() {
+            if (window.visualViewport) {
+                const viewport = window.visualViewport;
+                const container = document.getElementById('terminal-container');
+
+                // Calculate available height (viewport height minus status bar)
+                const statusBarHeight = 32;
+                const availableHeight = viewport.height - statusBarHeight;
+
+                // Set container height to fit above keyboard
+                container.style.height = `${availableHeight}px`;
+                container.style.bottom = 'auto';
+
+                // Re-fit terminal to new dimensions
+                fitAddon.fit();
+                sendTerminalSize();
+            }
+        }
+
+        // Set up visualViewport listeners for keyboard detection
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', handleViewportResize);
+            window.visualViewport.addEventListener('scroll', handleViewportResize);
+            // Initial setup
+            handleViewportResize();
+        }
 
         function updateStatus(status, message) {
             statusEl.className = status;
