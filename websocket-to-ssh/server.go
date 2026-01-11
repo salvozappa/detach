@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +16,12 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
+}
+
+type ResizeMessage struct {
+	Type string `json:"type"`
+	Rows int    `json:"rows"`
+	Cols int    `json:"cols"`
 }
 
 func main() {
@@ -73,7 +80,8 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer session.Close()
 
-	if err := session.RequestPty("xterm", 80, 40, ssh.TerminalModes{}); err != nil {
+	// Request PTY with default size (will be updated by resize messages from client)
+	if err := session.RequestPty("xterm-256color", 24, 80, ssh.TerminalModes{}); err != nil {
 		log.Printf("Failed to request PTY: %v", err)
 		return
 	}
@@ -94,14 +102,28 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Handle incoming WebSocket messages (terminal input or resize commands)
 	go func() {
 		for {
 			_, p, err := conn.ReadMessage()
 			if err != nil {
 				return
 			}
-			if _, err := stdin.Write(p); err != nil {
-				return
+
+			// Check if this is a resize message
+			var resizeMsg ResizeMessage
+			if err := json.Unmarshal(p, &resizeMsg); err == nil && resizeMsg.Type == "resize" {
+				// Handle terminal resize
+				if err := session.WindowChange(resizeMsg.Rows, resizeMsg.Cols); err != nil {
+					log.Printf("Failed to resize terminal: %v", err)
+				} else {
+					log.Printf("Terminal resized to %dx%d", resizeMsg.Rows, resizeMsg.Cols)
+				}
+			} else {
+				// Regular terminal input
+				if _, err := stdin.Write(p); err != nil {
+					return
+				}
 			}
 		}
 	}()

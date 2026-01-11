@@ -146,15 +146,29 @@
         term.open(document.getElementById('terminal'));
         fitAddon.fit();
 
+        // Send terminal size to server
+        function sendTerminalSize() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const resizeMessage = JSON.stringify({
+                    type: 'resize',
+                    rows: term.rows,
+                    cols: term.cols
+                });
+                ws.send(resizeMessage);
+            }
+        }
+
         // Handle window resize
         window.addEventListener('resize', () => {
             fitAddon.fit();
+            sendTerminalSize();
         });
 
         // Handle screen orientation change (mobile)
         window.addEventListener('orientationchange', () => {
             setTimeout(() => {
                 fitAddon.fit();
+                sendTerminalSize();
             }, 100);
         });
 
@@ -180,6 +194,9 @@
                 ws.onopen = () => {
                     updateStatus('connected', `Connected to ${WS_HOST}:${WS_PORT}`);
                     term.clear();
+
+                    // Send initial terminal size
+                    sendTerminalSize();
 
                     // Auto-hide status after 2 seconds when connected
                     setTimeout(() => {
