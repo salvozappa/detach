@@ -96,11 +96,17 @@
 
         const RECONNECT_DELAY = 3000; // 3 seconds
 
-        // Build WebSocket URL with authentication parameters
-        const authParams = new URLSearchParams({
-            user: USERNAME
-        });
-        const WS_URL = `ws://${WS_HOST}:${WS_PORT}?${authParams.toString()}`;
+        // Session persistence
+        const SESSION_KEY = 'detach_session_id';
+
+        function getWebSocketURL() {
+            const params = new URLSearchParams({ user: USERNAME });
+            const sessionId = localStorage.getItem(SESSION_KEY);
+            if (sessionId) {
+                params.set('session', sessionId);
+            }
+            return `ws://${WS_HOST}:${WS_PORT}?${params.toString()}`;
+        }
 
         // Status elements
         const statusEl = document.getElementById('status');
@@ -189,11 +195,18 @@
             updateStatus('connecting', 'Connecting to terminal...');
 
             try {
-                ws = new WebSocket(WS_URL);
+                const wsUrl = getWebSocketURL();
+                const hasExistingSession = localStorage.getItem(SESSION_KEY) !== null;
+                ws = new WebSocket(wsUrl);
 
                 ws.onopen = () => {
-                    updateStatus('connected', `Connected to ${WS_HOST}:${WS_PORT}`);
-                    term.clear();
+                    const sessionId = localStorage.getItem(SESSION_KEY);
+                    if (sessionId) {
+                        updateStatus('connected', `Reconnected to session`);
+                    } else {
+                        updateStatus('connected', `Connected to ${WS_HOST}:${WS_PORT}`);
+                        term.clear();
+                    }
 
                     // Send initial terminal size
                     sendTerminalSize();
@@ -204,10 +217,27 @@
                     }, 2000);
                 };
 
-                ws.binaryType = 'arraybuffer';
                 ws.onmessage = (event) => {
-                    const data = new Uint8Array(event.data);
-                    term.write(data);
+                    // Handle text messages (session ID) vs binary (terminal output)
+                    if (typeof event.data === 'string') {
+                        try {
+                            const msg = JSON.parse(event.data);
+                            if (msg.type === 'session' && msg.id) {
+                                console.log('Session ID:', msg.id);
+                                localStorage.setItem(SESSION_KEY, msg.id);
+                            }
+                        } catch (e) {
+                            // Not JSON, treat as text output
+                            term.write(event.data);
+                        }
+                    } else if (event.data instanceof ArrayBuffer) {
+                        const data = new Uint8Array(event.data);
+                        term.write(data);
+                    } else if (event.data instanceof Blob) {
+                        event.data.arrayBuffer().then(buf => {
+                            term.write(new Uint8Array(buf));
+                        });
+                    }
                 };
 
                 ws.onerror = (error) => {
