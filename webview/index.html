@@ -88,25 +88,17 @@
 
     <script>
         // Configuration
-        const WS_HOST = '77.42.17.162';
+        const WS_HOST = 'localhost';
         const WS_PORT = '8081';
 
         // Authentication - HARDCODED FOR NOW
         const USERNAME = 'detach-dev';
-        const SSH_KEY = `-----BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
-QyNTUxOQAAACAmjH5nqKTZtgYgl1OZIPm1c6pqIDk2aYsjZvQTPpR9yAAAAJgMSf9vDEn/
-bwAAAAtzc2gtZWQyNTUxOQAAACAmjH5nqKTZtgYgl1OZIPm1c6pqIDk2aYsjZvQTPpR9yA
-AAAECc5cH6u/bMzmENz6Bwq7Z3QNtGMC74m1vsxsmeml/64iaMfmeopNm2BiCXU5kg+bVz
-qmogOTZpiyNm9BM+lH3IAAAAEHRocm9hd2F5X2Rldl9rZXkBAgMEBQ==
------END OPENSSH PRIVATE KEY-----`;  // keys/dev
 
         const RECONNECT_DELAY = 3000; // 3 seconds
 
         // Build WebSocket URL with authentication parameters
         const authParams = new URLSearchParams({
-            user: USERNAME,
-            key: SSH_KEY
+            user: USERNAME
         });
         const WS_URL = `ws://${WS_HOST}:${WS_PORT}?${authParams.toString()}`;
 
@@ -142,7 +134,8 @@ qmogOTZpiyNm9BM+lH3IAAAAEHRocm9hd2F5X2Rldl9rZXkBAgMEBQ==
                 brightWhite: '#ffffff'
             },
             allowTransparency: false,
-            scrollback: 10000
+            scrollback: 10000,
+            localEcho: false
         });
 
         // Fit addon for responsive terminal sizing
