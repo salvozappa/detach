@@ -59,7 +59,7 @@
             top: 32px;
             left: 0;
             right: 0;
-            bottom: 0;
+            bottom: 94px;
             padding: 8px;
         }
 
@@ -85,7 +85,7 @@
             top: 32px;
             left: 0;
             right: 0;
-            bottom: 50px;
+            bottom: 94px;
             overflow: hidden;
         }
 
@@ -151,6 +151,39 @@
         .nav-btn.active {
             color: #fff;
             background: #333;
+        }
+
+        /* Keyboard Toolbar */
+        #keyboard-toolbar {
+            position: fixed;
+            bottom: 50px;
+            left: 0;
+            right: 0;
+            height: 44px;
+            background: #2a2a2a;
+            display: flex;
+            gap: 4px;
+            padding: 4px 8px;
+            border-top: 1px solid #444;
+            z-index: 999;
+        }
+
+        .key-btn {
+            flex: 1;
+            background: #3a3a3a;
+            border: 1px solid #555;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .key-btn:active {
+            background: #555;
+            transform: scale(0.95);
         }
 
         /* Code View Panels */
@@ -306,6 +339,16 @@
                 Commit Message
             </div>
         </div>
+    </div>
+
+    <!-- Keyboard Toolbar -->
+    <div id="keyboard-toolbar">
+        <button class="key-btn" data-key="esc">Esc</button>
+        <button class="key-btn" data-key="up">↑</button>
+        <button class="key-btn" data-key="down">↓</button>
+        <button class="key-btn" data-key="left">←</button>
+        <button class="key-btn" data-key="right">→</button>
+        <button class="key-btn" data-key="enter">Enter</button>
     </div>
 
     <!-- Bottom Navigation -->
@@ -554,9 +597,12 @@
                     view.style.bottom = 'auto';
                 });
 
-                // Move nav bar to stay above keyboard
+                // Move nav bar and keyboard toolbar to stay above keyboard
                 const navBar = document.getElementById('bottom-nav');
-                navBar.style.bottom = `${window.innerHeight - viewport.height}px`;
+                const keyboardToolbar = document.getElementById('keyboard-toolbar');
+                const offset = window.innerHeight - viewport.height;
+                navBar.style.bottom = `${offset}px`;
+                keyboardToolbar.style.bottom = `${50 + offset}px`;
 
                 // Re-fit terminal to new dimensions
                 fitAddon.fit();
@@ -571,6 +617,28 @@
             // Initial setup
             handleViewportResize();
         }
+
+        // Keyboard toolbar functionality
+        document.querySelectorAll('.key-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const key = btn.dataset.key;
+                let sequence = '';
+
+                switch(key) {
+                    case 'up': sequence = '\x1b[A'; break;
+                    case 'down': sequence = '\x1b[B'; break;
+                    case 'right': sequence = '\x1b[C'; break;
+                    case 'left': sequence = '\x1b[D'; break;
+                    case 'esc': sequence = '\x1b'; break;
+                    case 'enter': sequence = '\r'; break;
+                }
+
+                if (ws && ws.readyState === WebSocket.OPEN && sequence) {
+                    ws.send(sequence);
+                }
+            });
+        });
 
         function updateStatus(status, message) {
             statusEl.className = status;
