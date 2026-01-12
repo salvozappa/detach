@@ -418,23 +418,125 @@ body {
     line-height: 1.4;
 }
 
-.git-diff-line.hunk {
-    background: #1a2332;
-    color: #6699cc;
-}
-
 .git-diff-line.added {
     background: #0d3d1f;
-    color: #4caf50;
+    color: #e8e8e8;
 }
 
 .git-diff-line.removed {
     background: #3d0d0d;
-    color: #f44336;
+    color: #e8e8e8;
 }
 
 .git-diff-line.context {
     color: #ccc;
+}
+
+/* Diff prefix styling */
+.diff-prefix {
+    opacity: 0.7;
+    margin-right: 4px;
+}
+
+/* Syntax highlighting overrides for all diff lines */
+.git-diff-line .hljs-keyword {
+    color: #c678dd;
+    font-weight: 600;
+}
+
+.git-diff-line .hljs-string,
+.git-diff-line .hljs-attr {
+    color: #98c379;
+}
+
+.git-diff-line .hljs-number,
+.git-diff-line .hljs-literal {
+    color: #d19a66;
+}
+
+.git-diff-line .hljs-comment {
+    color: #5c6370;
+    font-style: italic;
+}
+
+.git-diff-line .hljs-function,
+.git-diff-line .hljs-title {
+    color: #61afef;
+}
+
+.git-diff-line .hljs-variable,
+.git-diff-line .hljs-property {
+    color: #e06c75;
+}
+
+.git-diff-line .hljs-type,
+.git-diff-line .hljs-class {
+    color: #e5c07b;
+}
+
+.git-diff-line .hljs-operator,
+.git-diff-line .hljs-punctuation {
+    color: #abb2bf;
+}
+
+.git-diff-line .hljs-tag,
+.git-diff-line .hljs-name {
+    color: #e06c75;
+}
+
+.git-diff-line .hljs-built_in,
+.git-diff-line .hljs-builtin-name {
+    color: #56b6c2;
+}
+
+.git-diff-line .hljs-meta {
+    color: #61afef;
+}
+
+/* Enhanced syntax colors for added lines with green background */
+.git-diff-line.added .hljs-keyword {
+    color: #d89ff5;
+}
+
+.git-diff-line.added .hljs-string,
+.git-diff-line.added .hljs-attr {
+    color: #b4e89c;
+}
+
+.git-diff-line.added .hljs-number {
+    color: #e5c07b;
+}
+
+.git-diff-line.added .hljs-function,
+.git-diff-line.added .hljs-title {
+    color: #7ec8ff;
+}
+
+.git-diff-line.added .hljs-comment {
+    color: #7a8089;
+}
+
+/* Enhanced syntax colors for removed lines with red background */
+.git-diff-line.removed .hljs-keyword {
+    color: #d89ff5;
+}
+
+.git-diff-line.removed .hljs-string,
+.git-diff-line.removed .hljs-attr {
+    color: #b4e89c;
+}
+
+.git-diff-line.removed .hljs-number {
+    color: #e5c07b;
+}
+
+.git-diff-line.removed .hljs-function,
+.git-diff-line.removed .hljs-title {
+    color: #7ec8ff;
+}
+
+.git-diff-line.removed .hljs-comment {
+    color: #7a8089;
 }
 
 /* Action Buttons */

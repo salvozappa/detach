@@ -333,13 +333,20 @@ function parseDiff(diffText) {
     const result = [];
 
     for (const line of lines) {
-        if (line.startsWith('@@')) {
-            result.push({ type: 'hunk', content: line });
-        } else if (line.startsWith('+') && !line.startsWith('+++')) {
+        // Skip diff metadata headers
+        if (line.startsWith('diff') ||
+            line.startsWith('index') ||
+            line.startsWith('---') ||
+            line.startsWith('+++') ||
+            line.startsWith('@@')) {
+            continue;
+        }
+
+        if (line.startsWith('+')) {
             result.push({ type: 'added', content: line });
-        } else if (line.startsWith('-') && !line.startsWith('---')) {
+        } else if (line.startsWith('-')) {
             result.push({ type: 'removed', content: line });
-        } else if (!line.startsWith('diff') && !line.startsWith('index')) {
+        } else {
             result.push({ type: 'context', content: line });
         }
     }
@@ -354,13 +361,139 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Split highlighted HTML by newlines while preserving span tags
+function splitHighlightedHTML(html) {
+    const lines = [];
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+
+    let currentLine = '';
+    let openTags = []; // Stack of open tag class names
+
+    function walkNode(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            const text = node.textContent;
+            const parts = text.split('\n');
+
+            for (let i = 0; i < parts.length; i++) {
+                if (i > 0) {
+                    // Close all open tags before pushing the line
+                    for (let j = openTags.length - 1; j >= 0; j--) {
+                        currentLine += '</span>';
+                    }
+                    lines.push(currentLine);
+                    currentLine = '';
+
+                    // Reopen tags for next line
+                    for (let className of openTags) {
+                        currentLine += `<span class="${className}">`;
+                    }
+                }
+                currentLine += escapeHtml(parts[i]);
+            }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            if (node.tagName.toLowerCase() === 'span') {
+                const className = node.className;
+                currentLine += `<span class="${className}">`;
+                openTags.push(className);
+
+                // Process children
+                for (let child of node.childNodes) {
+                    walkNode(child);
+                }
+
+                currentLine += '</span>';
+                openTags.pop();
+            } else {
+                // Process children of non-span elements
+                for (let child of node.childNodes) {
+                    walkNode(child);
+                }
+            }
+        }
+    }
+
+    walkNode(tempDiv);
+
+    // Push last line if exists
+    if (currentLine) {
+        lines.push(currentLine);
+    }
+
+    return lines;
+}
+
+// Apply syntax highlighting to diff lines
+function highlightDiffLines(diffLines, filePath) {
+    // Detect language from file extension
+    const ext = filePath.split('.').pop().toLowerCase();
+    const langMap = {
+        'js': 'javascript', 'jsx': 'javascript', 'ts': 'typescript',
+        'tsx': 'typescript', 'py': 'python', 'go': 'go', 'rs': 'rust',
+        'java': 'java', 'c': 'c', 'cpp': 'cpp', 'cc': 'cpp', 'cxx': 'cpp',
+        'h': 'c', 'hpp': 'cpp', 'css': 'css', 'scss': 'scss', 'sass': 'sass',
+        'html': 'html', 'htm': 'html', 'xml': 'xml', 'json': 'json',
+        'md': 'markdown', 'markdown': 'markdown', 'sh': 'bash', 'bash': 'bash',
+        'yml': 'yaml', 'yaml': 'yaml', 'sql': 'sql', 'rb': 'ruby',
+        'php': 'php', 'swift': 'swift', 'kt': 'kotlin', 'cs': 'csharp'
+    };
+    const language = langMap[ext] || '';
+
+    // Extract raw code (without +/- prefixes)
+    const codeLines = diffLines.map(line => {
+        let code = line.content;
+        // Remove leading +/- but preserve indentation
+        if (code.startsWith('+') || code.startsWith('-')) {
+            code = code.substring(1);
+        }
+        return code;
+    });
+
+    // Apply syntax highlighting to entire code block
+    const tempDiv = document.createElement('div');
+    const pre = document.createElement('pre');
+    const code = document.createElement('code');
+
+    if (language) {
+        code.className = `language-${language}`;
+    }
+
+    code.textContent = codeLines.join('\n');
+    pre.appendChild(code);
+    tempDiv.appendChild(pre);
+
+    // Highlight the code
+    hljs.highlightElement(code);
+
+    // Extract highlighted HTML and split back into lines
+    const highlightedHTML = code.innerHTML;
+    const highlightedLines = splitHighlightedHTML(highlightedHTML);
+
+    // Match highlighted lines back to diff lines
+    return diffLines.map((line, index) => ({
+        ...line,
+        highlightedContent: highlightedLines[index] || escapeHtml(line.content)
+    }));
+}
+
 // Render file change item
 function renderFileChange(file, staged = false) {
     const diffLines = parseDiff(file.diff);
 
-    const diffHtml = diffLines.map(line =>
-        `<div class="git-diff-line ${line.type}">${escapeHtml(line.content)}</div>`
-    ).join('');
+    // Apply syntax highlighting
+    const highlightedLines = highlightDiffLines(diffLines, file.path);
+
+    const diffHtml = highlightedLines.map(line => {
+        let content = line.highlightedContent;
+
+        // Add prefix for added/removed lines
+        if (line.type === 'added' || line.type === 'removed') {
+            const prefix = line.type === 'added' ? '+' : '-';
+            content = `<span class="diff-prefix">${prefix}</span>${content}`;
+        }
+
+        return `<div class="git-diff-line ${line.type}">${content}</div>`;
+    }).join('');
 
     const actionsHtml = staged ?
         `<button class="git-action-btn unstage" data-file="${escapeHtml(file.path)}">Unstage</button>` :
