@@ -167,6 +167,42 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 				respBytes, _ := json.Marshal(resp)
 				conn.WriteMessage(websocket.TextMessage, respBytes)
 
+			case "git_pull":
+				log.Printf("Session %s pulling changes", session.ID)
+
+				err := session.pullChanges()
+
+				resp := GitActionResponse{
+					Type: "git_pull_success",
+				}
+
+				if err != nil {
+					log.Printf("Pull error: %v", err)
+					resp.Type = "git_error"
+					resp.Error = err.Error()
+				}
+
+				respBytes, _ := json.Marshal(resp)
+				conn.WriteMessage(websocket.TextMessage, respBytes)
+
+			case "git_push":
+				log.Printf("Session %s pushing changes", session.ID)
+
+				err := session.pushChanges()
+
+				resp := GitActionResponse{
+					Type: "git_push_success",
+				}
+
+				if err != nil {
+					log.Printf("Push error: %v", err)
+					resp.Type = "git_error"
+					resp.Error = err.Error()
+				}
+
+				respBytes, _ := json.Marshal(resp)
+				conn.WriteMessage(websocket.TextMessage, respBytes)
+
 			default:
 				// Unknown JSON message, might be terminal input
 				if _, err := session.Stdin.Write(p); err != nil {

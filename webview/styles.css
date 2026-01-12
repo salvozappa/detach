@@ -660,6 +660,37 @@ body {
     cursor: not-allowed;
 }
 
+/* Pull/Push Buttons Container */
+.git-sync-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.git-sync-btn {
+    flex: 1;
+    padding: 10px 24px;
+    background: #555;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.git-sync-btn:active {
+    background: #666;
+}
+
+.git-sync-btn:disabled {
+    background: #333;
+    color: #666;
+    cursor: not-allowed;
+}
+
 /* Loading State */
 .git-loading {
     padding: 24px 16px;

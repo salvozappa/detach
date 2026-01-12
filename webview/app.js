@@ -320,6 +320,10 @@ function initGitView() {
     // Set up commit input auto-resize
     setupCommitInput();
 
+    // Set up pull/push button handlers
+    document.getElementById('pull-btn').onclick = pullChanges;
+    document.getElementById('push-btn').onclick = pushChanges;
+
     // Load git status
     loadGitStatus();
 }
@@ -666,6 +670,26 @@ function discardFile(btn, filePath) {
     }
 }
 
+function pullChanges() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+    const pullBtn = document.getElementById('pull-btn');
+    pullBtn.disabled = true;
+    pullBtn.textContent = 'Pulling...';
+
+    ws.send(JSON.stringify({ type: 'git_pull' }));
+}
+
+function pushChanges() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+    const pushBtn = document.getElementById('push-btn');
+    pushBtn.disabled = true;
+    pushBtn.textContent = 'Pushing...';
+
+    ws.send(JSON.stringify({ type: 'git_push' }));
+}
+
 // Handle Git messages from bridge
 function handleGitMessage(msg) {
     if (msg.type === 'git_status') {
@@ -685,15 +709,40 @@ function handleGitMessage(msg) {
 
         // Refresh git status
         loadGitStatus();
+    } else if (msg.type === 'git_pull_success') {
+        const pullBtn = document.getElementById('pull-btn');
+        pullBtn.disabled = false;
+        pullBtn.textContent = 'Pull';
+
+        // Refresh git status to show new changes
+        loadGitStatus();
+    } else if (msg.type === 'git_push_success') {
+        const pushBtn = document.getElementById('push-btn');
+        pushBtn.disabled = false;
+        pushBtn.textContent = 'Push';
+
+        // Refresh git status
+        loadGitStatus();
     } else if (msg.type === 'git_error') {
         console.error('Git error:', msg.error);
         alert('Error: ' + msg.error);
 
-        // Re-enable button if it was a commit error
+        // Re-enable all buttons
         const commitBtn = document.getElementById('commit-btn');
+        const pullBtn = document.getElementById('pull-btn');
+        const pushBtn = document.getElementById('push-btn');
+
         if (commitBtn && commitBtn.disabled) {
             commitBtn.disabled = false;
             commitBtn.textContent = 'Commit';
+        }
+        if (pullBtn && pullBtn.disabled) {
+            pullBtn.disabled = false;
+            pullBtn.textContent = 'Pull';
+        }
+        if (pushBtn && pushBtn.disabled) {
+            pushBtn.disabled = false;
+            pushBtn.textContent = 'Push';
         }
     }
 }

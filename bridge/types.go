@@ -64,6 +64,14 @@ type GitCommitRequest struct {
 	Message string `json:"message"`
 }
 
+type GitPullRequest struct {
+	Type string `json:"type"` // "git_pull"
+}
+
+type GitPushRequest struct {
+	Type string `json:"type"` // "git_push"
+}
+
 type GitActionResponse struct {
 	Type  string `json:"type"` // "git_stage_success", etc or "git_error"
 	Error string `json:"error,omitempty"`

@@ -190,3 +190,17 @@ func (s *Session) commitChanges(message string) error {
 	_, err := s.executeCommand(cmd)
 	return err
 }
+
+// Pull changes from remote
+func (s *Session) pullChanges() error {
+	cmd := fmt.Sprintf("cd %s && git pull", workingDir)
+	_, err := s.executeCommand(cmd)
+	return err
+}
+
+// Push changes to remote
+func (s *Session) pushChanges() error {
+	cmd := fmt.Sprintf("cd %s && git push", workingDir)
+	_, err := s.executeCommand(cmd)
+	return err
+}
