@@ -647,20 +647,13 @@ function connect() {
 
         ws.onopen = () => {
             const sessionId = localStorage.getItem(SESSION_KEY);
-            if (sessionId) {
-                updateStatus('connected', `Reconnected to session`);
-            } else {
-                updateStatus('connected', `Connected to ${WS_HOST}:${WS_PORT}`);
+            updateStatus('connected', `Connected`);
+            if (!sessionId) {
                 term.clear();
             }
 
             // Send initial terminal size
             sendTerminalSize();
-
-            // Auto-hide status after 2 seconds when connected
-            setTimeout(() => {
-                statusEl.style.opacity = '0.7';
-            }, 2000);
         };
 
         ws.onmessage = (event) => {
@@ -696,8 +689,7 @@ function connect() {
         };
 
         ws.onclose = () => {
-            updateStatus('disconnected', `Disconnected. Reconnecting in ${RECONNECT_DELAY/1000}s...`);
-            statusEl.style.opacity = '1';
+            updateStatus('disconnected', `Disconnected. Trying to reconnect...`);
 
             // Auto-reconnect
             if (reconnectTimeout) {
