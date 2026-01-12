@@ -49,6 +49,7 @@ services:
     ports:
       - "8080:80"
     volumes:
+      - ./webview/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./webview/index.html:/usr/share/nginx/html/index.html:ro
       - ./webview/app.js:/usr/share/nginx/html/app.js:ro
       - ./webview/styles.css:/usr/share/nginx/html/styles.css:ro
