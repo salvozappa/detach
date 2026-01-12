@@ -11,7 +11,7 @@ services:
       - "2222:22"  # SSH accessible from host for debugging
     volumes:
       - ./keys/dev.pub:/home/detach-dev/.ssh/authorized_keys:ro
-      - sandbox-projects:/home/detach-dev/projects
+      - sandbox-home:/home/detach-dev
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "pgrep", "sshd"]
@@ -57,5 +57,5 @@ networks:
     driver: bridge
 
 volumes:
-  sandbox-projects:
+  sandbox-home:
     driver: local
