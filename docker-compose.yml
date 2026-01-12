@@ -1,0 +1,61 @@
+services:
+  sandbox:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    container_name: detach-sandbox
+    hostname: sandbox
+    networks:
+      - detach-network
+    ports:
+      - "2222:22"  # SSH accessible from host for debugging
+    volumes:
+      - ./keys/dev.pub:/home/detach-dev/.ssh/authorized_keys:ro
+      - sandbox-projects:/home/detach-dev/projects
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pgrep", "sshd"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  bridge:
+    build:
+      context: ./bridge
+      dockerfile: Dockerfile
+    container_name: detach-bridge
+    networks:
+      - detach-network
+    ports:
+      - "8081:8081"
+    environment:
+      - SANDBOX_HOST=sandbox
+      - SANDBOX_PORT=22
+      - SSH_KEY_PATH=/app/keys/dev
+    volumes:
+      - ./keys/dev:/app/keys/dev:ro
+    depends_on:
+      sandbox:
+        condition: service_healthy
+    restart: unless-stopped
+
+  webview:
+    build:
+      context: ./webview
+      dockerfile: Dockerfile
+    container_name: detach-webview
+    networks:
+      - detach-network
+    ports:
+      - "8080:80"
+    depends_on:
+      - bridge
+    restart: unless-stopped
+
+networks:
+  detach-network:
+    driver: bridge
+
+volumes:
+  sandbox-projects:
+    driver: local

@@ -1,0 +1,60 @@
+FROM ubuntu:24.04
+
+# Set environment to non-interactive to avoid prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update and install essential development packages
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    curl \
+    wget \
+    vim \
+    htop \
+    tmux \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-dev \
+    nodejs \
+    npm \
+    openssh-server \
+    sudo \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create detach-dev user with sudo privileges
+RUN useradd -m -s /bin/bash -G sudo,users detach-dev && \
+    echo "detach-dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Configure SSH server
+# - Disable root login
+# - Disable password authentication (key-based only)
+# - Enable public key authentication
+RUN mkdir /var/run/sshd && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
+    sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+
+# Set up SSH directory for detach-dev user
+RUN mkdir -p /home/detach-dev/.ssh && \
+    chmod 700 /home/detach-dev/.ssh && \
+    chown -R detach-dev:detach-dev /home/detach-dev/.ssh
+
+# Create projects directory for development work
+RUN mkdir -p /home/detach-dev/projects/sample && \
+    chown -R detach-dev:detach-dev /home/detach-dev && \
+    chmod -R 755 /home/detach-dev/projects
+
+# Install Claude CLI
+RUN curl -fsSL https://claude.ai/install.sh | bash
+
+# Add Claude to PATH for detach-dev user
+RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/detach-dev/.bashrc && \
+    chown detach-dev:detach-dev /home/detach-dev/.bashrc
+
+# Expose SSH port
+EXPOSE 22
+
+# Start SSH service in foreground mode (required for Docker)
+CMD ["/usr/sbin/sshd", "-D"]

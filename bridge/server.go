@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -23,6 +24,22 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
+}
+
+// Configuration from environment variables
+var (
+	sandboxHost = getEnv("SANDBOX_HOST", "77.42.17.162")
+	sandboxPort = getEnv("SANDBOX_PORT", "22")
+	sshKeyPath  = getEnv("SSH_KEY_PATH", "../keys/dev")
+)
+
+// Helper function to get environment variables with defaults
+func getEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
 }
 
 // RingBuffer stores recent output for replay on reconnect
@@ -213,7 +230,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func createSession(user string) (*Session, error) {
-	key, err := os.ReadFile("../keys/dev")
+	key, err := os.ReadFile(sshKeyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +248,8 @@ func createSession(user string) (*Session, error) {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	sshConn, err := ssh.Dial("tcp", "77.42.17.162:22", config)
+	sshAddr := fmt.Sprintf("%s:%s", sandboxHost, sandboxPort)
+	sshConn, err := ssh.Dial("tcp", sshAddr, config)
 	if err != nil {
 		return nil, err
 	}
