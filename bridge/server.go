@@ -176,6 +176,30 @@ type FileContentResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
+// Git operation messages
+type GitFileChange struct {
+	Path    string `json:"path"`
+	Diff    string `json:"diff"`
+	Added   int    `json:"added"`
+	Removed int    `json:"removed"`
+}
+
+type GitStatusResponse struct {
+	Type     string          `json:"type"` // "git_status"
+	Unstaged []GitFileChange `json:"unstaged"`
+	Staged   []GitFileChange `json:"staged"`
+}
+
+type GitActionRequest struct {
+	Type string `json:"type"` // "git_stage", "git_unstage", "git_discard"
+	File string `json:"file"`
+}
+
+type GitActionResponse struct {
+	Type  string `json:"type"` // "git_stage_success", etc or "git_error"
+	Error string `json:"error,omitempty"`
+}
+
 func main() {
 	http.HandleFunc("/", handleWebSocket)
 	log.Println("Starting WebSocket server on :8081")
@@ -437,6 +461,125 @@ func (s *Session) readFile(path string) (string, error) {
 	return s.executeCommand("cat " + path)
 }
 
+// Git status - get list of changed files
+func (s *Session) getGitStatus() (*GitStatusResponse, error) {
+	// Execute git status with porcelain format
+	output, err := s.executeCommand("cd ~/projects/sample && git status --porcelain")
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &GitStatusResponse{
+		Type:     "git_status",
+		Unstaged: []GitFileChange{},
+		Staged:   []GitFileChange{},
+	}
+
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		// Porcelain format: XY filename
+		// X = staged status, Y = unstaged status
+		if len(line) < 3 {
+			continue
+		}
+
+		stagedStatus := line[0]
+		unstagedStatus := line[1]
+		filename := strings.TrimSpace(line[3:])
+
+		// Get diff for unstaged changes
+		if unstagedStatus != ' ' && unstagedStatus != '?' {
+			diff, added, removed := s.getFileDiff(filename, false)
+			resp.Unstaged = append(resp.Unstaged, GitFileChange{
+				Path:    filename,
+				Diff:    diff,
+				Added:   added,
+				Removed: removed,
+			})
+		}
+
+		// Get diff for staged changes
+		if stagedStatus != ' ' && stagedStatus != '?' {
+			diff, added, removed := s.getFileDiff(filename, true)
+			resp.Staged = append(resp.Staged, GitFileChange{
+				Path:    filename,
+				Diff:    diff,
+				Added:   added,
+				Removed: removed,
+			})
+		}
+
+		// Handle untracked files
+		if stagedStatus == '?' && unstagedStatus == '?' {
+			// Show as unstaged with no diff
+			resp.Unstaged = append(resp.Unstaged, GitFileChange{
+				Path:    filename,
+				Diff:    "Untracked file",
+				Added:   0,
+				Removed: 0,
+			})
+		}
+	}
+
+	return resp, nil
+}
+
+// Get diff for a specific file
+func (s *Session) getFileDiff(filename string, staged bool) (string, int, int) {
+	var cmd string
+	if staged {
+		// Diff for staged changes
+		cmd = fmt.Sprintf("cd ~/projects/sample && git diff --cached '%s'", filename)
+	} else {
+		// Diff for unstaged changes
+		cmd = fmt.Sprintf("cd ~/projects/sample && git diff '%s'", filename)
+	}
+
+	output, err := s.executeCommand(cmd)
+	if err != nil {
+		return "", 0, 0
+	}
+
+	// Count additions and removals
+	added := 0
+	removed := 0
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "+++") {
+			added++
+		} else if strings.HasPrefix(line, "-") && !strings.HasPrefix(line, "---") {
+			removed++
+		}
+	}
+
+	return output, added, removed
+}
+
+// Stage a file
+func (s *Session) stageFile(filename string) error {
+	cmd := fmt.Sprintf("cd ~/projects/sample && git add '%s'", filename)
+	_, err := s.executeCommand(cmd)
+	return err
+}
+
+// Unstage a file
+func (s *Session) unstageFile(filename string) error {
+	cmd := fmt.Sprintf("cd ~/projects/sample && git reset HEAD '%s'", filename)
+	_, err := s.executeCommand(cmd)
+	return err
+}
+
+// Discard changes to a file
+func (s *Session) discardFile(filename string) error {
+	cmd := fmt.Sprintf("cd ~/projects/sample && git checkout -- '%s'", filename)
+	_, err := s.executeCommand(cmd)
+	return err
+}
+
 func handleConnection(conn *websocket.Conn, session *Session) {
 	session.SetWebSocket(conn)
 
@@ -505,6 +648,69 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 					Content: content,
 				}
 				if err != nil {
+					resp.Error = err.Error()
+				}
+				respBytes, _ := json.Marshal(resp)
+				conn.WriteMessage(websocket.TextMessage, respBytes)
+
+			case "git_status":
+				log.Printf("Session %s getting git status", session.ID)
+				resp, err := session.getGitStatus()
+				if err != nil {
+					errResp := GitActionResponse{
+						Type:  "git_error",
+						Error: err.Error(),
+					}
+					respBytes, _ := json.Marshal(errResp)
+					conn.WriteMessage(websocket.TextMessage, respBytes)
+				} else {
+					respBytes, _ := json.Marshal(resp)
+					conn.WriteMessage(websocket.TextMessage, respBytes)
+				}
+
+			case "git_stage":
+				var req GitActionRequest
+				json.Unmarshal(p, &req)
+				log.Printf("Session %s staging file: %s", session.ID, req.File)
+
+				err := session.stageFile(req.File)
+				resp := GitActionResponse{
+					Type: "git_stage_success",
+				}
+				if err != nil {
+					resp.Type = "git_error"
+					resp.Error = err.Error()
+				}
+				respBytes, _ := json.Marshal(resp)
+				conn.WriteMessage(websocket.TextMessage, respBytes)
+
+			case "git_unstage":
+				var req GitActionRequest
+				json.Unmarshal(p, &req)
+				log.Printf("Session %s unstaging file: %s", session.ID, req.File)
+
+				err := session.unstageFile(req.File)
+				resp := GitActionResponse{
+					Type: "git_unstage_success",
+				}
+				if err != nil {
+					resp.Type = "git_error"
+					resp.Error = err.Error()
+				}
+				respBytes, _ := json.Marshal(resp)
+				conn.WriteMessage(websocket.TextMessage, respBytes)
+
+			case "git_discard":
+				var req GitActionRequest
+				json.Unmarshal(p, &req)
+				log.Printf("Session %s discarding file: %s", session.ID, req.File)
+
+				err := session.discardFile(req.File)
+				resp := GitActionResponse{
+					Type: "git_discard_success",
+				}
+				if err != nil {
+					resp.Type = "git_error"
 					resp.Error = err.Error()
 				}
 				respBytes, _ := json.Marshal(resp)

@@ -85,7 +85,7 @@
             top: 32px;
             left: 0;
             right: 0;
-            bottom: 94px;
+            bottom: 50px;
             overflow: hidden;
         }
 
@@ -161,11 +161,15 @@
             right: 0;
             height: 44px;
             background: #2a2a2a;
-            display: flex;
+            display: none;
             gap: 4px;
             padding: 4px 8px;
             border-top: 1px solid #444;
             z-index: 999;
+        }
+
+        #keyboard-toolbar.visible {
+            display: flex;
         }
 
         .key-btn {
@@ -292,6 +296,249 @@
         .code-content code {
             background: transparent !important;
         }
+
+        /* Git View Container */
+        .git-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Git Section (Accordion) */
+        .git-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-bottom: 1px solid #333;
+        }
+
+        .git-section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .git-section-header:active {
+            background: #222;
+        }
+
+        .git-section-header.collapsed {
+            border-bottom: 1px solid #333;
+        }
+
+        .git-section-icon {
+            font-size: 12px;
+            color: #888;
+            transition: transform 0.2s;
+        }
+
+        .git-section-header.collapsed .git-section-icon {
+            transform: rotate(-90deg);
+        }
+
+        .git-section-title {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .git-section-count {
+            font-size: 12px;
+            color: #888;
+            background: #333;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .git-section-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+
+        .git-section-content.collapsed {
+            display: none;
+        }
+
+        /* File Change Item */
+        .git-file-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #222;
+        }
+
+        .git-file-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .git-file-name {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 500;
+            color: #fff;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        .git-file-stats {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .git-file-stats .added {
+            color: #4caf50;
+        }
+
+        .git-file-stats .removed {
+            color: #f44336;
+        }
+
+        /* Diff Display */
+        .git-diff {
+            background: #0d0d0d;
+            border: 1px solid #333;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 11px;
+            overflow-x: auto;
+        }
+
+        .git-diff-line {
+            padding: 2px 8px;
+            white-space: pre;
+            line-height: 1.4;
+        }
+
+        .git-diff-line.hunk {
+            background: #1a2332;
+            color: #6699cc;
+        }
+
+        .git-diff-line.added {
+            background: #0d3d1f;
+            color: #4caf50;
+        }
+
+        .git-diff-line.removed {
+            background: #3d0d0d;
+            color: #f44336;
+        }
+
+        .git-diff-line.context {
+            color: #ccc;
+        }
+
+        /* Action Buttons */
+        .git-file-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .git-action-btn {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .git-action-btn.stage {
+            background: #2e7d32;
+            color: #fff;
+        }
+
+        .git-action-btn.stage:active {
+            background: #1b5e20;
+        }
+
+        .git-action-btn.unstage {
+            background: #555;
+            color: #fff;
+        }
+
+        .git-action-btn.unstage:active {
+            background: #444;
+        }
+
+        .git-action-btn.discard {
+            background: #c62828;
+            color: #fff;
+        }
+
+        .git-action-btn.discard:active {
+            background: #b71c1c;
+        }
+
+        .git-action-btn.discard.confirm {
+            background: #d32f2f;
+            animation: pulse 0.5s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Commit Bar */
+        .git-commit-bar {
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+        }
+
+        .git-commit-btn {
+            width: 100%;
+            padding: 12px 24px;
+            background: #1976d2;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .git-commit-btn:active {
+            background: #1565c0;
+        }
+
+        .git-commit-btn:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        /* Loading State */
+        .git-loading {
+            padding: 24px 16px;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+        }
+
+        /* Empty State */
+        .git-empty {
+            padding: 24px 16px;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -328,15 +575,36 @@
         </div>
     </div>
 
-    <!-- Git View (Placeholder) -->
+    <!-- Git View -->
     <div id="view-git" class="view">
-        <div class="placeholder-view">
-            <h2>Git View</h2>
-            <div class="placeholder-section">
-                Staged Changes
+        <div class="git-container">
+            <!-- Unstaged Changes Section -->
+            <div class="git-section">
+                <div class="git-section-header" data-section="unstaged">
+                    <span class="git-section-icon">▼</span>
+                    <span class="git-section-title">Unstaged Changes</span>
+                    <span class="git-section-count" id="unstaged-count">0</span>
+                </div>
+                <div class="git-section-content" id="unstaged-content">
+                    <div class="git-loading">Loading changes...</div>
+                </div>
             </div>
-            <div class="placeholder-section">
-                Commit Message
+
+            <!-- Staged Changes Section -->
+            <div class="git-section">
+                <div class="git-section-header collapsed" data-section="staged">
+                    <span class="git-section-icon">▶</span>
+                    <span class="git-section-title">Staged Changes</span>
+                    <span class="git-section-count" id="staged-count">0</span>
+                </div>
+                <div class="git-section-content collapsed" id="staged-content">
+                    <div class="git-loading">Loading changes...</div>
+                </div>
+            </div>
+
+            <!-- Commit Button (Fixed at bottom) -->
+            <div class="git-commit-bar">
+                <button class="git-commit-btn" id="commit-btn" disabled>Commit</button>
             </div>
         </div>
     </div>
@@ -602,7 +870,11 @@
                 const keyboardToolbar = document.getElementById('keyboard-toolbar');
                 const offset = window.innerHeight - viewport.height;
                 navBar.style.bottom = `${offset}px`;
-                keyboardToolbar.style.bottom = `${50 + offset}px`;
+
+                // Only move keyboard toolbar if it's visible (LLM view active)
+                if (keyboardToolbar.classList.contains('visible')) {
+                    keyboardToolbar.style.bottom = `${50 + offset}px`;
+                }
 
                 // Re-fit terminal to new dimensions
                 fitAddon.fit();
@@ -639,6 +911,212 @@
                 }
             });
         });
+
+        // Initialize keyboard toolbar visibility (LLM view is default)
+        document.getElementById('keyboard-toolbar').classList.add('visible');
+
+        // Git View State
+        let gitViewInitialized = false;
+        let unstagedChanges = [];
+        let stagedChanges = [];
+        let discardConfirmState = {}; // Track which files are waiting for double-tap confirm
+
+        // Initialize Git view when switching to it
+        function initGitView() {
+            if (gitViewInitialized) return;
+            gitViewInitialized = true;
+
+            // Set up accordion toggle
+            document.querySelectorAll('.git-section-header').forEach(header => {
+                header.addEventListener('click', () => toggleGitSection(header));
+            });
+
+            // Load git status
+            loadGitStatus();
+        }
+
+        // Toggle accordion section
+        function toggleGitSection(header) {
+            const section = header.dataset.section;
+            const content = document.getElementById(`${section}-content`);
+            const isCollapsed = header.classList.contains('collapsed');
+
+            if (isCollapsed) {
+                header.classList.remove('collapsed');
+                content.classList.remove('collapsed');
+            } else {
+                header.classList.add('collapsed');
+                content.classList.add('collapsed');
+            }
+        }
+
+        // Load git status from bridge
+        function loadGitStatus() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+            // Send git status command via WebSocket
+            ws.send(JSON.stringify({ type: 'git_status' }));
+        }
+
+        // Parse git diff output
+        function parseDiff(diffText) {
+            const lines = diffText.split('\n');
+            const result = [];
+
+            for (const line of lines) {
+                if (line.startsWith('@@')) {
+                    result.push({ type: 'hunk', content: line });
+                } else if (line.startsWith('+') && !line.startsWith('+++')) {
+                    result.push({ type: 'added', content: line });
+                } else if (line.startsWith('-') && !line.startsWith('---')) {
+                    result.push({ type: 'removed', content: line });
+                } else if (!line.startsWith('diff') && !line.startsWith('index')) {
+                    result.push({ type: 'context', content: line });
+                }
+            }
+
+            return result;
+        }
+
+        // HTML escape utility
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Render file change item
+        function renderFileChange(file, staged = false) {
+            const diffLines = parseDiff(file.diff);
+
+            const diffHtml = diffLines.map(line =>
+                `<div class="git-diff-line ${line.type}">${escapeHtml(line.content)}</div>`
+            ).join('');
+
+            const actionsHtml = staged ?
+                `<div class="git-file-actions">
+                    <button class="git-action-btn unstage" data-file="${escapeHtml(file.path)}">Unstage</button>
+                </div>` :
+                `<div class="git-file-actions">
+                    <button class="git-action-btn stage" data-file="${escapeHtml(file.path)}">Stage</button>
+                    <button class="git-action-btn discard" data-file="${escapeHtml(file.path)}">Discard</button>
+                </div>`;
+
+            return `
+                <div class="git-file-item">
+                    <div class="git-file-header">
+                        <span class="git-file-name">${escapeHtml(file.path)}</span>
+                        <span class="git-file-stats">
+                            <span class="added">+${file.added || 0}</span>
+                            <span class="removed">-${file.removed || 0}</span>
+                        </span>
+                    </div>
+                    <div class="git-diff">${diffHtml}</div>
+                    ${actionsHtml}
+                </div>
+            `;
+        }
+
+        // Update unstaged changes display
+        function updateUnstagedChanges(files) {
+            unstagedChanges = files;
+            const container = document.getElementById('unstaged-content');
+            const count = document.getElementById('unstaged-count');
+
+            count.textContent = files.length;
+
+            if (files.length === 0) {
+                container.innerHTML = '<div class="git-empty">No unstaged changes</div>';
+                return;
+            }
+
+            container.innerHTML = files.map(f => renderFileChange(f, false)).join('');
+
+            // Attach event listeners
+            container.querySelectorAll('.git-action-btn.stage').forEach(btn => {
+                btn.addEventListener('click', () => stageFile(btn.dataset.file));
+            });
+
+            container.querySelectorAll('.git-action-btn.discard').forEach(btn => {
+                btn.addEventListener('click', () => discardFile(btn, btn.dataset.file));
+            });
+        }
+
+        // Update staged changes display
+        function updateStagedChanges(files) {
+            stagedChanges = files;
+            const container = document.getElementById('staged-content');
+            const count = document.getElementById('staged-count');
+            const commitBtn = document.getElementById('commit-btn');
+
+            count.textContent = files.length;
+            commitBtn.disabled = files.length === 0;
+
+            if (files.length === 0) {
+                container.innerHTML = '<div class="git-empty">No staged changes</div>';
+                return;
+            }
+
+            container.innerHTML = files.map(f => renderFileChange(f, true)).join('');
+
+            // Attach event listeners
+            container.querySelectorAll('.git-action-btn.unstage').forEach(btn => {
+                btn.addEventListener('click', () => unstageFile(btn.dataset.file));
+            });
+        }
+
+        // Git actions
+        function stageFile(filePath) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ type: 'git_stage', file: filePath }));
+        }
+
+        function unstageFile(filePath) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ type: 'git_unstage', file: filePath }));
+        }
+
+        function discardFile(btn, filePath) {
+            // Implement double-tap confirmation
+            const now = Date.now();
+            const lastTap = discardConfirmState[filePath] || 0;
+
+            if (now - lastTap < 2000) { // 2 second window for double tap
+                // Confirmed - discard the file
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                ws.send(JSON.stringify({ type: 'git_discard', file: filePath }));
+                delete discardConfirmState[filePath];
+                btn.classList.remove('confirm');
+            } else {
+                // First tap - show confirmation state
+                discardConfirmState[filePath] = now;
+                btn.classList.add('confirm');
+                btn.textContent = 'Tap again to confirm';
+
+                // Reset after 2 seconds
+                setTimeout(() => {
+                    if (discardConfirmState[filePath] === now) {
+                        delete discardConfirmState[filePath];
+                        btn.classList.remove('confirm');
+                        btn.textContent = 'Discard';
+                    }
+                }, 2000);
+            }
+        }
+
+        // Handle Git messages from bridge
+        function handleGitMessage(msg) {
+            if (msg.type === 'git_status') {
+                updateUnstagedChanges(msg.unstaged || []);
+                updateStagedChanges(msg.staged || []);
+            } else if (msg.type === 'git_stage_success' || msg.type === 'git_unstage_success' || msg.type === 'git_discard_success') {
+                // Reload git status after action
+                loadGitStatus();
+            } else if (msg.type === 'git_error') {
+                console.error('Git error:', msg.error);
+                // TODO: Show error to user
+            }
+        }
 
         function updateStatus(status, message) {
             statusEl.className = status;
@@ -685,6 +1163,8 @@
                                 localStorage.setItem(SESSION_KEY, msg.id);
                             } else if (msg.type === 'file_list' || msg.type === 'file_content') {
                                 handleFileMessage(msg);
+                            } else if (msg.type && msg.type.startsWith('git_')) {
+                                handleGitMessage(msg);
                             }
                         } catch (e) {
                             // Not JSON, treat as text output
@@ -745,12 +1225,20 @@
             document.getElementById(`view-${viewName}`).classList.add('active');
             document.querySelector(`[data-view="${viewName}"]`).classList.add('active');
 
-            // Re-fit terminal if switching to LLM view
+            // Toggle keyboard toolbar visibility and adjust terminal height
+            const keyboardToolbar = document.getElementById('keyboard-toolbar');
+            const terminalContainer = document.getElementById('terminal-container');
+
             if (viewName === 'llm') {
+                keyboardToolbar.classList.add('visible');
+                terminalContainer.style.bottom = '94px';
                 setTimeout(() => {
                     fitAddon.fit();
                     sendTerminalSize();
                 }, 50);
+            } else {
+                keyboardToolbar.classList.remove('visible');
+                terminalContainer.style.bottom = '50px';
             }
 
             // Load files when switching to Code view
@@ -759,6 +1247,11 @@
                     codeViewInitialized = true;
                     listFiles(PROJECT_ROOT);
                 }
+            }
+
+            // Initialize Git view when switching to it
+            if (viewName === 'git') {
+                initGitView();
             }
         }
 

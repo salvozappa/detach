@@ -52,6 +52,15 @@ WORKDIR /home/detach-dev
 RUN curl -fsSL https://claude.ai/install.sh | bash
 RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/detach-dev/.bashrc
 
+# Initialize git repository in sample project
+WORKDIR /home/detach-dev/projects/sample
+RUN git init && \
+    git config user.email "dev@detach.it" && \
+    git config user.name "Detach Dev" && \
+    echo "# Sample Project" > README.md && \
+    git add README.md && \
+    git commit -m "Initial commit"
+
 # Switch back to root for remaining setup
 USER root
 
