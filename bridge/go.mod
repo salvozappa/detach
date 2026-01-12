@@ -1,4 +1,4 @@
-module detach.it/websocket-to-ssh
+module detach.it/bridge
 
 go 1.25.5
 
