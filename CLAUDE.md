@@ -74,7 +74,6 @@ Users connect via browser to interact with a remote sandbox environment.
 ### Phase 2
 - **Untracked files**: Render as clean syntax-highlighted code (no `+` prefix, no green background)
 - **Tracked files**: Keep diff indicators (`+`/`-` prefix, red/green backgrounds)
-- Fixed double prefix bug on empty lines
 
 ### Key Implementation Details
 - `GitFileChange.IsUntracked` field distinguishes untracked from tracked files
