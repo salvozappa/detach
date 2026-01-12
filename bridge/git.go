@@ -60,27 +60,28 @@ func (s *Session) getGitStatus() (*GitStatusResponse, error) {
 
 		// Handle untracked files
 		if stagedStatus == '?' && unstagedStatus == '?' {
-			// Read full file content and show as added lines
+			// Read full file content
 			content, err := s.readFile(fmt.Sprintf("%s/%s", workingDir, filename))
 			if err != nil {
 				content = "Error reading file"
 			}
 
-			// Format as added lines (like a new file in git diff)
+			// Store raw content without prefixes for untracked files
 			lines := strings.Split(content, "\n")
 			addedCount := len(lines)
 
-			// Build diff showing entire file as added
+			// Store raw file content (no diff prefixes)
 			var diffBuilder strings.Builder
 			for _, line := range lines {
-				diffBuilder.WriteString("+" + line + "\n")
+				diffBuilder.WriteString(line + "\n")
 			}
 
 			resp.Unstaged = append(resp.Unstaged, GitFileChange{
-				Path:    filename,
-				Diff:    diffBuilder.String(),
-				Added:   addedCount,
-				Removed: 0,
+				Path:        filename,
+				Diff:        diffBuilder.String(),
+				Added:       addedCount,
+				Removed:     0,
+				IsUntracked: true,
 			})
 		}
 	}

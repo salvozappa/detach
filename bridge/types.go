@@ -41,10 +41,11 @@ type FileContentResponse struct {
 
 // Git operation messages
 type GitFileChange struct {
-	Path    string `json:"path"`
-	Diff    string `json:"diff"`
-	Added   int    `json:"added"`
-	Removed int    `json:"removed"`
+	Path        string `json:"path"`
+	Diff        string `json:"diff"`
+	Added       int    `json:"added"`
+	Removed     int    `json:"removed"`
+	IsUntracked bool   `json:"isUntracked"`
 }
 
 type GitStatusResponse struct {

@@ -13,13 +13,13 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy source code
-COPY server.go ./
+COPY *.go ./
 
 # Build the application
 # CGO_ENABLED=0 for static binary
 # -a forces rebuilding of packages
 # -installsuffix cgo for static linking
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o bridge server.go
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o bridge .
 
 # Final stage - minimal runtime image
 FROM alpine:latest

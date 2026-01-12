@@ -486,13 +486,21 @@ function renderFileChange(file, staged = false) {
     const diffHtml = highlightedLines.map(line => {
         let content = line.highlightedContent;
 
-        // Add prefix for added/removed lines
-        if (line.type === 'added' || line.type === 'removed') {
-            const prefix = line.type === 'added' ? '+' : '-';
-            content = `<span class="diff-prefix">${prefix}</span>${content}`;
+        // Determine line class and whether to add prefix
+        let lineClass;
+        if (file.isUntracked) {
+            // Untracked files: no prefix, use 'untracked' class
+            lineClass = 'untracked';
+        } else {
+            // Tracked files: add prefix for added/removed lines
+            if (line.type === 'added' || line.type === 'removed') {
+                const prefix = line.type === 'added' ? '+' : '-';
+                content = `<span class="diff-prefix">${prefix}</span>${content}`;
+            }
+            lineClass = line.type;
         }
 
-        return `<div class="git-diff-line ${line.type}">${content}</div>`;
+        return `<div class="git-diff-line ${lineClass}">${content}</div>`;
     }).join('');
 
     const actionsHtml = staged ?
