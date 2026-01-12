@@ -46,12 +46,14 @@ RUN mkdir -p /home/detach-dev/projects/sample && \
     chown -R detach-dev:detach-dev /home/detach-dev && \
     chmod -R 755 /home/detach-dev/projects
 
-# Install Claude CLI
+# Install Claude CLI as detach-dev user
+USER detach-dev
+WORKDIR /home/detach-dev
 RUN curl -fsSL https://claude.ai/install.sh | bash
+RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/detach-dev/.bashrc
 
-# Add Claude to PATH for detach-dev user
-RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/detach-dev/.bashrc && \
-    chown detach-dev:detach-dev /home/detach-dev/.bashrc
+# Switch back to root for remaining setup
+USER root
 
 # Expose SSH port
 EXPOSE 22
