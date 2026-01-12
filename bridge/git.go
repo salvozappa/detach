@@ -47,8 +47,48 @@ func (s *Session) getGitStatus() (*GitStatusResponse, error) {
 			})
 		}
 
-		// Get diff for staged changes
-		if stagedStatus != ' ' && stagedStatus != '?' {
+		// Handle newly added files in staged section (were untracked before staging)
+		if stagedStatus == 'A' {
+			// Read full file content (same approach as untracked files)
+			content, err := s.readFile(fmt.Sprintf("%s/%s", workingDir, filename))
+			if err != nil {
+				content = "Error reading file"
+			}
+
+			// Store raw content without prefixes for staged additions
+			lines := strings.Split(content, "\n")
+			addedCount := len(lines)
+
+			// Store raw file content (no diff prefixes)
+			var diffBuilder strings.Builder
+			for _, line := range lines {
+				diffBuilder.WriteString(line + "\n")
+			}
+
+			resp.Staged = append(resp.Staged, GitFileChange{
+				Path:        filename,
+				Diff:        diffBuilder.String(),
+				Added:       addedCount,
+				Removed:     0,
+				IsUntracked: true, // Preserve untracked flag for staged additions
+			})
+
+			// If there are also unstaged modifications, handle them separately
+			if unstagedStatus == 'M' || unstagedStatus == 'D' {
+				diff, added, removed := s.getFileDiff(filename, false)
+				resp.Unstaged = append(resp.Unstaged, GitFileChange{
+					Path:    filename,
+					Diff:    diff,
+					Added:   added,
+					Removed: removed,
+				})
+			}
+
+			continue // Skip normal diff processing for this file
+		}
+
+		// Get diff for staged changes (other than additions)
+		if stagedStatus != ' ' && stagedStatus != '?' && stagedStatus != 'A' {
 			diff, added, removed := s.getFileDiff(filename, true)
 			resp.Staged = append(resp.Staged, GitFileChange{
 				Path:    filename,
