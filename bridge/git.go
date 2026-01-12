@@ -180,3 +180,13 @@ func (s *Session) discardFile(filename string) error {
 	_, err := s.executeCommand(cmd)
 	return err
 }
+
+// Commit staged changes
+func (s *Session) commitChanges(message string) error {
+	// Escape single quotes in commit message
+	escapedMessage := strings.ReplaceAll(message, "'", "'\\''")
+
+	cmd := fmt.Sprintf("cd %s && git commit -m '%s'", workingDir, escapedMessage)
+	_, err := s.executeCommand(cmd)
+	return err
+}

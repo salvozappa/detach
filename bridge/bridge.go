@@ -143,6 +143,30 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 				respBytes, _ := json.Marshal(resp)
 				conn.WriteMessage(websocket.TextMessage, respBytes)
 
+			case "git_commit":
+				var req GitCommitRequest
+				if err := json.Unmarshal(p, &req); err != nil {
+					log.Printf("Error parsing git_commit request: %v", err)
+					continue
+				}
+
+				log.Printf("Session %s committing with message: %s", session.ID, req.Message)
+
+				err := session.commitChanges(req.Message)
+
+				resp := GitActionResponse{
+					Type: "git_commit_success",
+				}
+
+				if err != nil {
+					log.Printf("Commit error: %v", err)
+					resp.Type = "git_error"
+					resp.Error = err.Error()
+				}
+
+				respBytes, _ := json.Marshal(resp)
+				conn.WriteMessage(websocket.TextMessage, respBytes)
+
 			default:
 				// Unknown JSON message, might be terminal input
 				if _, err := session.Stdin.Write(p); err != nil {

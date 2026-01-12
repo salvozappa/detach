@@ -59,6 +59,11 @@ type GitActionRequest struct {
 	File string `json:"file"`
 }
 
+type GitCommitRequest struct {
+	Type    string `json:"type"`    // "git_commit"
+	Message string `json:"message"`
+}
+
 type GitActionResponse struct {
 	Type  string `json:"type"` // "git_stage_success", etc or "git_error"
 	Error string `json:"error,omitempty"`

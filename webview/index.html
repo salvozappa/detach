@@ -50,35 +50,52 @@
 
     <!-- Git View -->
     <div id="view-git" class="view">
-        <div class="git-container">
-            <!-- Unstaged Changes Section -->
-            <div class="git-section">
-                <div class="git-section-header collapsed" data-section="unstaged">
-                    <span class="git-section-icon">▶</span>
-                    <span class="git-section-title">Unstaged Changes</span>
-                    <span class="git-section-count" id="unstaged-count">0</span>
+        <!-- Git Main Panel -->
+        <div id="git-main-panel" class="code-panel active">
+            <div class="git-container">
+                <!-- Unstaged Changes Section -->
+                <div class="git-section">
+                    <div class="git-section-header collapsed" data-section="unstaged">
+                        <span class="git-section-icon">▶</span>
+                        <span class="git-section-title">Unstaged Changes</span>
+                        <span class="git-section-count" id="unstaged-count">0</span>
+                    </div>
+                    <div class="git-section-content collapsed" id="unstaged-content">
+                        <div class="git-loading">Loading changes...</div>
+                    </div>
                 </div>
-                <div class="git-section-content collapsed" id="unstaged-content">
-                    <div class="git-loading">Loading changes...</div>
-                </div>
-            </div>
 
-            <!-- Staged Changes Section -->
-            <div class="git-section">
-                <div class="git-section-header collapsed" data-section="staged">
-                    <span class="git-section-icon">▶</span>
-                    <span class="git-section-title">Staged Changes</span>
-                    <span class="git-section-count" id="staged-count">0</span>
+                <!-- Staged Changes Section -->
+                <div class="git-section">
+                    <div class="git-section-header collapsed" data-section="staged">
+                        <span class="git-section-icon">▶</span>
+                        <span class="git-section-title">Staged Changes</span>
+                        <span class="git-section-count" id="staged-count">0</span>
+                    </div>
+                    <div class="git-section-content collapsed" id="staged-content">
+                        <div class="git-loading">Loading changes...</div>
+                    </div>
                 </div>
-                <div class="git-section-content collapsed" id="staged-content">
-                    <div class="git-loading">Loading changes...</div>
-                </div>
-            </div>
 
-            <!-- Commit Button (Fixed at bottom) -->
-            <div class="git-commit-bar">
-                <button class="git-commit-btn" id="commit-btn" disabled>Commit</button>
+                <!-- Commit Button (Fixed at bottom) -->
+                <div class="git-commit-bar">
+                    <button class="git-commit-btn" id="commit-btn" disabled>Commit</button>
+                </div>
             </div>
+        </div>
+
+        <!-- Commit Message Panel (hidden by default) -->
+        <div id="commit-panel" class="code-panel">
+        <div class="code-header">
+            <button class="code-back-btn" onclick="hideCommitPanel()">Back</button>
+            <span class="code-header-title">Commit Changes</span>
+        </div>
+        <div class="commit-body">
+            <textarea id="commit-message"
+                      class="commit-textarea"
+                      placeholder="Enter commit message..."></textarea>
+            <button class="commit-cta-btn" onclick="performCommit()">Commit</button>
+        </div>
         </div>
     </div>
 

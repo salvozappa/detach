@@ -114,6 +114,43 @@ function showFileExplorer() {
     document.getElementById('file-explorer-panel').classList.add('active');
 }
 
+function showCommitPanel() {
+    // Clear previous message
+    document.getElementById('commit-message').value = '';
+
+    // Switch panels
+    document.getElementById('git-main-panel').classList.remove('active');
+    document.getElementById('commit-panel').classList.add('active');
+
+    // Focus textarea
+    document.getElementById('commit-message').focus();
+}
+
+function hideCommitPanel() {
+    document.getElementById('commit-panel').classList.remove('active');
+    document.getElementById('git-main-panel').classList.add('active');
+}
+
+function performCommit() {
+    const message = document.getElementById('commit-message').value.trim();
+
+    if (!message) {
+        alert('Please enter a commit message');
+        return;
+    }
+
+    // Send commit request via WebSocket
+    ws.send(JSON.stringify({
+        type: 'git_commit',
+        message: message
+    }));
+
+    // Disable button to prevent double-submit
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = 'Committing...';
+}
+
 function handleFileMessage(msg) {
     if (msg.type === 'file_list') {
         if (msg.error) {
@@ -561,6 +598,7 @@ function updateStagedChanges(files) {
 
     count.textContent = files.length;
     commitBtn.disabled = files.length === 0;
+    commitBtn.onclick = showCommitPanel;
 
     if (files.length === 0) {
         container.innerHTML = '<div class="git-empty">No staged changes</div>';
@@ -622,9 +660,25 @@ function handleGitMessage(msg) {
     } else if (msg.type === 'git_stage_success' || msg.type === 'git_unstage_success' || msg.type === 'git_discard_success') {
         // Reload git status after action
         loadGitStatus();
+    } else if (msg.type === 'git_commit_success') {
+        // Re-enable button
+        const btn = document.querySelector('.commit-cta-btn');
+        btn.disabled = false;
+        btn.textContent = 'Commit';
+
+        // Close panel and refresh
+        hideCommitPanel();
+        loadGitStatus();
     } else if (msg.type === 'git_error') {
         console.error('Git error:', msg.error);
-        // TODO: Show error to user
+        alert('Error: ' + msg.error);
+
+        // Re-enable button if it was a commit error
+        const btn = document.querySelector('.commit-cta-btn');
+        if (btn && btn.disabled) {
+            btn.disabled = false;
+            btn.textContent = 'Commit';
+        }
     }
 }
 
@@ -719,6 +773,12 @@ term.onData((data) => {
 
 // View switching
 function switchView(viewName) {
+    // Close commit panel if open
+    const commitPanel = document.getElementById('commit-panel');
+    if (commitPanel && commitPanel.classList.contains('active')) {
+        hideCommitPanel();
+    }
+
     // Hide all views
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));

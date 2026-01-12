@@ -52,6 +52,9 @@ docker-compose up -d
 docker logs detach-bridge
 docker logs detach-webview
 docker logs detach-sandbox
+
+# SSH into sandbox for debugging
+ssh -i keys/dev -p 2222 detach-dev@localhost
 ```
 
 ## Architecture
