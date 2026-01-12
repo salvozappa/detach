@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -8,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -128,6 +131,32 @@ type ResizeMessage struct {
 type SessionMessage struct {
 	Type string `json:"type"`
 	ID   string `json:"id"`
+}
+
+// File operation messages
+type FileRequest struct {
+	Type string `json:"type"` // "list_files" or "read_file"
+	Path string `json:"path"`
+}
+
+type FileInfo struct {
+	Name  string `json:"name"`
+	IsDir bool   `json:"is_dir"`
+	Size  int64  `json:"size"`
+}
+
+type FileListResponse struct {
+	Type  string     `json:"type"` // "file_list"
+	Path  string     `json:"path"`
+	Files []FileInfo `json:"files"`
+	Error string     `json:"error,omitempty"`
+}
+
+type FileContentResponse struct {
+	Type    string `json:"type"` // "file_content"
+	Path    string `json:"path"`
+	Content string `json:"content"`
+	Error   string `json:"error,omitempty"`
 }
 
 func main() {
@@ -325,6 +354,71 @@ func handleReconnect(conn *websocket.Conn, session *Session) {
 	handleConnection(conn, session)
 }
 
+// Execute a command via SSH and return output
+func (s *Session) executeCommand(cmd string) (string, error) {
+	sess, err := s.SSHConn.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer sess.Close()
+
+	var stdout, stderr bytes.Buffer
+	sess.Stdout = &stdout
+	sess.Stderr = &stderr
+
+	if err := sess.Run(cmd); err != nil {
+		return "", err
+	}
+
+	return stdout.String(), nil
+}
+
+// List files in a directory
+func (s *Session) listFiles(path string) ([]FileInfo, error) {
+	// Use ls -la with specific format for parsing
+	output, err := s.executeCommand("ls -la " + path)
+	if err != nil {
+		return nil, err
+	}
+
+	var files []FileInfo
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "total") {
+			continue
+		}
+
+		// Parse ls -la output: drwxr-xr-x 2 user group 4096 Jan 1 12:00 filename
+		fields := strings.Fields(line)
+		if len(fields) < 9 {
+			continue
+		}
+
+		name := strings.Join(fields[8:], " ")
+		if name == "." || name == ".." {
+			continue
+		}
+
+		isDir := strings.HasPrefix(fields[0], "d")
+		size, _ := strconv.ParseInt(fields[4], 10, 64)
+
+		files = append(files, FileInfo{
+			Name:  name,
+			IsDir: isDir,
+			Size:  size,
+		})
+	}
+
+	return files, nil
+}
+
+// Read file content
+func (s *Session) readFile(path string) (string, error) {
+	return s.executeCommand("cat " + path)
+}
+
 func handleConnection(conn *websocket.Conn, session *Session) {
 	session.SetWebSocket(conn)
 
@@ -349,16 +443,64 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 			return
 		}
 
-		// Check if this is a resize message
-		var resizeMsg ResizeMessage
-		if err := json.Unmarshal(p, &resizeMsg); err == nil && resizeMsg.Type == "resize" {
-			if err := session.SSHSess.WindowChange(resizeMsg.Rows, resizeMsg.Cols); err != nil {
-				log.Printf("Session %s failed to resize: %v", session.ID, err)
-			} else {
-				log.Printf("Session %s resized to %dx%d", session.ID, resizeMsg.Rows, resizeMsg.Cols)
+		// Try to parse as JSON message
+		var msg map[string]interface{}
+		if err := json.Unmarshal(p, &msg); err == nil {
+			msgType, _ := msg["type"].(string)
+
+			switch msgType {
+			case "resize":
+				var resizeMsg ResizeMessage
+				json.Unmarshal(p, &resizeMsg)
+				if err := session.SSHSess.WindowChange(resizeMsg.Rows, resizeMsg.Cols); err != nil {
+					log.Printf("Session %s failed to resize: %v", session.ID, err)
+				} else {
+					log.Printf("Session %s resized to %dx%d", session.ID, resizeMsg.Rows, resizeMsg.Cols)
+				}
+
+			case "list_files":
+				var req FileRequest
+				json.Unmarshal(p, &req)
+				log.Printf("Session %s listing files: %s", session.ID, req.Path)
+
+				files, err := session.listFiles(req.Path)
+				resp := FileListResponse{
+					Type:  "file_list",
+					Path:  req.Path,
+					Files: files,
+				}
+				if err != nil {
+					resp.Error = err.Error()
+				}
+				respBytes, _ := json.Marshal(resp)
+				conn.WriteMessage(websocket.TextMessage, respBytes)
+
+			case "read_file":
+				var req FileRequest
+				json.Unmarshal(p, &req)
+				log.Printf("Session %s reading file: %s", session.ID, req.Path)
+
+				content, err := session.readFile(req.Path)
+				resp := FileContentResponse{
+					Type:    "file_content",
+					Path:    req.Path,
+					Content: content,
+				}
+				if err != nil {
+					resp.Error = err.Error()
+				}
+				respBytes, _ := json.Marshal(resp)
+				conn.WriteMessage(websocket.TextMessage, respBytes)
+
+			default:
+				// Unknown JSON message, might be terminal input
+				if _, err := session.Stdin.Write(p); err != nil {
+					log.Printf("Session %s stdin write error: %v", session.ID, err)
+					return
+				}
 			}
 		} else {
-			// Regular terminal input
+			// Not JSON, treat as terminal input
 			if _, err := session.Stdin.Write(p); err != nil {
 				log.Printf("Session %s stdin write error: %v", session.ID, err)
 				return

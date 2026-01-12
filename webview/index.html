@@ -8,6 +8,9 @@
     <!-- xterm.js CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 
+    <!-- Highlight.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
+
     <style>
         * {
             margin: 0;
@@ -149,6 +152,113 @@
             color: #fff;
             background: #333;
         }
+
+        /* Code View Panels */
+        .code-panel {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+        }
+
+        .code-panel.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Code View Header */
+        .code-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+            gap: 12px;
+        }
+
+        .code-header-title {
+            flex: 1;
+            font-size: 14px;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .code-back-btn {
+            background: #333;
+            border: none;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* File Explorer */
+        #file-explorer-panel {
+            background: #0d0d0d;
+        }
+
+        .file-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #222;
+            cursor: pointer;
+            gap: 12px;
+        }
+
+        .file-item:active {
+            background: #222;
+        }
+
+        .file-icon {
+            font-size: 18px;
+        }
+
+        .file-name {
+            flex: 1;
+            font-size: 14px;
+            color: #fff;
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* Code Viewer */
+        #code-viewer-panel {
+            background: #0d1117;
+        }
+
+        .code-content {
+            flex: 1;
+            overflow: auto;
+            padding: 0;
+        }
+
+        .code-content pre {
+            margin: 0;
+            padding: 16px;
+            font-size: 13px;
+            line-height: 1.5;
+            background: transparent !important;
+        }
+
+        .code-content code {
+            background: transparent !important;
+        }
     </style>
 </head>
 <body>
@@ -161,15 +271,26 @@
         </div>
     </div>
 
-    <!-- Code View (Placeholder) -->
+    <!-- Code View -->
     <div id="view-code" class="view">
-        <div class="placeholder-view">
-            <h2>Code View</h2>
-            <div class="placeholder-section">
-                File Explorer
+        <!-- File Explorer Panel -->
+        <div id="file-explorer-panel" class="code-panel active">
+            <div class="code-header">
+                <span class="code-header-title" id="current-path">~/projects/sample</span>
             </div>
-            <div class="placeholder-section">
-                Code Diff Viewer
+            <div class="file-list" id="file-list">
+                <!-- Files will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Code Viewer Panel -->
+        <div id="code-viewer-panel" class="code-panel">
+            <div class="code-header">
+                <button class="code-back-btn" onclick="showFileExplorer()">Back</button>
+                <span class="code-header-title" id="code-filename">filename.js</span>
+            </div>
+            <div class="code-content">
+                <pre><code id="code-content" class="hljs"></code></pre>
             </div>
         </div>
     </div>
@@ -198,6 +319,9 @@
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
 
+    <!-- Highlight.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
     <script>
         // Configuration - use same host as the page is served from
         const WS_HOST = window.location.hostname || 'localhost';
@@ -210,6 +334,126 @@
 
         // Session persistence
         const SESSION_KEY = 'detach_session_id';
+
+        // Code view state
+        const PROJECT_ROOT = '~/projects/sample';
+        let currentPath = PROJECT_ROOT;
+        let codeViewInitialized = false;
+
+        // Code view functions
+        function listFiles(path) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'list_files', path: path }));
+            }
+        }
+
+        function readFile(path) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'read_file', path: path }));
+            }
+        }
+
+        function renderFileList(files, path) {
+            const fileList = document.getElementById('file-list');
+            const currentPathEl = document.getElementById('current-path');
+
+            currentPath = path;
+            currentPathEl.textContent = path;
+
+            let html = '';
+
+            // Add parent directory link if not at project root
+            if (path !== PROJECT_ROOT) {
+                const parentPath = path.split('/').slice(0, -1).join('/') || PROJECT_ROOT;
+                html += `
+                    <div class="file-item" onclick="navigateToFolder('${parentPath}')">
+                        <span class="file-icon">📁</span>
+                        <span class="file-name">..</span>
+                    </div>
+                `;
+            }
+
+            // Sort: folders first, then files
+            const sorted = [...files].sort((a, b) => {
+                if (a.is_dir && !b.is_dir) return -1;
+                if (!a.is_dir && b.is_dir) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            for (const file of sorted) {
+                const icon = file.is_dir ? '📁' : '📄';
+                const size = file.is_dir ? '' : formatFileSize(file.size);
+                const fullPath = path + '/' + file.name;
+
+                if (file.is_dir) {
+                    html += `
+                        <div class="file-item" onclick="navigateToFolder('${fullPath}')">
+                            <span class="file-icon">${icon}</span>
+                            <span class="file-name">${file.name}</span>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="file-item" onclick="openFile('${fullPath}', '${file.name}')">
+                            <span class="file-icon">${icon}</span>
+                            <span class="file-name">${file.name}</span>
+                            <span class="file-size">${size}</span>
+                        </div>
+                    `;
+                }
+            }
+
+            fileList.innerHTML = html;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function navigateToFolder(path) {
+            listFiles(path);
+        }
+
+        function openFile(path, filename) {
+            document.getElementById('code-filename').textContent = filename;
+            readFile(path);
+        }
+
+        function showCodeViewer(content, filename) {
+            const codeEl = document.getElementById('code-content');
+            codeEl.textContent = content;
+
+            // Auto-detect language and highlight
+            delete codeEl.dataset.highlighted;
+            hljs.highlightElement(codeEl);
+
+            // Switch panels
+            document.getElementById('file-explorer-panel').classList.remove('active');
+            document.getElementById('code-viewer-panel').classList.add('active');
+        }
+
+        function showFileExplorer() {
+            document.getElementById('code-viewer-panel').classList.remove('active');
+            document.getElementById('file-explorer-panel').classList.add('active');
+        }
+
+        function handleFileMessage(msg) {
+            if (msg.type === 'file_list') {
+                if (msg.error) {
+                    console.error('File list error:', msg.error);
+                    return;
+                }
+                renderFileList(msg.files || [], msg.path);
+            } else if (msg.type === 'file_content') {
+                if (msg.error) {
+                    console.error('File read error:', msg.error);
+                    return;
+                }
+                showCodeViewer(msg.content, msg.path.split('/').pop());
+            }
+        }
 
         function getWebSocketURL() {
             const params = new URLSearchParams({ user: USERNAME });
@@ -364,13 +608,15 @@
                 };
 
                 ws.onmessage = (event) => {
-                    // Handle text messages (session ID) vs binary (terminal output)
+                    // Handle text messages (session ID, file ops) vs binary (terminal output)
                     if (typeof event.data === 'string') {
                         try {
                             const msg = JSON.parse(event.data);
                             if (msg.type === 'session' && msg.id) {
                                 console.log('Session ID:', msg.id);
                                 localStorage.setItem(SESSION_KEY, msg.id);
+                            } else if (msg.type === 'file_list' || msg.type === 'file_content') {
+                                handleFileMessage(msg);
                             }
                         } catch (e) {
                             // Not JSON, treat as text output
@@ -437,6 +683,14 @@
                     fitAddon.fit();
                     sendTerminalSize();
                 }, 50);
+            }
+
+            // Load files when switching to Code view
+            if (viewName === 'code') {
+                if (!codeViewInitialized && ws && ws.readyState === WebSocket.OPEN) {
+                    codeViewInitialized = true;
+                    listFiles(PROJECT_ROOT);
+                }
             }
         }
 
