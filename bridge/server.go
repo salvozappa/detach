@@ -515,11 +515,26 @@ func (s *Session) getGitStatus() (*GitStatusResponse, error) {
 
 		// Handle untracked files
 		if stagedStatus == '?' && unstagedStatus == '?' {
-			// Show as unstaged with no diff
+			// Read full file content and show as added lines
+			content, err := s.readFile(fmt.Sprintf("~/projects/sample/%s", filename))
+			if err != nil {
+				content = "Error reading file"
+			}
+
+			// Format as added lines (like a new file in git diff)
+			lines := strings.Split(content, "\n")
+			addedCount := len(lines)
+
+			// Build diff showing entire file as added
+			var diffBuilder strings.Builder
+			for _, line := range lines {
+				diffBuilder.WriteString("+" + line + "\n")
+			}
+
 			resp.Unstaged = append(resp.Unstaged, GitFileChange{
 				Path:    filename,
-				Diff:    "Untracked file",
-				Added:   0,
+				Diff:    diffBuilder.String(),
+				Added:   addedCount,
 				Removed: 0,
 			})
 		}

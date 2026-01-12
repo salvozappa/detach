@@ -307,11 +307,16 @@
 
         /* Git Section (Accordion) */
         .git-section {
-            flex: 1;
+            flex: 0 0 auto;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            max-height: 50%;
             border-bottom: 1px solid #333;
+        }
+
+        .git-section:has(.git-section-content:not(.collapsed)) {
+            flex: 1 1 auto;
+            overflow: hidden;
         }
 
         .git-section-header {
@@ -377,8 +382,17 @@
         .git-file-header {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 8px;
             margin-bottom: 8px;
+        }
+
+        .git-file-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
         }
 
         .git-file-name {
@@ -441,28 +455,29 @@
         /* Action Buttons */
         .git-file-actions {
             display: flex;
-            gap: 8px;
+            gap: 6px;
+            flex-shrink: 0;
         }
 
         .git-action-btn {
-            flex: 1;
-            padding: 8px 16px;
+            padding: 4px 12px;
             border: none;
-            border-radius: 4px;
-            font-size: 13px;
+            border-radius: 3px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
             -webkit-tap-highlight-color: transparent;
+            white-space: nowrap;
         }
 
         .git-action-btn.stage {
-            background: #2e7d32;
+            background: #555;
             color: #fff;
         }
 
         .git-action-btn.stage:active {
-            background: #1b5e20;
+            background: #666;
         }
 
         .git-action-btn.unstage {
@@ -471,20 +486,20 @@
         }
 
         .git-action-btn.unstage:active {
-            background: #444;
+            background: #666;
         }
 
         .git-action-btn.discard {
-            background: #c62828;
+            background: #c77;
             color: #fff;
         }
 
         .git-action-btn.discard:active {
-            background: #b71c1c;
+            background: #b66;
         }
 
         .git-action-btn.discard.confirm {
-            background: #d32f2f;
+            background: #d88;
             animation: pulse 0.5s;
         }
 
@@ -994,25 +1009,25 @@
             ).join('');
 
             const actionsHtml = staged ?
-                `<div class="git-file-actions">
-                    <button class="git-action-btn unstage" data-file="${escapeHtml(file.path)}">Unstage</button>
-                </div>` :
-                `<div class="git-file-actions">
-                    <button class="git-action-btn stage" data-file="${escapeHtml(file.path)}">Stage</button>
-                    <button class="git-action-btn discard" data-file="${escapeHtml(file.path)}">Discard</button>
-                </div>`;
+                `<button class="git-action-btn unstage" data-file="${escapeHtml(file.path)}">Unstage</button>` :
+                `<button class="git-action-btn stage" data-file="${escapeHtml(file.path)}">Stage</button>
+                 <button class="git-action-btn discard" data-file="${escapeHtml(file.path)}">Discard</button>`;
 
             return `
                 <div class="git-file-item">
                     <div class="git-file-header">
-                        <span class="git-file-name">${escapeHtml(file.path)}</span>
-                        <span class="git-file-stats">
-                            <span class="added">+${file.added || 0}</span>
-                            <span class="removed">-${file.removed || 0}</span>
-                        </span>
+                        <div class="git-file-info">
+                            <span class="git-file-name">${escapeHtml(file.path)}</span>
+                            <span class="git-file-stats">
+                                <span class="added">+${file.added || 0}</span>
+                                <span class="removed">-${file.removed || 0}</span>
+                            </span>
+                        </div>
+                        <div class="git-file-actions">
+                            ${actionsHtml}
+                        </div>
                     </div>
                     <div class="git-diff">${diffHtml}</div>
-                    ${actionsHtml}
                 </div>
             `;
         }
