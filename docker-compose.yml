@@ -48,6 +48,10 @@ services:
       - detach-network
     ports:
       - "8080:80"
+    volumes:
+      - ./webview/index.html:/usr/share/nginx/html/index.html:ro
+      - ./webview/app.js:/usr/share/nginx/html/app.js:ro
+      - ./webview/styles.css:/usr/share/nginx/html/styles.css:ro
     depends_on:
       - bridge
     restart: unless-stopped
