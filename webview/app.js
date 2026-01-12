@@ -114,30 +114,16 @@ function showFileExplorer() {
     document.getElementById('file-explorer-panel').classList.add('active');
 }
 
-function showCommitPanel() {
-    // Clear previous message
-    document.getElementById('commit-message').value = '';
-
-    // Switch panels
-    document.getElementById('git-main-panel').classList.remove('active');
-    document.getElementById('commit-panel').classList.add('active');
-
-    // Focus textarea
-    document.getElementById('commit-message').focus();
-}
-
-function hideCommitPanel() {
-    document.getElementById('commit-panel').classList.remove('active');
-    document.getElementById('git-main-panel').classList.add('active');
-}
-
 function performCommit() {
-    const message = document.getElementById('commit-message').value.trim();
+    const messageInput = document.getElementById('commit-message');
+    const message = messageInput.value.trim();
 
     if (!message) {
         alert('Please enter a commit message');
         return;
     }
+
+    const commitBtn = document.getElementById('commit-btn');
 
     // Send commit request via WebSocket
     ws.send(JSON.stringify({
@@ -146,9 +132,8 @@ function performCommit() {
     }));
 
     // Disable button to prevent double-submit
-    const btn = event.target;
-    btn.disabled = true;
-    btn.textContent = 'Committing...';
+    commitBtn.disabled = true;
+    commitBtn.textContent = 'Committing...';
 }
 
 function handleFileMessage(msg) {
@@ -332,8 +317,25 @@ function initGitView() {
         header.addEventListener('click', () => toggleGitSection(header));
     });
 
+    // Set up commit input auto-resize
+    setupCommitInput();
+
     // Load git status
     loadGitStatus();
+}
+
+// Set up auto-resize behavior for commit input
+function setupCommitInput() {
+    const input = document.getElementById('commit-message');
+
+    input.addEventListener('input', function() {
+        // Reset height to calculate new height
+        this.style.height = 'auto';
+
+        // Set to scrollHeight, but respect min/max
+        const newHeight = Math.min(Math.max(this.scrollHeight, 36), 120);
+        this.style.height = newHeight + 'px';
+    });
 }
 
 // Toggle accordion section (mutually exclusive)
@@ -595,10 +597,22 @@ function updateStagedChanges(files) {
     const container = document.getElementById('staged-content');
     const count = document.getElementById('staged-count');
     const commitBtn = document.getElementById('commit-btn');
+    const messageInput = document.getElementById('commit-message');
 
     count.textContent = files.length;
-    commitBtn.disabled = files.length === 0;
-    commitBtn.onclick = showCommitPanel;
+
+    // Enable/disable based on both staged files and message presence
+    const updateCommitButton = () => {
+        const hasMessage = messageInput.value.trim().length > 0;
+        const hasStaged = files.length > 0;
+        commitBtn.disabled = !(hasMessage && hasStaged);
+    };
+
+    updateCommitButton();
+    commitBtn.onclick = performCommit;
+
+    // Listen to input changes to enable/disable button
+    messageInput.oninput = updateCommitButton;
 
     if (files.length === 0) {
         container.innerHTML = '<div class="git-empty">No staged changes</div>';
@@ -661,23 +675,25 @@ function handleGitMessage(msg) {
         // Reload git status after action
         loadGitStatus();
     } else if (msg.type === 'git_commit_success') {
-        // Re-enable button
-        const btn = document.querySelector('.commit-cta-btn');
-        btn.disabled = false;
-        btn.textContent = 'Commit';
+        const commitBtn = document.getElementById('commit-btn');
+        const messageInput = document.getElementById('commit-message');
 
-        // Close panel and refresh
-        hideCommitPanel();
+        // Re-enable button and clear message
+        commitBtn.disabled = false;
+        commitBtn.textContent = 'Commit';
+        messageInput.value = '';
+
+        // Refresh git status
         loadGitStatus();
     } else if (msg.type === 'git_error') {
         console.error('Git error:', msg.error);
         alert('Error: ' + msg.error);
 
         // Re-enable button if it was a commit error
-        const btn = document.querySelector('.commit-cta-btn');
-        if (btn && btn.disabled) {
-            btn.disabled = false;
-            btn.textContent = 'Commit';
+        const commitBtn = document.getElementById('commit-btn');
+        if (commitBtn && commitBtn.disabled) {
+            commitBtn.disabled = false;
+            commitBtn.textContent = 'Commit';
         }
     }
 }
@@ -773,12 +789,6 @@ term.onData((data) => {
 
 // View switching
 function switchView(viewName) {
-    // Close commit panel if open
-    const commitPanel = document.getElementById('commit-panel');
-    if (commitPanel && commitPanel.classList.contains('active')) {
-        hideCommitPanel();
-    }
-
     // Hide all views
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));

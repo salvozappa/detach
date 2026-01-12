@@ -77,25 +77,15 @@
                     </div>
                 </div>
 
-                <!-- Commit Button (Fixed at bottom) -->
+                <!-- Commit Button with Message Input (Fixed at bottom) -->
                 <div class="git-commit-bar">
+                    <textarea id="commit-message"
+                              class="commit-input"
+                              placeholder="Commit message..."
+                              rows="1"></textarea>
                     <button class="git-commit-btn" id="commit-btn" disabled>Commit</button>
                 </div>
             </div>
-        </div>
-
-        <!-- Commit Message Panel (hidden by default) -->
-        <div id="commit-panel" class="code-panel">
-        <div class="code-header">
-            <button class="code-back-btn" onclick="hideCommitPanel()">Back</button>
-            <span class="code-header-title">Commit Changes</span>
-        </div>
-        <div class="commit-body">
-            <textarea id="commit-message"
-                      class="commit-textarea"
-                      placeholder="Enter commit message..."></textarea>
-            <button class="commit-cta-btn" onclick="performCommit()">Commit</button>
-        </div>
         </div>
     </div>
 

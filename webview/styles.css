@@ -224,22 +224,9 @@ body {
     cursor: pointer;
 }
 
-/* Commit Panel */
-#commit-panel {
-    background: #0a0a0a;
-}
-
-.commit-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 16px;
-    gap: 16px;
-    overflow-y: auto;
-}
-
-.commit-textarea {
-    flex: 1;
+/* Commit Input (inline in git-commit-bar) */
+.commit-input {
+    width: 100%;
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 6px;
@@ -247,42 +234,20 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 14px;
     line-height: 1.5;
-    padding: 12px;
-    resize: none;
+    padding: 8px 12px;
+    resize: vertical;
     outline: none;
-    min-height: 120px;
+    margin-bottom: 12px;
+    min-height: 36px;
+    max-height: 120px;
 }
 
-.commit-textarea:focus {
+.commit-input:focus {
     border-color: #c87699;
 }
 
-.commit-textarea::placeholder {
+.commit-input::placeholder {
     color: #666;
-}
-
-.commit-cta-btn {
-    width: 100%;
-    padding: 14px 24px;
-    background: #c87699;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.commit-cta-btn:active {
-    background: #b56685;
-}
-
-.commit-cta-btn:disabled {
-    background: #666;
-    cursor: not-allowed;
-    opacity: 0.6;
 }
 
 /* File Explorer */
@@ -674,7 +639,7 @@ body {
 .git-commit-btn {
     width: 100%;
     padding: 12px 24px;
-    background: #555;
+    background: #c87699;
     color: #fff;
     border: none;
     border-radius: 6px;
