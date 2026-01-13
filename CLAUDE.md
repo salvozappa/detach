@@ -1,7 +1,7 @@
 # Detach.it - Context Reference
 
 ## Project Vision
-This is a mobile-first "asyncronous coding" app with 3 existing panels: LLM (terminal with CLI LLM assistant running), Code (file browser (read only)), Git (version control UI to commit / pull / push).
+This is a mobile-first "asyncronous coding" app with 4 panels: LLM (terminal with CLI LLM assistant running), Code (file browser (read only)), Terminal (standard bash shell), Git (version control UI to commit / pull / push).
 
 **Core workflow:**
 1. Queue up coding tasks from your phone, in the LLM view
@@ -13,12 +13,13 @@ This is a mobile-first "asyncronous coding" app with 3 existing panels: LLM (ter
 See `docs/concept.md` for full vision and business model.
 
 ## Current Implementation
-Web-based terminal + Git UI prototype. Three-panel interface:
+Web-based terminal + Git UI prototype. Four-panel interface:
 
 ### Bottom Navigation Panels
 1. **LLM** - Terminal with Claude Code (or another CLI assistant) running in the sandbox
 2. **Code** - File browser for viewing project files with syntax highlighting
-3. **Git** - Git status viewer for reviewing and committing changes
+3. **Terminal** - Standard bash shell for running applications, tests, and commands
+4. **Git** - Git status viewer for reviewing and committing changes
 
 At the moment, the user connects via browser to interact with a remote sandbox
 environment. In the future we might wrap this around a web view in a mobile app.
@@ -48,6 +49,14 @@ environment. In the future we might wrap this around a web view in a mobile app.
 - Commit button (enabled when changes staged)
 - Untracked files: Clean syntax highlighting, no diff indicators
 - Tracked files: Traditional diff view with +/- and red/green backgrounds
+
+### Terminal Panel
+- Standard bash shell for direct command execution
+- Runs independently from LLM terminal
+- Full xterm.js terminal with keyboard toolbar support
+- Session persistence (reconnects to same shell)
+- Ideal for running apps, tests, build commands, etc.
+
 
 ## Key Files
 
@@ -85,6 +94,24 @@ docker-compose up -d webview
 ```
 
 ## WebSocket Protocol
+
+### Terminal Messages
+```javascript
+// Terminal input/output with routing
+{
+  type: 'terminal_data',
+  terminal: 'llm' | 'terminal',  // Route to LLM or shell terminal
+  data: '<base64-encoded-data>'
+}
+
+// Terminal resize
+{
+  type: 'resize',
+  terminal: 'llm' | 'terminal',
+  rows: 24,
+  cols: 80
+}
+```
 
 ### Git Messages
 ```javascript

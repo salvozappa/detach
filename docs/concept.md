@@ -23,6 +23,8 @@ A mobile-first application for managing AI coding agents (Claude Code, etc.) asy
 | Codebase access | Clone repo to sandbox |
 | Mobile apps | Native iOS/Android (not responsive web) |
 
+**Current MVP implementation:** Four-panel web interface (LLM terminal with Claude Code, Git UI, shell Terminal, file browser) connecting to remote sandbox via WebSocket bridge.
+
 ---
 
 ### Key Features

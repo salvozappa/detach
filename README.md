@@ -4,7 +4,12 @@ Mobile-first terminal and Git UI for managing AI coding agents asynchronously.
 
 ## Description
 
-A web-based interface that connects to a remote sandbox where AI agents (like Claude Code) execute coding tasks. Features a three-panel mobile-optimized interface for terminal interaction, code viewing, and Git operations.
+A web-based interface that connects to a remote sandbox where AI agents (like Claude Code) execute coding tasks. Features a four-panel mobile-optimized interface:
+
+1. **LLM** - Interactive terminal with Claude Code AI assistant
+2. **Code** - Read-only file browser with syntax highlighting
+3. **Terminal** - Standard bash shell for running apps and commands
+4. **Git** - Visual Git UI for staging, committing, pulling, and pushing changes
 
 ## Components
 
