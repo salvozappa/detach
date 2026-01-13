@@ -50,9 +50,9 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 				}
 
 				// Route to appropriate terminal
-				if termMsg.Terminal == "run" {
-					if _, err := session.StdinRun.Write(data); err != nil {
-						log.Printf("Session %s Run stdin write error: %v", session.ID, err)
+				if termMsg.Terminal == "terminal" {
+					if _, err := session.StdinTerminal.Write(data); err != nil {
+						log.Printf("Session %s shell terminal stdin write error: %v", session.ID, err)
 						return
 					}
 				} else {
@@ -68,8 +68,8 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 
 				// Route resize to appropriate terminal
 				var targetSess = session.SSHSess
-				if resizeMsg.Terminal == "run" {
-					targetSess = session.SSHSessRun
+				if resizeMsg.Terminal == "terminal" {
+					targetSess = session.SSHSessTerminal
 				}
 
 				if err := targetSess.WindowChange(resizeMsg.Rows, resizeMsg.Cols); err != nil {

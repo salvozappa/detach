@@ -21,10 +21,10 @@ type Session struct {
 	Buffer  *RingBuffer
 	Done    chan struct{}
 
-	SSHSessRun *ssh.Session   // Run terminal (bash)
-	StdinRun   io.WriteCloser
-	BufferRun  *RingBuffer
-	DoneRun    chan struct{}
+	SSHSessTerminal *ssh.Session   // Shell terminal (bash)
+	StdinTerminal   io.WriteCloser
+	BufferTerminal  *RingBuffer
+	DoneTerminal    chan struct{}
 
 	wsConn *websocket.Conn
 	wsMu   sync.Mutex

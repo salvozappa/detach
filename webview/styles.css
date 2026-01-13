@@ -57,7 +57,7 @@ body {
     height: 100%;
 }
 
-#terminal-run-container {
+#terminal-shell-container {
     position: absolute;
     top: 32px;
     left: 0;
@@ -66,7 +66,7 @@ body {
     padding: 8px;
 }
 
-#terminal-run {
+#terminal-shell {
     width: 100%;
     height: 100%;
 }

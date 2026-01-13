@@ -205,8 +205,8 @@ term.loadAddon(fitAddon);
 term.open(document.getElementById('terminal'));
 fitAddon.fit();
 
-// Initialize Run terminal
-const termRun = new Terminal({
+// Initialize shell terminal
+const termShell = new Terminal({
     cursorBlink: true,
     fontSize: 14,
     fontFamily: 'Menlo, Monaco, "Courier New", monospace',
@@ -238,11 +238,11 @@ const termRun = new Terminal({
     localEcho: false
 });
 
-const fitAddonRun = new FitAddon.FitAddon();
-termRun.loadAddon(fitAddonRun);
+const fitAddonShell = new FitAddon.FitAddon();
+termShell.loadAddon(fitAddonShell);
 
-termRun.open(document.getElementById('terminal-run'));
-fitAddonRun.fit();
+termShell.open(document.getElementById('terminal-shell'));
+fitAddonShell.fit();
 
 // Track which terminal is active
 let activeTerminal = 'llm';
@@ -264,7 +264,7 @@ function base64ToBytes(base64) {
 // Send terminal size to server
 function sendTerminalSize(terminal) {
     if (ws && ws.readyState === WebSocket.OPEN) {
-        const t = terminal === 'run' ? termRun : term;
+        const t = terminal === 'terminal' ? termShell : term;
         const terminalId = terminal || activeTerminal;
         const resizeMessage = JSON.stringify({
             type: 'resize',
@@ -279,18 +279,18 @@ function sendTerminalSize(terminal) {
 // Handle window resize
 window.addEventListener('resize', () => {
     fitAddon.fit();
-    fitAddonRun.fit();
+    fitAddonShell.fit();
     sendTerminalSize('llm');
-    sendTerminalSize('run');
+    sendTerminalSize('terminal');
 });
 
 // Handle screen orientation change (mobile)
 window.addEventListener('orientationchange', () => {
     setTimeout(() => {
         fitAddon.fit();
-        fitAddonRun.fit();
+        fitAddonShell.fit();
         sendTerminalSize('llm');
-        sendTerminalSize('run');
+        sendTerminalSize('terminal');
     }, 100);
 });
 
@@ -325,9 +325,9 @@ function handleViewportResize() {
         if (activeTerminal === 'llm') {
             fitAddon.fit();
             sendTerminalSize('llm');
-        } else if (activeTerminal === 'run') {
-            fitAddonRun.fit();
-            sendTerminalSize('run');
+        } else if (activeTerminal === 'terminal') {
+            fitAddonShell.fit();
+            sendTerminalSize('terminal');
         }
     }
 }
@@ -841,7 +841,7 @@ function connect() {
 
             // Send initial terminal size
             sendTerminalSize('llm');
-            sendTerminalSize('run');
+            sendTerminalSize('terminal');
         };
 
         ws.onmessage = (event) => {
@@ -853,8 +853,8 @@ function connect() {
                         // Route terminal data to correct terminal
                         // Decode base64 to bytes for proper UTF-8 handling
                         const data = base64ToBytes(msg.data);
-                        if (msg.terminal === 'run') {
-                            termRun.write(data);
+                        if (msg.terminal === 'terminal') {
+                            termShell.write(data);
                         } else {
                             term.write(data);
                         }
@@ -918,11 +918,11 @@ term.onData((data) => {
     }
 });
 
-termRun.onData((data) => {
+termShell.onData((data) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
             type: 'terminal_data',
-            terminal: 'run',
+            terminal: 'terminal',
             data: btoa(data)
         }));
     }
@@ -941,7 +941,7 @@ function switchView(viewName) {
     // Toggle keyboard toolbar visibility and adjust terminal height
     const keyboardToolbar = document.getElementById('keyboard-toolbar');
     const terminalContainer = document.getElementById('terminal-container');
-    const terminalRunContainer = document.getElementById('terminal-run-container');
+    const terminalShellContainer = document.getElementById('terminal-shell-container');
 
     if (viewName === 'llm') {
         activeTerminal = 'llm';
@@ -951,18 +951,18 @@ function switchView(viewName) {
             fitAddon.fit();
             sendTerminalSize('llm');
         }, 50);
-    } else if (viewName === 'run') {
-        activeTerminal = 'run';
+    } else if (viewName === 'terminal') {
+        activeTerminal = 'terminal';
         keyboardToolbar.classList.add('visible');
-        terminalRunContainer.style.bottom = '94px';
+        terminalShellContainer.style.bottom = '94px';
         setTimeout(() => {
-            fitAddonRun.fit();
-            sendTerminalSize('run');
+            fitAddonShell.fit();
+            sendTerminalSize('terminal');
         }, 50);
     } else {
         keyboardToolbar.classList.remove('visible');
         terminalContainer.style.bottom = '50px';
-        terminalRunContainer.style.bottom = '50px';
+        terminalShellContainer.style.bottom = '50px';
     }
 
     // Load files when switching to Code view

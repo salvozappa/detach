@@ -69,56 +69,56 @@ func createSession(user string) (*Session, error) {
 		return nil, err
 	}
 
-	// Create second PTY for Run terminal
-	sshSessRun, err := sshConn.NewSession()
+	// Create second PTY for shell terminal
+	sshSessTerminal, err := sshConn.NewSession()
 	if err != nil {
 		sshSess.Close()
 		sshConn.Close()
 		return nil, err
 	}
 
-	if err := sshSessRun.RequestPty("xterm-256color", 24, 80, ssh.TerminalModes{}); err != nil {
-		sshSessRun.Close()
+	if err := sshSessTerminal.RequestPty("xterm-256color", 24, 80, ssh.TerminalModes{}); err != nil {
+		sshSessTerminal.Close()
 		sshSess.Close()
 		sshConn.Close()
 		return nil, err
 	}
 
-	stdinRun, err := sshSessRun.StdinPipe()
+	stdinTerminal, err := sshSessTerminal.StdinPipe()
 	if err != nil {
-		sshSessRun.Close()
+		sshSessTerminal.Close()
 		sshSess.Close()
 		sshConn.Close()
 		return nil, err
 	}
 
-	stdoutRun, err := sshSessRun.StdoutPipe()
+	stdoutTerminal, err := sshSessTerminal.StdoutPipe()
 	if err != nil {
-		sshSessRun.Close()
+		sshSessTerminal.Close()
 		sshSess.Close()
 		sshConn.Close()
 		return nil, err
 	}
 
-	stderrRun, err := sshSessRun.StderrPipe()
+	stderrTerminal, err := sshSessTerminal.StderrPipe()
 	if err != nil {
-		sshSessRun.Close()
+		sshSessTerminal.Close()
 		sshSess.Close()
 		sshConn.Close()
 		return nil, err
 	}
 
 	session := &Session{
-		ID:         generateSessionID(),
-		SSHConn:    sshConn,
-		SSHSess:    sshSess,
-		Stdin:      stdin,
-		Buffer:     NewRingBuffer(32 * 1024), // 32KB buffer
-		Done:       make(chan struct{}),
-		SSHSessRun: sshSessRun,
-		StdinRun:   stdinRun,
-		BufferRun:  NewRingBuffer(32 * 1024), // 32KB buffer
-		DoneRun:    make(chan struct{}),
+		ID:              generateSessionID(),
+		SSHConn:         sshConn,
+		SSHSess:         sshSess,
+		Stdin:           stdin,
+		Buffer:          NewRingBuffer(32 * 1024), // 32KB buffer
+		Done:            make(chan struct{}),
+		SSHSessTerminal: sshSessTerminal,
+		StdinTerminal:   stdinTerminal,
+		BufferTerminal:  NewRingBuffer(32 * 1024), // 32KB buffer
+		DoneTerminal:    make(chan struct{}),
 	}
 
 	addSession(session)
@@ -128,24 +128,24 @@ func createSession(user string) (*Session, error) {
 	claudeCmd := fmt.Sprintf("bash -l -c 'cd %s && exec claude'", workingDir)
 	if err := sshSess.Start(claudeCmd); err != nil {
 		removeSession(session.ID)
-		sshSessRun.Close()
+		sshSessTerminal.Close()
 		sshSess.Close()
 		sshConn.Close()
 		return nil, err
 	}
 	log.Println("Claude started successfully")
 
-	// Start bash in Run terminal
-	log.Println("Starting Run terminal...")
-	runCmd := fmt.Sprintf("bash -l -c 'cd %s && exec bash'", workingDir)
-	if err := sshSessRun.Start(runCmd); err != nil {
+	// Start bash in shell terminal
+	log.Println("Starting shell terminal...")
+	terminalCmd := fmt.Sprintf("bash -l -c 'cd %s && exec bash'", workingDir)
+	if err := sshSessTerminal.Start(terminalCmd); err != nil {
 		removeSession(session.ID)
-		sshSessRun.Close()
+		sshSessTerminal.Close()
 		sshSess.Close()
 		sshConn.Close()
 		return nil, err
 	}
-	log.Println("Run terminal started successfully")
+	log.Println("Shell terminal started successfully")
 
 	// Goroutine to forward LLM terminal stdout
 	go func() {
@@ -181,36 +181,36 @@ func createSession(user string) (*Session, error) {
 		}
 	}()
 
-	// Goroutine to forward Run terminal stdout
+	// Goroutine to forward shell terminal stdout
 	go func() {
 		buf := make([]byte, 1024)
 		for {
-			n, err := stdoutRun.Read(buf)
+			n, err := stdoutTerminal.Read(buf)
 			if err != nil {
-				log.Printf("Session %s Run stdout ended: %v", session.ID, err)
+				log.Printf("Session %s shell terminal stdout ended: %v", session.ID, err)
 				return
 			}
 			data := buf[:n]
-			session.BufferRun.Write(data)
-			if err := session.WriteToWebSocketWithTerminal(data, "run"); err != nil {
-				log.Printf("Session %s WebSocket write error (Run stdout): %v", session.ID, err)
+			session.BufferTerminal.Write(data)
+			if err := session.WriteToWebSocketWithTerminal(data, "terminal"); err != nil {
+				log.Printf("Session %s WebSocket write error (shell terminal stdout): %v", session.ID, err)
 			}
 		}
 	}()
 
-	// Goroutine to forward Run terminal stderr
+	// Goroutine to forward shell terminal stderr
 	go func() {
 		buf := make([]byte, 1024)
 		for {
-			n, err := stderrRun.Read(buf)
+			n, err := stderrTerminal.Read(buf)
 			if err != nil {
-				log.Printf("Session %s Run stderr ended: %v", session.ID, err)
+				log.Printf("Session %s shell terminal stderr ended: %v", session.ID, err)
 				return
 			}
 			data := buf[:n]
-			session.BufferRun.Write(data)
-			if err := session.WriteToWebSocketWithTerminal(data, "run"); err != nil {
-				log.Printf("Session %s WebSocket write error (Run stderr): %v", session.ID, err)
+			session.BufferTerminal.Write(data)
+			if err := session.WriteToWebSocketWithTerminal(data, "terminal"); err != nil {
+				log.Printf("Session %s WebSocket write error (shell terminal stderr): %v", session.ID, err)
 			}
 		}
 	}()
@@ -222,15 +222,15 @@ func createSession(user string) (*Session, error) {
 		close(session.Done)
 		removeSession(session.ID)
 		sshSess.Close()
-		sshSessRun.Close()
+		sshSessTerminal.Close()
 		sshConn.Close()
 	}()
 
-	// Goroutine to wait for Run session end
+	// Goroutine to wait for shell terminal session end
 	go func() {
-		sshSessRun.Wait()
-		log.Printf("Session %s Run terminal ended", session.ID)
-		close(session.DoneRun)
+		sshSessTerminal.Wait()
+		log.Printf("Session %s shell terminal ended", session.ID)
+		close(session.DoneTerminal)
 	}()
 
 	return session, nil
@@ -254,16 +254,16 @@ func handleReconnect(conn *websocket.Conn, session *Session) {
 		conn.WriteJSON(llmMsg)
 	}
 
-	// Replay Run terminal buffer
-	bufferedDataRun := session.BufferRun.GetAll()
-	if len(bufferedDataRun) > 0 {
-		log.Printf("Replaying %d bytes of Run buffer for session %s", len(bufferedDataRun), session.ID)
-		runMsg := TerminalDataMessage{
+	// Replay shell terminal buffer
+	bufferedDataTerminal := session.BufferTerminal.GetAll()
+	if len(bufferedDataTerminal) > 0 {
+		log.Printf("Replaying %d bytes of shell terminal buffer for session %s", len(bufferedDataTerminal), session.ID)
+		terminalMsg := TerminalDataMessage{
 			Type:     "terminal_data",
-			Terminal: "run",
-			Data:     base64.StdEncoding.EncodeToString(bufferedDataRun),
+			Terminal: "terminal",
+			Data:     base64.StdEncoding.EncodeToString(bufferedDataTerminal),
 		}
-		conn.WriteJSON(runMsg)
+		conn.WriteJSON(terminalMsg)
 	}
 
 	// Attach and handle connection
