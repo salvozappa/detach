@@ -1065,6 +1065,7 @@ function switchView(viewName) {
     if (viewName === 'llm') {
         activeTerminal = 'llm';
         keyboardToolbar.classList.add('visible');
+        handleViewportResize();  // Immediately recalculate toolbar position
         terminalContainer.style.bottom = '138px';
         setTimeout(() => {
             fitAddon.fit();
@@ -1073,6 +1074,7 @@ function switchView(viewName) {
     } else if (viewName === 'terminal') {
         activeTerminal = 'terminal';
         keyboardToolbar.classList.add('visible');
+        handleViewportResize();  // Immediately recalculate toolbar position
         terminalShellContainer.style.bottom = '138px';
         setTimeout(() => {
             fitAddonShell.fit();
@@ -1080,6 +1082,7 @@ function switchView(viewName) {
         }, 50);
     } else {
         keyboardToolbar.classList.remove('visible');
+        keyboardToolbar.style.bottom = '';  // Clear stale inline style
         terminalContainer.style.bottom = '50px';
         terminalShellContainer.style.bottom = '50px';
     }
