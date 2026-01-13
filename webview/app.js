@@ -398,8 +398,8 @@ function getBasicSequence(key) {
         'tab': '\t',
         'home': '\x1b[H',
         'end': '\x1b[F',
-        'pgup': '\x1b[5~',
-        'pgdn': '\x1b[6~'
+        'ctrl-c': '\x03',
+        'ctrl-d': '\x04'
     };
     return sequences[key] || '';
 }
@@ -413,8 +413,6 @@ function getCtrlSequence(key) {
         'left': '\x1b[1;5D',
         'home': '\x1b[1;5H',
         'end': '\x1b[1;5F',
-        'pgup': '\x1b[5;5~',
-        'pgdn': '\x1b[6;5~',
         'enter': '\n',
         'tab': '\x1b[9;5~'
     };
