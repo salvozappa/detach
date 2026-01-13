@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
@@ -49,6 +50,7 @@ func (s *Session) WriteToWebSocket(data []byte) error {
 	if s.wsConn == nil {
 		return nil // No WebSocket connected, just buffer
 	}
+	s.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
 	return s.wsConn.WriteMessage(websocket.BinaryMessage, data)
 }
 
@@ -67,7 +69,41 @@ func (s *Session) WriteToWebSocketWithTerminal(data []byte, terminal string) err
 		Data:     base64.StdEncoding.EncodeToString(data),
 	}
 
+	s.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
 	return s.wsConn.WriteJSON(msg)
+}
+
+// SendPing sends a WebSocket ping frame and a JSON pong message for client health tracking
+func (s *Session) SendPing() error {
+	s.wsMu.Lock()
+	defer s.wsMu.Unlock()
+
+	if s.wsConn == nil {
+		return nil
+	}
+
+	// Send WebSocket protocol ping
+	s.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+	if err := s.wsConn.WriteMessage(websocket.PingMessage, nil); err != nil {
+		return err
+	}
+
+	// Send JSON pong so JavaScript can track connection health
+	s.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+	return s.wsConn.WriteJSON(map[string]string{"type": "pong"})
+}
+
+// WriteJSON writes a JSON message to the WebSocket with proper locking and deadline
+func (s *Session) WriteJSON(v interface{}) error {
+	s.wsMu.Lock()
+	defer s.wsMu.Unlock()
+
+	if s.wsConn == nil {
+		return nil
+	}
+
+	s.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+	return s.wsConn.WriteJSON(v)
 }
 
 // Session store

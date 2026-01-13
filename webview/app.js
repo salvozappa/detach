@@ -5,7 +5,46 @@ const WS_PORT = '8081';
 // Authentication - HARDCODED FOR NOW
 const USERNAME = 'detach-dev';
 
-const RECONNECT_DELAY = 3000; // 3 seconds
+// Exponential backoff reconnection
+const RECONNECT_BASE_DELAY = 1000;  // Start at 1 second
+const RECONNECT_MAX_DELAY = 30000;  // Max 30 seconds
+let reconnectAttempts = 0;
+
+// Connection health monitoring
+let lastPongTime = Date.now();
+let healthCheckInterval = null;
+
+function getReconnectDelay() {
+    const delay = Math.min(
+        RECONNECT_BASE_DELAY * Math.pow(2, reconnectAttempts),
+        RECONNECT_MAX_DELAY
+    );
+    // Add jitter to prevent thundering herd
+    return delay + Math.random() * 1000;
+}
+
+function startHealthCheck() {
+    if (healthCheckInterval) {
+        clearInterval(healthCheckInterval);
+    }
+    lastPongTime = Date.now();
+    healthCheckInterval = setInterval(() => {
+        const timeSinceLastPong = Date.now() - lastPongTime;
+        if (timeSinceLastPong > 45000) {
+            console.log('Connection appears stale (no pong for 45s), reconnecting...');
+            if (ws) {
+                ws.close();
+            }
+        }
+    }, 15000);
+}
+
+function stopHealthCheck() {
+    if (healthCheckInterval) {
+        clearInterval(healthCheckInterval);
+        healthCheckInterval = null;
+    }
+}
 
 // Session persistence
 const SESSION_KEY = 'detach_session_id';
@@ -898,6 +937,12 @@ function connect() {
                 term.clear();
             }
 
+            // Reset reconnection backoff on successful connection
+            reconnectAttempts = 0;
+
+            // Start health monitoring
+            startHealthCheck();
+
             // Send initial terminal size
             sendTerminalSize('llm');
             sendTerminalSize('terminal');
@@ -908,7 +953,10 @@ function connect() {
             if (typeof event.data === 'string') {
                 try {
                     const msg = JSON.parse(event.data);
-                    if (msg.type === 'terminal_data') {
+                    if (msg.type === 'pong') {
+                        // Server heartbeat - update last pong time for health monitoring
+                        lastPongTime = Date.now();
+                    } else if (msg.type === 'terminal_data') {
                         // Route terminal data to correct terminal
                         // Decode base64 to bytes for proper UTF-8 handling
                         const data = base64ToBytes(msg.data);
@@ -945,24 +993,29 @@ function connect() {
         };
 
         ws.onclose = () => {
-            updateStatus('disconnected', `Disconnected. Trying to reconnect...`);
+            stopHealthCheck();
+            const delay = getReconnectDelay();
+            reconnectAttempts++;
+            updateStatus('disconnected', `Disconnected. Reconnecting in ${Math.round(delay/1000)}s...`);
 
-            // Auto-reconnect
+            // Auto-reconnect with exponential backoff
             if (reconnectTimeout) {
                 clearTimeout(reconnectTimeout);
             }
-            reconnectTimeout = setTimeout(connect, RECONNECT_DELAY);
+            reconnectTimeout = setTimeout(connect, delay);
         };
 
     } catch (error) {
         console.error('Connection error:', error);
-        updateStatus('disconnected', `Failed to connect: ${error.message}`);
+        const delay = getReconnectDelay();
+        reconnectAttempts++;
+        updateStatus('disconnected', `Failed to connect. Retrying in ${Math.round(delay/1000)}s...`);
 
-        // Retry connection
+        // Retry connection with exponential backoff
         if (reconnectTimeout) {
             clearTimeout(reconnectTimeout);
         }
-        reconnectTimeout = setTimeout(connect, RECONNECT_DELAY);
+        reconnectTimeout = setTimeout(connect, delay);
     }
 }
 
@@ -1055,13 +1108,26 @@ connect();
 
 // Handle page visibility (reconnect when coming back to the page)
 document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && ws && ws.readyState !== WebSocket.OPEN) {
-        connect();
+    if (document.hidden) {
+        // Page hidden - stop health checks to save battery on mobile
+        stopHealthCheck();
+    } else {
+        // Page visible - check connection and reconnect if needed
+        if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+            // Reset backoff when user returns to give quick reconnection
+            reconnectAttempts = 0;
+            connect();
+        } else if (ws.readyState === WebSocket.OPEN) {
+            // Connection still open - restart health monitoring
+            startHealthCheck();
+        }
+        // If CONNECTING, let the pending connection complete
     }
 });
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
+    stopHealthCheck();
     if (ws) {
         ws.close();
     }

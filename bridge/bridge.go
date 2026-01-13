@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -11,8 +12,37 @@ import (
 func handleConnection(conn *websocket.Conn, session *Session) {
 	session.SetWebSocket(conn)
 
+	// Set up pong handler to reset read deadline
+	conn.SetReadDeadline(time.Now().Add(pongWait))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	// Start ping goroutine - uses session's mutex for thread-safe writes
+	stopPing := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(pingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				// Send WebSocket protocol ping and JSON pong using session's mutex
+				if err := session.SendPing(); err != nil {
+					log.Printf("Session %s ping error: %v", session.ID, err)
+					return
+				}
+			case <-stopPing:
+				return
+			case <-session.Done:
+				return
+			}
+		}
+	}()
+
 	// Cleanup on disconnect
 	defer func() {
+		close(stopPing)
 		session.SetWebSocket(nil)
 		conn.Close()
 		log.Printf("WebSocket disconnected from session %s (session still alive)", session.ID)
@@ -92,8 +122,7 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 				if err != nil {
 					resp.Error = err.Error()
 				}
-				respBytes, _ := json.Marshal(resp)
-				conn.WriteMessage(websocket.TextMessage, respBytes)
+				session.WriteJSON(resp)
 
 			case "read_file":
 				var req FileRequest
@@ -109,22 +138,18 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 				if err != nil {
 					resp.Error = err.Error()
 				}
-				respBytes, _ := json.Marshal(resp)
-				conn.WriteMessage(websocket.TextMessage, respBytes)
+				session.WriteJSON(resp)
 
 			case "git_status":
 				log.Printf("Session %s getting git status", session.ID)
 				resp, err := session.getGitStatus()
 				if err != nil {
-					errResp := GitActionResponse{
+					session.WriteJSON(GitActionResponse{
 						Type:  "git_error",
 						Error: err.Error(),
-					}
-					respBytes, _ := json.Marshal(errResp)
-					conn.WriteMessage(websocket.TextMessage, respBytes)
+					})
 				} else {
-					respBytes, _ := json.Marshal(resp)
-					conn.WriteMessage(websocket.TextMessage, respBytes)
+					session.WriteJSON(resp)
 				}
 
 			case "git_stage":
@@ -140,8 +165,7 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 					resp.Type = "git_error"
 					resp.Error = err.Error()
 				}
-				respBytes, _ := json.Marshal(resp)
-				conn.WriteMessage(websocket.TextMessage, respBytes)
+				session.WriteJSON(resp)
 
 			case "git_unstage":
 				var req GitActionRequest
@@ -156,8 +180,7 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 					resp.Type = "git_error"
 					resp.Error = err.Error()
 				}
-				respBytes, _ := json.Marshal(resp)
-				conn.WriteMessage(websocket.TextMessage, respBytes)
+				session.WriteJSON(resp)
 
 			case "git_discard":
 				var req GitActionRequest
@@ -172,8 +195,7 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 					resp.Type = "git_error"
 					resp.Error = err.Error()
 				}
-				respBytes, _ := json.Marshal(resp)
-				conn.WriteMessage(websocket.TextMessage, respBytes)
+				session.WriteJSON(resp)
 
 			case "git_commit":
 				var req GitCommitRequest
@@ -196,8 +218,7 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 					resp.Error = err.Error()
 				}
 
-				respBytes, _ := json.Marshal(resp)
-				conn.WriteMessage(websocket.TextMessage, respBytes)
+				session.WriteJSON(resp)
 
 			case "git_pull":
 				log.Printf("Session %s pulling changes", session.ID)
@@ -214,8 +235,7 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 					resp.Error = err.Error()
 				}
 
-				respBytes, _ := json.Marshal(resp)
-				conn.WriteMessage(websocket.TextMessage, respBytes)
+				session.WriteJSON(resp)
 
 			case "git_push":
 				log.Printf("Session %s pushing changes", session.ID)
@@ -232,8 +252,7 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 					resp.Error = err.Error()
 				}
 
-				respBytes, _ := json.Marshal(resp)
-				conn.WriteMessage(websocket.TextMessage, respBytes)
+				session.WriteJSON(resp)
 
 			default:
 				// Unknown JSON message, might be terminal input

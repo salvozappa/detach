@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
@@ -240,6 +241,7 @@ func handleReconnect(conn *websocket.Conn, session *Session) {
 	// Send session ID confirmation
 	sessionMsg := SessionMessage{Type: "session", ID: session.ID}
 	msgBytes, _ := json.Marshal(sessionMsg)
+	conn.SetWriteDeadline(time.Now().Add(writeWait))
 	conn.WriteMessage(websocket.TextMessage, msgBytes)
 
 	// Replay LLM terminal buffer
@@ -251,6 +253,7 @@ func handleReconnect(conn *websocket.Conn, session *Session) {
 			Terminal: "llm",
 			Data:     base64.StdEncoding.EncodeToString(bufferedData),
 		}
+		conn.SetWriteDeadline(time.Now().Add(writeWait))
 		conn.WriteJSON(llmMsg)
 	}
 
@@ -263,6 +266,7 @@ func handleReconnect(conn *websocket.Conn, session *Session) {
 			Terminal: "terminal",
 			Data:     base64.StdEncoding.EncodeToString(bufferedDataTerminal),
 		}
+		conn.SetWriteDeadline(time.Now().Add(writeWait))
 		conn.WriteJSON(terminalMsg)
 	}
 

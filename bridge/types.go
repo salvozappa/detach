@@ -83,3 +83,8 @@ type GitActionResponse struct {
 	Type  string `json:"type"` // "git_stage_success", etc or "git_error"
 	Error string `json:"error,omitempty"`
 }
+
+// WebSocket keepalive message (sent to client so JS can track connection health)
+type PongMessage struct {
+	Type string `json:"type"` // "pong"
+}

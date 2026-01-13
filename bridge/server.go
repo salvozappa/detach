@@ -4,13 +4,21 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
+// WebSocket keepalive configuration
+const (
+	pongWait     = 60 * time.Second // Time to wait for pong response
+	pingInterval = 30 * time.Second // Send pings at this interval
+	writeWait    = 10 * time.Second // Time to complete write operations
+)
+
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  8192,
+	WriteBufferSize: 8192,
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
@@ -63,6 +71,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Send session ID to client
 	sessionMsg := SessionMessage{Type: "session", ID: session.ID}
 	msgBytes, _ := json.Marshal(sessionMsg)
+	conn.SetWriteDeadline(time.Now().Add(writeWait))
 	conn.WriteMessage(websocket.TextMessage, msgBytes)
 
 	// Attach WebSocket and handle connection
