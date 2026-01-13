@@ -57,6 +57,20 @@ body {
     height: 100%;
 }
 
+#terminal-run-container {
+    position: absolute;
+    top: 32px;
+    left: 0;
+    right: 0;
+    bottom: 94px;
+    padding: 8px;
+}
+
+#terminal-run {
+    width: 100%;
+    height: 100%;
+}
+
 .xterm {
     height: 100%;
     padding: 8px;

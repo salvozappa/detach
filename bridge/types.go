@@ -3,14 +3,21 @@ package main
 // Message types
 
 type ResizeMessage struct {
-	Type string `json:"type"`
-	Rows int    `json:"rows"`
-	Cols int    `json:"cols"`
+	Type     string `json:"type"`
+	Terminal string `json:"terminal"` // "llm" or "run"
+	Rows     int    `json:"rows"`
+	Cols     int    `json:"cols"`
 }
 
 type SessionMessage struct {
 	Type string `json:"type"`
 	ID   string `json:"id"`
+}
+
+type TerminalDataMessage struct {
+	Type     string `json:"type"`     // "terminal_data"
+	Terminal string `json:"terminal"` // "llm" or "run"
+	Data     string `json:"data"`     // base64 encoded
 }
 
 // File operation messages

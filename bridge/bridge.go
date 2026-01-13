@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"log"
 
@@ -37,13 +38,44 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 			msgType, _ := msg["type"].(string)
 
 			switch msgType {
+			case "terminal_data":
+				var termMsg TerminalDataMessage
+				json.Unmarshal(p, &termMsg)
+
+				// Decode base64 data
+				data, err := base64.StdEncoding.DecodeString(termMsg.Data)
+				if err != nil {
+					log.Printf("Session %s failed to decode terminal data: %v", session.ID, err)
+					continue
+				}
+
+				// Route to appropriate terminal
+				if termMsg.Terminal == "run" {
+					if _, err := session.StdinRun.Write(data); err != nil {
+						log.Printf("Session %s Run stdin write error: %v", session.ID, err)
+						return
+					}
+				} else {
+					if _, err := session.Stdin.Write(data); err != nil {
+						log.Printf("Session %s LLM stdin write error: %v", session.ID, err)
+						return
+					}
+				}
+
 			case "resize":
 				var resizeMsg ResizeMessage
 				json.Unmarshal(p, &resizeMsg)
-				if err := session.SSHSess.WindowChange(resizeMsg.Rows, resizeMsg.Cols); err != nil {
-					log.Printf("Session %s failed to resize: %v", session.ID, err)
+
+				// Route resize to appropriate terminal
+				var targetSess = session.SSHSess
+				if resizeMsg.Terminal == "run" {
+					targetSess = session.SSHSessRun
+				}
+
+				if err := targetSess.WindowChange(resizeMsg.Rows, resizeMsg.Cols); err != nil {
+					log.Printf("Session %s failed to resize %s terminal: %v", session.ID, resizeMsg.Terminal, err)
 				} else {
-					log.Printf("Session %s resized to %dx%d", session.ID, resizeMsg.Rows, resizeMsg.Cols)
+					log.Printf("Session %s %s terminal resized to %dx%d", session.ID, resizeMsg.Terminal, resizeMsg.Rows, resizeMsg.Cols)
 				}
 
 			case "list_files":

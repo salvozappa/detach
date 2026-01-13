@@ -205,17 +205,72 @@ term.loadAddon(fitAddon);
 term.open(document.getElementById('terminal'));
 fitAddon.fit();
 
+// Initialize Run terminal
+const termRun = new Terminal({
+    cursorBlink: true,
+    fontSize: 14,
+    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+    theme: {
+        background: '#000000',
+        foreground: '#ffffff',
+        cursor: '#ffffff',
+        cursorAccent: '#000000',
+        selection: 'rgba(255, 255, 255, 0.3)',
+        black: '#000000',
+        red: '#e06c75',
+        green: '#98c379',
+        yellow: '#d19a66',
+        blue: '#61afef',
+        magenta: '#c678dd',
+        cyan: '#56b6c2',
+        white: '#abb2bf',
+        brightBlack: '#5c6370',
+        brightRed: '#e06c75',
+        brightGreen: '#98c379',
+        brightYellow: '#d19a66',
+        brightBlue: '#61afef',
+        brightMagenta: '#c678dd',
+        brightCyan: '#56b6c2',
+        brightWhite: '#ffffff'
+    },
+    allowTransparency: false,
+    scrollback: 10000,
+    localEcho: false
+});
+
+const fitAddonRun = new FitAddon.FitAddon();
+termRun.loadAddon(fitAddonRun);
+
+termRun.open(document.getElementById('terminal-run'));
+fitAddonRun.fit();
+
+// Track which terminal is active
+let activeTerminal = 'llm';
+
 // WebSocket connection (declared early for use in resize handlers)
 let ws = null;
 let reconnectTimeout = null;
 
+// Helper function to decode base64 to Uint8Array (handles UTF-8 properly)
+function base64ToBytes(base64) {
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+}
+
 // Send terminal size to server
-function sendTerminalSize() {
+function sendTerminalSize(terminal) {
     if (ws && ws.readyState === WebSocket.OPEN) {
+        const t = terminal === 'run' ? termRun : term;
+        const terminalId = terminal || activeTerminal;
         const resizeMessage = JSON.stringify({
             type: 'resize',
-            rows: term.rows,
-            cols: term.cols
+            terminal: terminalId,
+            rows: t.rows,
+            cols: t.cols
         });
         ws.send(resizeMessage);
     }
@@ -224,14 +279,18 @@ function sendTerminalSize() {
 // Handle window resize
 window.addEventListener('resize', () => {
     fitAddon.fit();
-    sendTerminalSize();
+    fitAddonRun.fit();
+    sendTerminalSize('llm');
+    sendTerminalSize('run');
 });
 
 // Handle screen orientation change (mobile)
 window.addEventListener('orientationchange', () => {
     setTimeout(() => {
         fitAddon.fit();
-        sendTerminalSize();
+        fitAddonRun.fit();
+        sendTerminalSize('llm');
+        sendTerminalSize('run');
     }, 100);
 });
 
@@ -263,8 +322,13 @@ function handleViewportResize() {
         }
 
         // Re-fit terminal to new dimensions
-        fitAddon.fit();
-        sendTerminalSize();
+        if (activeTerminal === 'llm') {
+            fitAddon.fit();
+            sendTerminalSize('llm');
+        } else if (activeTerminal === 'run') {
+            fitAddonRun.fit();
+            sendTerminalSize('run');
+        }
     }
 }
 
@@ -293,7 +357,11 @@ document.querySelectorAll('.key-btn').forEach(btn => {
         }
 
         if (ws && ws.readyState === WebSocket.OPEN && sequence) {
-            ws.send(sequence);
+            ws.send(JSON.stringify({
+                type: 'terminal_data',
+                terminal: activeTerminal,
+                data: btoa(sequence)
+            }));
         }
     });
 });
@@ -772,7 +840,8 @@ function connect() {
             }
 
             // Send initial terminal size
-            sendTerminalSize();
+            sendTerminalSize('llm');
+            sendTerminalSize('run');
         };
 
         ws.onmessage = (event) => {
@@ -780,7 +849,16 @@ function connect() {
             if (typeof event.data === 'string') {
                 try {
                     const msg = JSON.parse(event.data);
-                    if (msg.type === 'session' && msg.id) {
+                    if (msg.type === 'terminal_data') {
+                        // Route terminal data to correct terminal
+                        // Decode base64 to bytes for proper UTF-8 handling
+                        const data = base64ToBytes(msg.data);
+                        if (msg.terminal === 'run') {
+                            termRun.write(data);
+                        } else {
+                            term.write(data);
+                        }
+                    } else if (msg.type === 'session' && msg.id) {
                         console.log('Session ID:', msg.id);
                         localStorage.setItem(SESSION_KEY, msg.id);
                     } else if (msg.type === 'file_list' || msg.type === 'file_content') {
@@ -832,7 +910,21 @@ function connect() {
 // Handle terminal input (registered once, uses current ws variable)
 term.onData((data) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
+        ws.send(JSON.stringify({
+            type: 'terminal_data',
+            terminal: 'llm',
+            data: btoa(data)
+        }));
+    }
+});
+
+termRun.onData((data) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'terminal_data',
+            terminal: 'run',
+            data: btoa(data)
+        }));
     }
 });
 
@@ -849,17 +941,28 @@ function switchView(viewName) {
     // Toggle keyboard toolbar visibility and adjust terminal height
     const keyboardToolbar = document.getElementById('keyboard-toolbar');
     const terminalContainer = document.getElementById('terminal-container');
+    const terminalRunContainer = document.getElementById('terminal-run-container');
 
     if (viewName === 'llm') {
+        activeTerminal = 'llm';
         keyboardToolbar.classList.add('visible');
         terminalContainer.style.bottom = '94px';
         setTimeout(() => {
             fitAddon.fit();
-            sendTerminalSize();
+            sendTerminalSize('llm');
+        }, 50);
+    } else if (viewName === 'run') {
+        activeTerminal = 'run';
+        keyboardToolbar.classList.add('visible');
+        terminalRunContainer.style.bottom = '94px';
+        setTimeout(() => {
+            fitAddonRun.fit();
+            sendTerminalSize('run');
         }, 50);
     } else {
         keyboardToolbar.classList.remove('visible');
         terminalContainer.style.bottom = '50px';
+        terminalRunContainer.style.bottom = '50px';
     }
 
     // Load files when switching to Code view

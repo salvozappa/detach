@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"io"
 	"sync"
@@ -15,10 +16,15 @@ import (
 type Session struct {
 	ID      string
 	SSHConn *ssh.Client
-	SSHSess *ssh.Session
+	SSHSess *ssh.Session // LLM terminal (Claude)
 	Stdin   io.WriteCloser
 	Buffer  *RingBuffer
 	Done    chan struct{}
+
+	SSHSessRun *ssh.Session   // Run terminal (bash)
+	StdinRun   io.WriteCloser
+	BufferRun  *RingBuffer
+	DoneRun    chan struct{}
 
 	wsConn *websocket.Conn
 	wsMu   sync.Mutex
@@ -44,6 +50,24 @@ func (s *Session) WriteToWebSocket(data []byte) error {
 		return nil // No WebSocket connected, just buffer
 	}
 	return s.wsConn.WriteMessage(websocket.BinaryMessage, data)
+}
+
+func (s *Session) WriteToWebSocketWithTerminal(data []byte, terminal string) error {
+	s.wsMu.Lock()
+	defer s.wsMu.Unlock()
+
+	if s.wsConn == nil {
+		return nil // No WebSocket connected, just buffer
+	}
+
+	// Wrap in TerminalDataMessage with base64 encoded data
+	msg := TerminalDataMessage{
+		Type:     "terminal_data",
+		Terminal: terminal,
+		Data:     base64.StdEncoding.EncodeToString(data),
+	}
+
+	return s.wsConn.WriteJSON(msg)
 }
 
 // Session store
