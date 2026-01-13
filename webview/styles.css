@@ -162,7 +162,7 @@ body {
     bottom: 50px;
     left: 0;
     right: 0;
-    height: 88px;
+    height: 44px;
     background: #2a2a2a;
     display: none;
     flex-direction: column;
@@ -205,17 +205,6 @@ body {
 /* Arrow buttons - half width */
 .key-btn.arrow-btn {
     flex: 0.5;
-}
-
-/* Modifier key toggle state */
-.key-btn.modifier-btn.active {
-    background: #c87699;
-    border-color: #d89fb3;
-    box-shadow: 0 0 8px rgba(200, 118, 153, 0.5);
-}
-
-.key-btn.modifier-btn.active:active {
-    background: #b66688;
 }
 
 /* Code View Panels */
