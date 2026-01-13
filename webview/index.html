@@ -11,6 +11,9 @@
     <!-- Highlight.js CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
 
+    <!-- diff2html CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css" />
+
     <!-- Application CSS -->
     <link rel="stylesheet" href="styles.css" />
 </head>
@@ -42,9 +45,12 @@
                 <button class="code-back-btn" onclick="showFileExplorer()">Back</button>
                 <span class="code-header-title" id="code-filename">filename.js</span>
             </div>
-            <div class="code-content">
+            <!-- Normal code view (syntax highlighted) -->
+            <div class="code-content" id="code-content-normal">
                 <pre><code id="code-content" class="hljs"></code></pre>
             </div>
+            <!-- Diff view (diff2html) -->
+            <div class="code-content" id="code-content-diff" style="display: none;"></div>
         </div>
     </div>
 
@@ -129,6 +135,9 @@
 
     <!-- Highlight.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <!-- diff2html library -->
+    <script src="https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html-ui.min.js"></script>
 
     <!-- Application JavaScript -->
     <script src="app.js"></script>

@@ -46,6 +46,17 @@ type FileContentResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
+// File with diff response for Code panel
+type FileWithDiffResponse struct {
+	Type        string `json:"type"` // "file_with_diff"
+	Path        string `json:"path"`
+	Content     string `json:"content"`     // Full file content (for fallback)
+	Diff        string `json:"diff"`        // Raw unified diff from git diff
+	HasDiff     bool   `json:"hasDiff"`     // True if file has unstaged changes
+	IsUntracked bool   `json:"isUntracked"` // True if file is not tracked
+	Error       string `json:"error,omitempty"`
+}
+
 // Git operation messages
 type GitFileChange struct {
 	Path        string `json:"path"`

@@ -734,3 +734,102 @@ body {
     color: #666;
     font-size: 13px;
 }
+
+/* ===== diff2html Dark Theme Overrides ===== */
+
+#code-content-diff {
+    flex: 1;
+    overflow: auto;
+    background: #0d1117;
+}
+
+/* Override diff2html backgrounds for dark theme */
+#code-content-diff .d2h-wrapper {
+    background: #0d1117;
+}
+
+#code-content-diff .d2h-file-wrapper {
+    border: none;
+    background: #0d1117;
+    margin-bottom: 0;
+}
+
+#code-content-diff .d2h-file-header {
+    display: none;
+}
+
+/* Hide the @@ hunk info lines */
+#code-content-diff .d2h-info {
+    display: none;
+}
+
+#code-content-diff .d2h-diff-table {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 12px;
+}
+
+#code-content-diff .d2h-code-linenumber {
+    background: #161b22;
+    color: #8b949e;
+    border-right: 1px solid #30363d;
+}
+
+#code-content-diff .d2h-code-side-linenumber {
+    background: #161b22;
+    color: #8b949e;
+}
+
+/* Reset inner element backgrounds to transparent */
+#code-content-diff .d2h-code-line,
+#code-content-diff .d2h-code-line-ctn {
+    background: transparent !important;
+}
+
+/* Added lines - green background on td cells */
+#code-content-diff td.d2h-ins {
+    background-color: rgba(46, 160, 67, 0.15) !important;
+}
+
+/* Removed lines - red background on td cells */
+#code-content-diff td.d2h-del {
+    background-color: rgba(248, 81, 73, 0.15) !important;
+}
+
+/* Context lines - normal background */
+#code-content-diff td.d2h-cntx {
+    background-color: #0d1117 !important;
+}
+
+/* Text color for all lines */
+#code-content-diff .d2h-code-line {
+    color: #c9d1d9;
+}
+
+/* Inline change highlights */
+#code-content-diff .d2h-ins .d2h-code-line-ctn ins {
+    background-color: rgba(46, 160, 67, 0.4);
+    text-decoration: none;
+}
+
+#code-content-diff .d2h-del .d2h-code-line-ctn del {
+    background-color: rgba(248, 81, 73, 0.4);
+    text-decoration: none;
+}
+
+/* Empty diff placeholder */
+#code-content-diff .d2h-file-diff .d2h-info {
+    background: #161b22;
+    color: #8b949e;
+}
+
+/* Mobile optimizations for diff view */
+@media (max-width: 600px) {
+    #code-content-diff .d2h-diff-table {
+        font-size: 11px;
+    }
+
+    #code-content-diff .d2h-code-linenumber {
+        min-width: 30px;
+        padding: 0 4px;
+    }
+}

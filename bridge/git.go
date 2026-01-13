@@ -204,3 +204,43 @@ func (s *Session) pushChanges() error {
 	_, err := s.executeCommand(cmd)
 	return err
 }
+
+// Get file content with diff for Code panel
+func (s *Session) getFileWithDiff(path string) (*FileWithDiffResponse, error) {
+	resp := &FileWithDiffResponse{
+		Type: "file_with_diff",
+		Path: path,
+	}
+
+	// Read file content (needed for fallback view)
+	content, err := s.readFile(path)
+	if err != nil {
+		return nil, err
+	}
+	resp.Content = content
+
+	// Extract relative path for git commands
+	// Path is like ~/projects/sample/README.md, workingDir is ~/projects/sample
+	relativePath := path
+	if strings.HasPrefix(path, workingDir+"/") {
+		relativePath = strings.TrimPrefix(path, workingDir+"/")
+	}
+
+	// Check if file is tracked by git
+	trackCmd := fmt.Sprintf("cd %s && git ls-files --error-unmatch '%s' 2>/dev/null", workingDir, relativePath)
+	_, trackErr := s.executeCommand(trackCmd)
+	if trackErr != nil {
+		// File is not tracked
+		resp.IsUntracked = true
+		return resp, nil
+	}
+
+	// Get unstaged diff with full file context (working tree vs index)
+	// -U99999 ensures we get all lines as context, showing the entire file
+	diffCmd := fmt.Sprintf("cd %s && git diff -U99999 '%s'", workingDir, relativePath)
+	diff, _ := s.executeCommand(diffCmd)
+	resp.Diff = diff
+	resp.HasDiff = len(strings.TrimSpace(diff)) > 0
+
+	return resp, nil
+}

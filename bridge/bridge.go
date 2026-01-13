@@ -140,6 +140,22 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 				}
 				session.WriteJSON(resp)
 
+			case "read_file_with_diff":
+				var req FileRequest
+				json.Unmarshal(p, &req)
+				log.Printf("Session %s reading file with diff: %s", session.ID, req.Path)
+
+				resp, err := session.getFileWithDiff(req.Path)
+				if err != nil {
+					session.WriteJSON(FileWithDiffResponse{
+						Type:  "file_with_diff",
+						Path:  req.Path,
+						Error: err.Error(),
+					})
+				} else {
+					session.WriteJSON(resp)
+				}
+
 			case "git_status":
 				log.Printf("Session %s getting git status", session.ID)
 				resp, err := session.getGitStatus()

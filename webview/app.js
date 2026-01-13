@@ -67,6 +67,12 @@ function readFile(path) {
     }
 }
 
+function readFileWithDiff(path) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'read_file_with_diff', path: path }));
+    }
+}
+
 function renderFileList(files, path) {
     const fileList = document.getElementById('file-list');
     const currentPathEl = document.getElementById('current-path');
@@ -132,16 +138,54 @@ function navigateToFolder(path) {
 
 function openFile(path, filename) {
     document.getElementById('code-filename').textContent = filename;
-    readFile(path);
+    readFileWithDiff(path);
 }
 
 function showCodeViewer(content, filename) {
     const codeEl = document.getElementById('code-content');
+    const normalContainer = document.getElementById('code-content-normal');
+    const diffContainer = document.getElementById('code-content-diff');
+
+    // Show normal view, hide diff view
+    normalContainer.style.display = 'block';
+    diffContainer.style.display = 'none';
+
     codeEl.textContent = content;
 
     // Auto-detect language and highlight
     delete codeEl.dataset.highlighted;
     hljs.highlightElement(codeEl);
+
+    // Switch panels
+    document.getElementById('file-explorer-panel').classList.remove('active');
+    document.getElementById('code-viewer-panel').classList.add('active');
+}
+
+// diff2html configuration - line-by-line is more mobile-friendly
+const diff2htmlConfig = {
+    drawFileList: false,
+    fileListToggle: false,
+    fileContentToggle: false,
+    matching: 'lines',
+    outputFormat: 'line-by-line',
+    synchronisedScroll: true,
+    highlight: true,
+    renderNothingWhenEmpty: false,
+    colorScheme: 'dark',
+};
+
+function showDiffViewer(diff, filename) {
+    const normalContainer = document.getElementById('code-content-normal');
+    const diffContainer = document.getElementById('code-content-diff');
+
+    // Hide normal view, show diff view
+    normalContainer.style.display = 'none';
+    diffContainer.style.display = 'block';
+
+    // Render diff using diff2html
+    const diff2htmlUi = new Diff2HtmlUI(diffContainer, diff, diff2htmlConfig);
+    diff2htmlUi.draw();
+    diff2htmlUi.highlightCode();
 
     // Switch panels
     document.getElementById('file-explorer-panel').classList.remove('active');
@@ -188,6 +232,21 @@ function handleFileMessage(msg) {
             return;
         }
         showCodeViewer(msg.content, msg.path.split('/').pop());
+    } else if (msg.type === 'file_with_diff') {
+        if (msg.error) {
+            console.error('File read error:', msg.error);
+            return;
+        }
+
+        const filename = msg.path.split('/').pop();
+
+        // If file has unstaged changes, show diff view
+        // Otherwise (untracked or no changes), show normal view
+        if (msg.hasDiff && msg.diff) {
+            showDiffViewer(msg.diff, filename);
+        } else {
+            showCodeViewer(msg.content, filename);
+        }
     }
 }
 
@@ -915,7 +974,7 @@ function connect() {
                     } else if (msg.type === 'session' && msg.id) {
                         console.log('Session ID:', msg.id);
                         localStorage.setItem(SESSION_KEY, msg.id);
-                    } else if (msg.type === 'file_list' || msg.type === 'file_content') {
+                    } else if (msg.type === 'file_list' || msg.type === 'file_content' || msg.type === 'file_with_diff') {
                         handleFileMessage(msg);
                     } else if (msg.type && msg.type.startsWith('git_')) {
                         handleGitMessage(msg);
