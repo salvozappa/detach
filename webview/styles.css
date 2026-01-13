@@ -202,6 +202,11 @@ body {
     transform: scale(0.95);
 }
 
+/* Arrow buttons - half width */
+.key-btn.arrow-btn {
+    flex: 0.5;
+}
+
 /* Modifier key toggle state */
 .key-btn.modifier-btn.active {
     background: #c87699;
