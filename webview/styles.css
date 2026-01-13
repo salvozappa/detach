@@ -162,9 +162,10 @@ body {
     bottom: 50px;
     left: 0;
     right: 0;
-    height: 44px;
+    height: 88px;
     background: #2a2a2a;
     display: none;
+    flex-direction: column;
     gap: 4px;
     padding: 4px 8px;
     border-top: 1px solid #444;
@@ -173,6 +174,12 @@ body {
 
 #keyboard-toolbar.visible {
     display: flex;
+}
+
+.keyboard-row {
+    display: flex;
+    gap: 4px;
+    flex: 1;
 }
 
 .key-btn {
@@ -186,11 +193,24 @@ body {
     cursor: pointer;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+    min-height: 36px;
+    transition: background 0.2s, border-color 0.2s;
 }
 
 .key-btn:active {
     background: #555;
     transform: scale(0.95);
+}
+
+/* Modifier key toggle state */
+.key-btn.modifier-btn.active {
+    background: #c87699;
+    border-color: #d89fb3;
+    box-shadow: 0 0 8px rgba(200, 118, 153, 0.5);
+}
+
+.key-btn.modifier-btn.active:active {
+    background: #b66688;
 }
 
 /* Code View Panels */

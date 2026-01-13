@@ -247,6 +247,12 @@ fitAddonShell.fit();
 // Track which terminal is active
 let activeTerminal = 'llm';
 
+// Track modifier key state for keyboard toolbar
+let modifierState = {
+    ctrl: false,
+    alt: false
+};
+
 // WebSocket connection (declared early for use in resize handlers)
 let ws = null;
 let reconnectTimeout = null;
@@ -345,17 +351,31 @@ document.querySelectorAll('.key-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         e.preventDefault();
         const key = btn.dataset.key;
-        let sequence = '';
 
-        switch(key) {
-            case 'up': sequence = '\x1b[A'; break;
-            case 'down': sequence = '\x1b[B'; break;
-            case 'right': sequence = '\x1b[C'; break;
-            case 'left': sequence = '\x1b[D'; break;
-            case 'esc': sequence = '\x1b'; break;
-            case 'enter': sequence = '\r'; break;
+        // Handle modifier keys (toggle behavior)
+        if (key === 'ctrl' || key === 'alt') {
+            modifierState[key] = !modifierState[key];
+            btn.classList.toggle('active', modifierState[key]);
+            return;
         }
 
+        // Build escape sequence
+        let sequence = '';
+
+        // Apply modifiers if active
+        if (modifierState.ctrl) {
+            sequence = getCtrlSequence(key);
+            modifierState.ctrl = false;
+            document.querySelector('[data-key="ctrl"]').classList.remove('active');
+        } else if (modifierState.alt) {
+            sequence = getAltSequence(key);
+            modifierState.alt = false;
+            document.querySelector('[data-key="alt"]').classList.remove('active');
+        } else {
+            sequence = getBasicSequence(key);
+        }
+
+        // Send sequence if valid
         if (ws && ws.readyState === WebSocket.OPEN && sequence) {
             ws.send(JSON.stringify({
                 type: 'terminal_data',
@@ -365,6 +385,47 @@ document.querySelectorAll('.key-btn').forEach(btn => {
         }
     });
 });
+
+// Helper: Get basic (unmodified) escape sequence
+function getBasicSequence(key) {
+    const sequences = {
+        'up': '\x1b[A',
+        'down': '\x1b[B',
+        'right': '\x1b[C',
+        'left': '\x1b[D',
+        'esc': '\x1b',
+        'enter': '\r',
+        'tab': '\t',
+        'home': '\x1b[H',
+        'end': '\x1b[F',
+        'pgup': '\x1b[5~',
+        'pgdn': '\x1b[6~'
+    };
+    return sequences[key] || '';
+}
+
+// Helper: Get Ctrl+key sequence
+function getCtrlSequence(key) {
+    const sequences = {
+        'up': '\x1b[1;5A',
+        'down': '\x1b[1;5B',
+        'right': '\x1b[1;5C',
+        'left': '\x1b[1;5D',
+        'home': '\x1b[1;5H',
+        'end': '\x1b[1;5F',
+        'pgup': '\x1b[5;5~',
+        'pgdn': '\x1b[6;5~',
+        'enter': '\n',
+        'tab': '\x1b[9;5~'
+    };
+    return sequences[key] || '';
+}
+
+// Helper: Get Alt+key sequence (ESC prefix method)
+function getAltSequence(key) {
+    const basicSeq = getBasicSequence(key);
+    return basicSeq ? '\x1b' + basicSeq : '';
+}
 
 // Initialize keyboard toolbar visibility (LLM view is default)
 document.getElementById('keyboard-toolbar').classList.add('visible');
@@ -943,10 +1004,17 @@ function switchView(viewName) {
     const terminalContainer = document.getElementById('terminal-container');
     const terminalShellContainer = document.getElementById('terminal-shell-container');
 
+    // Clear any active modifiers when switching views
+    modifierState.ctrl = false;
+    modifierState.alt = false;
+    document.querySelectorAll('.modifier-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
     if (viewName === 'llm') {
         activeTerminal = 'llm';
         keyboardToolbar.classList.add('visible');
-        terminalContainer.style.bottom = '94px';
+        terminalContainer.style.bottom = '138px';
         setTimeout(() => {
             fitAddon.fit();
             sendTerminalSize('llm');
@@ -954,7 +1022,7 @@ function switchView(viewName) {
     } else if (viewName === 'terminal') {
         activeTerminal = 'terminal';
         keyboardToolbar.classList.add('visible');
-        terminalShellContainer.style.bottom = '94px';
+        terminalShellContainer.style.bottom = '138px';
         setTimeout(() => {
             fitAddonShell.fit();
             sendTerminalSize('terminal');
