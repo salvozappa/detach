@@ -1,0 +1,108 @@
+services:
+  sandbox:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    container_name: detach-sandbox
+    hostname: sandbox
+    networks:
+      - detach-network
+    ports:
+      - "2222:22"
+    volumes:
+      - ./keys/dev.pub:/home/detach-dev/.ssh/authorized_keys:ro
+      - sandbox-home:/home/detach-dev
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pgrep", "sshd"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    # Resource limits for sandbox
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    # Log rotation
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  bridge:
+    build:
+      context: ./bridge
+      dockerfile: Dockerfile
+    container_name: detach-bridge
+    networks:
+      - detach-network
+    ports:
+      - "8081:8081"
+    environment:
+      - SANDBOX_HOST=sandbox
+      - SANDBOX_PORT=22
+      - SSH_KEY_PATH=/app/keys/dev
+    volumes:
+      - ./keys/dev:/app/keys/dev:ro
+    depends_on:
+      sandbox:
+        condition: service_healthy
+    restart: unless-stopped
+    # Resource limits for bridge
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 64M
+          cpus: '0.1'
+    # Log rotation
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  webview:
+    build:
+      context: ./webview
+      dockerfile: Dockerfile
+    container_name: detach-webview
+    networks:
+      - detach-network
+    ports:
+      - "8080:80"
+    # NO BIND MOUNTS - files are copied during build
+    # This makes deployment self-contained
+    depends_on:
+      - bridge
+    restart: unless-stopped
+    # Resource limits for webview
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+        reservations:
+          memory: 32M
+          cpus: '0.1'
+    # Log rotation
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  detach-network:
+    driver: bridge
+
+volumes:
+  sandbox-home:
+    driver: local
