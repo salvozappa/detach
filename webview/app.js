@@ -58,6 +58,7 @@ let codeViewInitialized = false;
 let selectModeActive = false;
 let selectedLines = new Set();
 let currentFilePath = '';
+let selectionPhase = 'none'; // 'none' | 'first' | 'range'
 
 // Code view functions
 function listFiles(path) {
@@ -248,7 +249,16 @@ function clearSelection() {
     document.querySelectorAll('.d2h-code-line-ctn.selected').forEach(el => {
         el.classList.remove('selected');
     });
+    selectionPhase = 'none';
     updateSendToLLMButton();
+}
+
+function selectLine(lineNumber) {
+    const lineEl = document.querySelector(`.d2h-code-line-ctn[data-line="${lineNumber}"]`);
+    if (lineEl) {
+        selectedLines.add(lineNumber);
+        lineEl.classList.add('selected');
+    }
 }
 
 function updateSendToLLMButton() {
@@ -285,47 +295,28 @@ function updateSendToLLMButton() {
 function handleLineClick(lineNumber) {
     if (!selectModeActive) return;
 
-    const lineEl = document.querySelector(`.d2h-code-line-ctn[data-line="${lineNumber}"]`);
-    if (!lineEl) return;
-
-    // If no lines selected, select this line
-    if (selectedLines.size === 0) {
-        selectedLines.add(lineNumber);
-        lineEl.classList.add('selected');
-        updateSendToLLMButton();
-        return;
-    }
-
-    // Get current selection bounds
-    const sortedLines = Array.from(selectedLines).sort((a, b) => a - b);
-    const minLine = sortedLines[0];
-    const maxLine = sortedLines[sortedLines.length - 1];
-
-    // If line is already selected
-    if (selectedLines.has(lineNumber)) {
-        // Deselect this line
-        selectedLines.delete(lineNumber);
-        lineEl.classList.remove('selected');
-        updateSendToLLMButton();
-        return;
-    }
-
-    // Check if line is contiguous (adjacent to min or max)
-    if (lineNumber === minLine - 1) {
-        // Extend selection upward
-        selectedLines.add(lineNumber);
-        lineEl.classList.add('selected');
-    } else if (lineNumber === maxLine + 1) {
-        // Extend selection downward
-        selectedLines.add(lineNumber);
-        lineEl.classList.add('selected');
-    } else {
-        // Not contiguous - clear and start new selection
+    if (selectionPhase === 'range') {
+        // Tap after range is complete: just clear
         clearSelection();
-        selectedLines.add(lineNumber);
-        lineEl.classList.add('selected');
+    } else if (selectionPhase === 'none') {
+        // First tap: select starting line
+        selectLine(lineNumber);
+        selectionPhase = 'first';
+        updateSendToLLMButton();
+    } else if (selectionPhase === 'first') {
+        // Second tap: select range from first to this line
+        const firstLine = Array.from(selectedLines)[0];
+        const start = Math.min(firstLine, lineNumber);
+        const end = Math.max(firstLine, lineNumber);
+
+        // Clear and select entire range
+        clearSelection();
+        for (let i = start; i <= end; i++) {
+            selectLine(i);
+        }
+        selectionPhase = 'range';
+        updateSendToLLMButton();
     }
-    updateSendToLLMButton();
 }
 
 // Set up click handler for code lines using event delegation
@@ -355,6 +346,9 @@ document.getElementById('send-to-llm-btn').addEventListener('click', () => {
 
     // Switch to LLM view
     switchView('llm');
+
+    // Focus the terminal so user can start typing
+    term.focus();
 
     // Send reference to terminal
     if (ws && ws.readyState === WebSocket.OPEN) {
