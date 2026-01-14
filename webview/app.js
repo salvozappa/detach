@@ -57,6 +57,7 @@ let codeViewInitialized = false;
 // Selection mode state
 let selectModeActive = false;
 let selectedLines = new Set();
+let currentFilePath = '';
 
 // Code view functions
 function listFiles(path) {
@@ -142,6 +143,7 @@ function navigateToFolder(path) {
 
 function openFile(path, filename) {
     document.getElementById('code-filename').textContent = filename;
+    currentFilePath = path;
     readFileWithDiff(path);
 }
 
@@ -246,6 +248,38 @@ function clearSelection() {
     document.querySelectorAll('.d2h-code-line-ctn.selected').forEach(el => {
         el.classList.remove('selected');
     });
+    updateSendToLLMButton();
+}
+
+function updateSendToLLMButton() {
+    const btn = document.getElementById('send-to-llm-btn');
+
+    if (selectedLines.size === 0) {
+        btn.style.display = 'none';
+        return;
+    }
+
+    // Find the last selected line element
+    const sortedLines = Array.from(selectedLines).sort((a, b) => a - b);
+    const lastLineNumber = sortedLines[sortedLines.length - 1];
+    const lastLineEl = document.querySelector(`.d2h-code-line-ctn[data-line="${lastLineNumber}"]`);
+
+    if (!lastLineEl) {
+        btn.style.display = 'none';
+        return;
+    }
+
+    // Position the button below the last selected line
+    const diffContainer = document.getElementById('code-content-diff');
+    const containerRect = diffContainer.getBoundingClientRect();
+    const lineRect = lastLineEl.getBoundingClientRect();
+
+    // Calculate position relative to the code-viewer-panel (which has position: relative via .code-panel)
+    const scrollTop = diffContainer.scrollTop;
+    const topPosition = lineRect.bottom - containerRect.top + scrollTop + 8;
+
+    btn.style.display = 'block';
+    btn.style.top = topPosition + 'px';
 }
 
 function handleLineClick(lineNumber) {
@@ -258,6 +292,7 @@ function handleLineClick(lineNumber) {
     if (selectedLines.size === 0) {
         selectedLines.add(lineNumber);
         lineEl.classList.add('selected');
+        updateSendToLLMButton();
         return;
     }
 
@@ -271,6 +306,7 @@ function handleLineClick(lineNumber) {
         // Deselect this line
         selectedLines.delete(lineNumber);
         lineEl.classList.remove('selected');
+        updateSendToLLMButton();
         return;
     }
 
@@ -289,6 +325,7 @@ function handleLineClick(lineNumber) {
         selectedLines.add(lineNumber);
         lineEl.classList.add('selected');
     }
+    updateSendToLLMButton();
 }
 
 // Set up click handler for code lines using event delegation
@@ -297,6 +334,42 @@ document.getElementById('code-content-diff').addEventListener('click', (e) => {
     if (lineEl && lineEl.dataset.line !== undefined) {
         handleLineClick(parseInt(lineEl.dataset.line, 10));
     }
+});
+
+// Send to LLM button click handler
+document.getElementById('send-to-llm-btn').addEventListener('click', () => {
+    if (selectedLines.size === 0 || !currentFilePath) return;
+
+    // Get line range (convert to 1-based for display)
+    const sortedLines = Array.from(selectedLines).sort((a, b) => a - b);
+    const startLine = sortedLines[0] + 1;
+    const endLine = sortedLines[sortedLines.length - 1] + 1;
+
+    // Create reference string
+    let reference;
+    if (startLine === endLine) {
+        reference = `${currentFilePath}:${startLine} `;
+    } else {
+        reference = `${currentFilePath}:${startLine}-${endLine} `;
+    }
+
+    // Switch to LLM view
+    switchView('llm');
+
+    // Send reference to terminal
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'terminal_data',
+            terminal: 'llm',
+            data: btoa(reference)
+        }));
+    }
+
+    // Clear selection and exit select mode
+    selectModeActive = false;
+    document.getElementById('code-select-toggle').classList.remove('active');
+    document.getElementById('code-content-diff').classList.remove('select-mode');
+    clearSelection();
 });
 
 function performCommit() {

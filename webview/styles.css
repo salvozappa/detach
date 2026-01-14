@@ -377,6 +377,29 @@ body {
     background: rgba(74, 144, 217, 0.3) !important;
 }
 
+/* Send to LLM floating button */
+.send-to-llm-btn {
+    display: none;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #c87699;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: background 0.2s;
+}
+
+.send-to-llm-btn:active {
+    background: #b5668a;
+}
+
 /* Git View Container */
 .git-container {
     display: flex;
