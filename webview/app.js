@@ -174,13 +174,20 @@ const diff2htmlConfig = {
     colorScheme: 'dark',
 };
 
-function showDiffViewer(diff, filename) {
+function showDiffViewer(diff, filename, hasChanges = true) {
     const normalContainer = document.getElementById('code-content-normal');
     const diffContainer = document.getElementById('code-content-diff');
 
     // Hide normal view, show diff view
     normalContainer.style.display = 'none';
     diffContainer.style.display = 'block';
+
+    // Add/remove no-changes class for styling (single line number column)
+    if (hasChanges) {
+        diffContainer.classList.remove('no-changes');
+    } else {
+        diffContainer.classList.add('no-changes');
+    }
 
     // Render diff using diff2html
     const diff2htmlUi = new Diff2HtmlUI(diffContainer, diff, diff2htmlConfig);
@@ -240,13 +247,9 @@ function handleFileMessage(msg) {
 
         const filename = msg.path.split('/').pop();
 
-        // If file has unstaged changes, show diff view
-        // Otherwise (untracked or no changes), show normal view
-        if (msg.hasDiff && msg.diff) {
-            showDiffViewer(msg.diff, filename);
-        } else {
-            showCodeViewer(msg.content, filename);
-        }
+        // Always use diff view for consistency
+        // hasChanges controls whether we show two line number columns or one
+        showDiffViewer(msg.diff, filename, msg.hasDiff);
     }
 }
 

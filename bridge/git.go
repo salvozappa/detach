@@ -205,6 +205,30 @@ func (s *Session) pushChanges() error {
 	return err
 }
 
+// Generate a fake unified diff with all lines as context (for unchanged files)
+func generateContextDiff(filename string, content string) string {
+	lines := strings.Split(content, "\n")
+	lineCount := len(lines)
+
+	// Handle empty files
+	if lineCount == 0 || (lineCount == 1 && lines[0] == "") {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("--- a/%s\n", filename))
+	sb.WriteString(fmt.Sprintf("+++ b/%s\n", filename))
+	sb.WriteString(fmt.Sprintf("@@ -1,%d +1,%d @@\n", lineCount, lineCount))
+
+	for _, line := range lines {
+		sb.WriteString(" ")  // Space prefix = context line
+		sb.WriteString(line)
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
 // Get file content with diff for Code panel
 func (s *Session) getFileWithDiff(path string) (*FileWithDiffResponse, error) {
 	resp := &FileWithDiffResponse{
@@ -212,7 +236,7 @@ func (s *Session) getFileWithDiff(path string) (*FileWithDiffResponse, error) {
 		Path: path,
 	}
 
-	// Read file content (needed for fallback view)
+	// Read file content
 	content, err := s.readFile(path)
 	if err != nil {
 		return nil, err
@@ -230,8 +254,9 @@ func (s *Session) getFileWithDiff(path string) (*FileWithDiffResponse, error) {
 	trackCmd := fmt.Sprintf("cd %s && git ls-files --error-unmatch '%s' 2>/dev/null", workingDir, relativePath)
 	_, trackErr := s.executeCommand(trackCmd)
 	if trackErr != nil {
-		// File is not tracked
+		// File is not tracked - generate fake diff with all lines as context
 		resp.IsUntracked = true
+		resp.Diff = generateContextDiff(relativePath, content)
 		return resp, nil
 	}
 
@@ -239,8 +264,16 @@ func (s *Session) getFileWithDiff(path string) (*FileWithDiffResponse, error) {
 	// -U99999 ensures we get all lines as context, showing the entire file
 	diffCmd := fmt.Sprintf("cd %s && git diff -U99999 '%s'", workingDir, relativePath)
 	diff, _ := s.executeCommand(diffCmd)
-	resp.Diff = diff
-	resp.HasDiff = len(strings.TrimSpace(diff)) > 0
+
+	if len(strings.TrimSpace(diff)) > 0 {
+		// File has changes
+		resp.Diff = diff
+		resp.HasDiff = true
+	} else {
+		// No changes - generate fake diff with all lines as context
+		resp.Diff = generateContextDiff(relativePath, content)
+		resp.HasDiff = false
+	}
 
 	return resp, nil
 }

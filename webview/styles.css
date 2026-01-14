@@ -822,6 +822,16 @@ body {
     color: #8b949e;
 }
 
+/* Single line number column for unchanged files */
+#code-content-diff.no-changes .line-num1 {
+    display: none;
+}
+
+/* Remove gap where line-num1 was - make line number flush left */
+#code-content-diff.no-changes .d2h-code-linenumber, #code-content-diff.no-changes .d2h-code-line {
+    margin-left: -40px;
+}
+
 /* Mobile optimizations for diff view */
 @media (max-width: 600px) {
     #code-content-diff .d2h-diff-table {
