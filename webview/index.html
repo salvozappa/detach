@@ -3,7 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Detach.it Terminal</title>
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Detach.it</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
 
     <!-- xterm.js CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
@@ -44,6 +51,7 @@
             <div class="code-header">
                 <button class="code-back-btn" onclick="showFileExplorer()">Back</button>
                 <span class="code-header-title" id="code-filename">filename.js</span>
+                <button class="code-select-toggle" id="code-select-toggle" onclick="toggleSelectMode()">Select</button>
             </div>
             <!-- Normal code view (syntax highlighted) -->
             <div class="code-content" id="code-content-normal">
@@ -141,5 +149,12 @@
 
     <!-- Application JavaScript -->
     <script src="app.js"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+        }
+    </script>
 </body>
 </html>

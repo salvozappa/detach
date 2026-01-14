@@ -54,6 +54,10 @@ const PROJECT_ROOT = '~/projects/sample';
 let currentPath = PROJECT_ROOT;
 let codeViewInitialized = false;
 
+// Selection mode state
+let selectModeActive = false;
+let selectedLines = new Set();
+
 // Code view functions
 function listFiles(path) {
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -194,6 +198,15 @@ function showDiffViewer(diff, filename, hasChanges = true) {
     diff2htmlUi.draw();
     diff2htmlUi.highlightCode();
 
+    // Add data-line attributes to each line for selection
+    const lineElements = diffContainer.querySelectorAll('.d2h-code-line-ctn');
+    lineElements.forEach((el, index) => {
+        el.dataset.line = index;
+    });
+
+    // Clear selection when viewing new file
+    clearSelection();
+
     // Switch panels
     document.getElementById('file-explorer-panel').classList.remove('active');
     document.getElementById('code-viewer-panel').classList.add('active');
@@ -202,7 +215,89 @@ function showDiffViewer(diff, filename, hasChanges = true) {
 function showFileExplorer() {
     document.getElementById('code-viewer-panel').classList.remove('active');
     document.getElementById('file-explorer-panel').classList.add('active');
+
+    // Reset select mode when leaving code viewer
+    if (selectModeActive) {
+        selectModeActive = false;
+        document.getElementById('code-select-toggle').classList.remove('active');
+        document.getElementById('code-content-diff').classList.remove('select-mode');
+        clearSelection();
+    }
 }
+
+// Selection mode functions
+function toggleSelectMode() {
+    selectModeActive = !selectModeActive;
+    const btn = document.getElementById('code-select-toggle');
+    const diffContainer = document.getElementById('code-content-diff');
+
+    if (selectModeActive) {
+        btn.classList.add('active');
+        diffContainer.classList.add('select-mode');
+    } else {
+        btn.classList.remove('active');
+        diffContainer.classList.remove('select-mode');
+        clearSelection();
+    }
+}
+
+function clearSelection() {
+    selectedLines.clear();
+    document.querySelectorAll('.d2h-code-line-ctn.selected').forEach(el => {
+        el.classList.remove('selected');
+    });
+}
+
+function handleLineClick(lineNumber) {
+    if (!selectModeActive) return;
+
+    const lineEl = document.querySelector(`.d2h-code-line-ctn[data-line="${lineNumber}"]`);
+    if (!lineEl) return;
+
+    // If no lines selected, select this line
+    if (selectedLines.size === 0) {
+        selectedLines.add(lineNumber);
+        lineEl.classList.add('selected');
+        return;
+    }
+
+    // Get current selection bounds
+    const sortedLines = Array.from(selectedLines).sort((a, b) => a - b);
+    const minLine = sortedLines[0];
+    const maxLine = sortedLines[sortedLines.length - 1];
+
+    // If line is already selected
+    if (selectedLines.has(lineNumber)) {
+        // Deselect this line
+        selectedLines.delete(lineNumber);
+        lineEl.classList.remove('selected');
+        return;
+    }
+
+    // Check if line is contiguous (adjacent to min or max)
+    if (lineNumber === minLine - 1) {
+        // Extend selection upward
+        selectedLines.add(lineNumber);
+        lineEl.classList.add('selected');
+    } else if (lineNumber === maxLine + 1) {
+        // Extend selection downward
+        selectedLines.add(lineNumber);
+        lineEl.classList.add('selected');
+    } else {
+        // Not contiguous - clear and start new selection
+        clearSelection();
+        selectedLines.add(lineNumber);
+        lineEl.classList.add('selected');
+    }
+}
+
+// Set up click handler for code lines using event delegation
+document.getElementById('code-content-diff').addEventListener('click', (e) => {
+    const lineEl = e.target.closest('.d2h-code-line-ctn');
+    if (lineEl && lineEl.dataset.line !== undefined) {
+        handleLineClick(parseInt(lineEl.dataset.line, 10));
+    }
+});
 
 function performCommit() {
     const messageInput = document.getElementById('commit-message');

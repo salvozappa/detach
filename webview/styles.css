@@ -251,6 +251,30 @@ body {
     cursor: pointer;
 }
 
+.code-select-toggle {
+    background: #333;
+    border: none;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.code-select-toggle.active {
+    background: #4a90d9;
+    color: #fff;
+}
+
+.code-select-toggle:active {
+    background: #444;
+}
+
+.code-select-toggle.active:active {
+    background: #3a7fc8;
+}
+
 /* Commit Input (inline in git-commit-bar) */
 .commit-input {
     width: 100%;
@@ -338,6 +362,19 @@ body {
 
 .code-content code {
     background: transparent !important;
+}
+
+/* Code line selection */
+#code-content-diff.select-mode .d2h-code-line-ctn {
+    cursor: pointer;
+}
+
+#code-content-diff.select-mode .d2h-code-line-ctn:active {
+    background: rgba(74, 144, 217, 0.2) !important;
+}
+
+#code-content-diff .d2h-code-line-ctn.selected {
+    background: rgba(74, 144, 217, 0.3) !important;
 }
 
 /* Git View Container */
