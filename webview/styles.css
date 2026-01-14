@@ -1,7 +1,6 @@
 * {
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
 }
 
 body {
@@ -830,6 +829,18 @@ body {
 /* Remove gap where line-num1 was - make line number flush left */
 #code-content-diff.no-changes .d2h-code-linenumber, #code-content-diff.no-changes .d2h-code-line {
     margin-left: -40px;
+}
+
+/* Text-wrapping in the file view */
+span.d2h-code-line-ctn.hljs.markdown {
+    white-space: pre-wrap;
+}
+
+/* Remove unnecessary paddings/margins to prevent horizontal scrolling */
+.d2h-code-line {
+    padding-left: 8em;
+    padding-right: 0;
+    width: calc(100% - 10em);
 }
 
 /* Mobile optimizations for diff view */
