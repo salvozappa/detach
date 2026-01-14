@@ -341,6 +341,10 @@ body {
     color: #666;
 }
 
+.file-item.has-unstaged-changes .file-name {
+    color: #ffb6c1;
+}
+
 /* Code Viewer */
 #code-viewer-panel {
     background: #0d1117;

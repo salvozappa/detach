@@ -86,6 +86,30 @@ function renderFileList(files, path) {
     currentPath = path;
     currentPathEl.textContent = path;
 
+    // Build set of unstaged file paths and directories containing unstaged files
+    const unstagedPaths = new Set(unstagedChanges.map(f => f.path));
+    const dirsWithUnstaged = new Set();
+    const untrackedDirPrefixes = []; // Untracked directories - all contents are unstaged
+    for (const f of unstagedChanges) {
+        // Untracked directories end with / - track them separately
+        if (f.path.endsWith('/')) {
+            const dirPath = f.path.slice(0, -1); // Remove trailing slash
+            untrackedDirPrefixes.push(dirPath + '/');
+            dirsWithUnstaged.add(dirPath);
+            continue;
+        }
+        const parts = f.path.split('/');
+        // Add all parent directories to the set
+        for (let i = 1; i < parts.length; i++) {
+            dirsWithUnstaged.add(parts.slice(0, i).join('/'));
+        }
+    }
+
+    // Helper to check if path is inside an untracked directory
+    const isInsideUntrackedDir = (relPath) => {
+        return untrackedDirPrefixes.some(prefix => relPath.startsWith(prefix));
+    };
+
     let html = '';
 
     // Add parent directory link if not at project root
@@ -99,28 +123,34 @@ function renderFileList(files, path) {
         `;
     }
 
-    // Sort: folders first, then files
-    const sorted = [...files].sort((a, b) => {
-        if (a.is_dir && !b.is_dir) return -1;
-        if (!a.is_dir && b.is_dir) return 1;
-        return a.name.localeCompare(b.name);
-    });
+    // Filter out .git directory and sort: folders first, then files
+    const sorted = [...files]
+        .filter(f => f.name !== '.git')
+        .sort((a, b) => {
+            if (a.is_dir && !b.is_dir) return -1;
+            if (!a.is_dir && b.is_dir) return 1;
+            return a.name.localeCompare(b.name);
+        });
 
     for (const file of sorted) {
         const icon = file.is_dir ? '📁' : '📄';
         const size = file.is_dir ? '' : formatFileSize(file.size);
         const fullPath = path + '/' + file.name;
+        const relativePath = fullPath.replace(PROJECT_ROOT + '/', '');
+        const hasUnstagedChanges = file.is_dir
+            ? dirsWithUnstaged.has(relativePath) || isInsideUntrackedDir(relativePath + '/')
+            : unstagedPaths.has(relativePath) || isInsideUntrackedDir(relativePath);
 
         if (file.is_dir) {
             html += `
-                <div class="file-item" onclick="navigateToFolder('${fullPath}')">
+                <div class="file-item${hasUnstagedChanges ? ' has-unstaged-changes' : ''}" onclick="navigateToFolder('${fullPath}')">
                     <span class="file-icon">${icon}</span>
                     <span class="file-name">${file.name}</span>
                 </div>
             `;
         } else {
             html += `
-                <div class="file-item" onclick="openFile('${fullPath}', '${file.name}')">
+                <div class="file-item${hasUnstagedChanges ? ' has-unstaged-changes' : ''}" onclick="openFile('${fullPath}', '${file.name}')">
                     <span class="file-icon">${icon}</span>
                     <span class="file-name">${file.name}</span>
                     <span class="file-size">${size}</span>
@@ -1032,6 +1062,10 @@ function handleGitMessage(msg) {
     if (msg.type === 'git_status') {
         updateUnstagedChanges(msg.unstaged || []);
         updateStagedChanges(msg.staged || []);
+        // Refresh file list if we're on the code view to update unstaged highlighting
+        if (document.getElementById('view-code').classList.contains('active') && currentPath) {
+            listFiles(currentPath);
+        }
     } else if (msg.type === 'git_stage_success' || msg.type === 'git_unstage_success' || msg.type === 'git_discard_success') {
         // Reload git status after action
         loadGitStatus();
@@ -1253,9 +1287,13 @@ function switchView(viewName) {
 
     // Load files when switching to Code view
     if (viewName === 'code') {
-        if (!codeViewInitialized && ws && ws.readyState === WebSocket.OPEN) {
-            codeViewInitialized = true;
-            listFiles(PROJECT_ROOT);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            // Load git status so we can highlight files with unstaged changes
+            loadGitStatus();
+            if (!codeViewInitialized) {
+                codeViewInitialized = true;
+                listFiles(PROJECT_ROOT);
+            }
         }
     }
 
