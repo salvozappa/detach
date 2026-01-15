@@ -181,6 +181,25 @@ newgrp docker
 # Or log out and back in
 ```
 
+### SSH authentication failures in bridge logs
+If you see `ssh: handshake failed: ssh: unable to authenticate` in bridge logs:
+
+```bash
+# Check if keys have correct permissions and ownership
+cd ~/detach.it
+ls -la keys/
+
+# The dev.pub file must be owned by UID 1001 (container's detach-dev user)
+# and have 600 permissions
+sudo chown 1001:1001 keys/dev.pub
+chmod 600 keys/dev keys/dev.pub
+
+# Restart containers
+docker-compose -f docker-compose.prod.yml restart sandbox bridge
+```
+
+**Note**: The deployment script automatically sets correct permissions, but if you manually copy keys or restore from backup, you may need to fix ownership.
+
 ## Security Notes
 
 - VPS is **NOT** exposed to public internet (except SSH)

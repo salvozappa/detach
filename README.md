@@ -71,3 +71,28 @@ Bridge (Go)
     ↓ SSH
 Sandbox (Ubuntu + dev tools)
 ```
+
+## VPS Deployment
+
+For deploying to a VPS for nightly testing or production:
+
+### Provision infrastructure
+1. **Provision VPS** with `infrastructure/vps-config-init.yaml` as cloud-init
+2. **Setup Tailscale**: `ssh sal@<vps-ip> && sudo tailscale up`
+3. **Setup GitHub Deploy Key**: See [infrastructure/README.md](infrastructure/README.md)
+
+### Deploy
+Run `./deploy-to-vps.sh` on VPS
+
+### HTTPS for PWA
+To enable HTTPS (required for Progressive Web App features):
+1. Enable HTTPS in [Tailscale admin](https://login.tailscale.com/admin/dns)
+2. Run: `sudo tailscale serve --bg --https 443 http://localhost:8080`
+3. Access at: `https://<hostname>.tail-scale.ts.net`
+
+See [infrastructure/README.md](infrastructure/README.md) for complete deployment guide.
+
+### Access
+- **Development**: `http://localhost:8080`
+- **VPS (HTTP)**: `http://<tailscale-ip>:8080`
+- **VPS (HTTPS)**: `https://<hostname>.tail-scale.ts.net`

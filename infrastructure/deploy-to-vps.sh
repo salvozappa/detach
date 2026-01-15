@@ -92,6 +92,15 @@ if [ ! -f "keys/dev" ] || [ ! -f "keys/dev.pub" ]; then
   ssh-keygen -t ed25519 -f keys/dev -N "" -C "detach-dev-key"
 fi
 
+# Fix SSH key permissions and ownership for container compatibility
+# The sandbox container's detach-dev user has UID 1001
+# SSH requires authorized_keys to be owned by the user and have 600 permissions
+echo "Setting correct SSH key permissions..."
+chmod 600 keys/dev keys/dev.pub
+sudo chown 1001:1001 keys/dev.pub
+echo "✓ SSH keys configured"
+echo ""
+
 # Build and start containers
 echo ""
 echo "Building Docker containers..."
