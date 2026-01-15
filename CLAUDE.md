@@ -156,22 +156,120 @@ To change the server URL, edit `MainActivity.kt` and update the URL in the
 2. Update `bridge/types.go` if changing message structure
 3. Rebuild bridge: `docker-compose build --no-cache bridge && docker-compose up -d bridge`
 
-### Test Changes
-- You can restart containers if needed
-- You can check the logs: `docker logs detach-bridge` or `docker logs detach-webview`
-- Manual testing is done by me, the human, for now
-- Just ask me the tests you want me to manually execute once you're done with the
-  changes
-- We will implement some automated testing soon
-- Hard refresh browser: `Cmd/Ctrl + Shift + R`
-- Check browser console for JS errors (F12)
-
+### Apply Changes
+- Restart container locally: `docker compose down && docker compose up --build -d`
 
 ## Port Mappings
 - 8080 → webview (nginx)
 - 8081 → bridge (WebSocket)
 - 2222 → sandbox (SSH)
 - 5432 → postgres (not used by detach.it currently)
+
+## Environments
+
+- **Local environment**: Defined in `docker-compose.yml`
+- **Remote instance environment**:
+  - Defined in `docker-compose.prod.yml`
+  - Running in a VPS. Provisioning defined in `infrastructure/vps-config-init.yaml`
+  - Deploy local changes and restart remote instance: `infrastructure/deploy-to-vps.sh --rsync`
+  - More information in `infrastructure/README.md`
+
+## Debugging
+
+You have full ssh access to the remote machine where the nightly instance is hosted, at the FQDN nightly01.tail5fb253.ts.net. You can access the docker containers and their logs for debugging purposes.
+
+You can ask the human in the loop for any webview frontend logs, investigation, HAR traces, or to interact with the android app to generate logs.
+
+### Debug Logging Infrastructure
+
+The codebase has comprehensive debug logging across all layers:
+
+#### Android Logcat (MainActivity.kt)
+- **Tag `DetachActivity`**: Lifecycle events (onCreate, onStart, onResume, onPause, onStop, onDestroy)
+- **Tag `WV:*`**: WebView logs routed from JavaScript via `WebAppInterface`
+- **Tag `WV:Console`**: Browser console.log/error/warn captured via `WebChromeClient`
+
+#### Frontend Debug Logging (app.js)
+Categories controlled by `DEBUG` object at top of file:
+- **WS**: WebSocket connection events, state transitions, close codes
+- **HEALTH**: Health check ticks, pong receipts, stale detection
+- **VISIBILITY**: Page visibility changes
+- **ANDROID**: Android lifecycle events received via custom events
+
+WebSocket close codes are decoded:
+- 1000: Normal closure
+- 1001: Going away (browser/tab closing)
+- 1006: Abnormal closure (no close frame) - common culprit for connection issues
+- 1005: No status received
+
+#### Backend Debug Logging (bridge/)
+- **`[WS]`**: Connection attempts, upgrades, session creation (server.go)
+- **`[WS:<session-id>]`**: Per-session events, ping/pong, close codes (bridge.go)
+
+### Viewing Logs
+
+**Android app (via adb):**
+```bash
+# All relevant logs
+adb logcat -s DetachActivity:* WV:*:*
+
+# Filter by specific tag
+adb logcat -s WV:WS:*
+```
+
+**Backend (bridge container):**
+```bash
+# All bridge logs
+docker logs -f detach-bridge
+
+# Filter WebSocket events only
+docker logs -f detach-bridge 2>&1 | grep '\[WS'
+
+# Filter specific session
+docker logs detach-bridge 2>&1 | grep 'abc123'
+```
+
+**Remote nightly instance:**
+```bash
+ssh nightly01.tail5fb253.ts.ne "docker logs -f detach-bridge 2>&1 | grep '\[WS'"
+```
+
+### Debugging WebSocket Connection Issues
+
+1. **Start log capture** before reproducing:
+   ```bash
+   # Terminal 1 - Android
+   adb logcat -s DetachActivity:* WV:*:*
+
+   # Terminal 2 - Backend
+   docker logs -f detach-bridge 2>&1 | grep '\[WS'
+   ```
+
+2. **Expected sequence (normal resume):**
+   ```
+   DetachActivity: onPause
+   WV:VISIBILITY: Page hidden
+   WV:HEALTH: Stopping health check
+   (app backgrounded)
+   DetachActivity: onResume
+   WV:ANDROID: Android onResume received
+   WV:VISIBILITY: Page visible
+   WV:WS: Connection check
+   WV:HEALTH: Starting health check
+   ```
+
+3. **Reconnect loop pattern to watch for:**
+   ```
+   WV:WS: WebSocket closed {code: 1006, wasClean: false}
+   WV:WS: Scheduling reconnect
+   WV:WS: Starting connection
+   WV:WS: WebSocket opened
+   WV:WS: WebSocket closed {code: 1006}  <- immediately closes again
+   ```
+
+### Correlation IDs
+
+Frontend generates `conn-{timestamp}-{counter}` correlation IDs for each connection attempt. These appear in the `corrId` field of JSON log entries and can be used to track a single connection attempt across logs.
 
 ## Development workflow
 Don't worry about git. All git commands will be executed by the human in the loop.

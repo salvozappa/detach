@@ -107,11 +107,11 @@ This allows the deployment script to automatically configure HTTPS.
 
 ### 4. Deploy Application
 
-**For a new VPS:** First, update the server IP in the deploy script:
+**For a new VPS:** First, update the server hostname in the deploy script:
 
 ```bash
 # Edit infrastructure/deploy-to-vps.sh
-# Change REMOTE_HOST="77.42.17.162" to your new VPS IP
+# Change REMOTE_HOST to your new VPS Tailscale hostname (e.g., "hostname.tail5fb253.ts.net")
 ```
 
 Then run the deploy script from your local machine:

@@ -4,7 +4,7 @@ set -e
 # Remote Deployment Script for detach.it
 # Deploys to VPS from local machine via SSH
 
-REMOTE_HOST="77.42.17.162"
+REMOTE_HOST="nightly01.tail5fb253.ts.net"
 REMOTE_USER="sal"
 DEPLOY_DIR="/home/sal/detach.it"
 COMPOSE_FILE="docker-compose.prod.yml"
