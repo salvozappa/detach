@@ -10,7 +10,7 @@ services:
     ports:
       - "2222:22"  # SSH accessible from host for debugging
     volumes:
-      - ./keys/dev.pub:/home/detach-dev/.ssh/authorized_keys:ro
+      - ./keys/dev.pub:/tmp/authorized_keys:ro
       - sandbox-home:/home/detach-dev
     restart: unless-stopped
     healthcheck:

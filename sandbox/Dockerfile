@@ -67,5 +67,9 @@ USER root
 # Expose SSH port
 EXPOSE 22
 
-# Start SSH service in foreground mode (required for Docker)
-CMD ["/usr/sbin/sshd", "-D"]
+# Add entrypoint script that fixes key ownership before starting sshd
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Start via entrypoint (fixes key ownership, then starts sshd)
+CMD ["/entrypoint.sh"]
