@@ -10,9 +10,42 @@ DEPLOY_DIR="/home/sal/detach.it"
 COMPOSE_FILE="docker-compose.prod.yml"
 SSH_OPTS="-o ConnectTimeout=10 -o BatchMode=yes"
 
+# Deployment mode: 'git' (default) or 'rsync'
+DEPLOYMENT_MODE="git"
+
+# Parse command-line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --rsync)
+            DEPLOYMENT_MODE="rsync"
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [--rsync]"
+            echo ""
+            echo "Options:"
+            echo "  --rsync    Sync local files to remote (for testing uncommitted changes)"
+            echo "  --help     Show this help message"
+            echo ""
+            echo "Default behavior: Pull from git repository on remote server"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Run '$0 --help' for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 echo "==================================="
 echo "Detach.it Remote Deployment"
 echo "Target: $REMOTE_USER@$REMOTE_HOST"
+if [ "$DEPLOYMENT_MODE" = "rsync" ]; then
+    echo "Mode: RSYNC (local files)"
+else
+    echo "Mode: GIT (pull from repository)"
+fi
 echo "==================================="
 echo ""
 
@@ -79,14 +112,6 @@ setup_git_repo() {
         exit 1
     fi
 
-    # Generate SSH keys for sandbox if they don't exist
-    if ! ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "test -f $DEPLOY_DIR/keys/dev" &>/dev/null; then
-        if ! ssh_exec "cd $DEPLOY_DIR && ssh-keygen -t ed25519 -f keys/dev -N '' -C 'detach-dev-key'" "Generating sandbox SSH keys"; then
-            echo "ERROR: Failed to generate SSH keys for sandbox"
-            exit 1
-        fi
-    fi
-
     echo "✓ Git repository set up"
 }
 
@@ -102,12 +127,17 @@ check_remote_prerequisites() {
         exit 1
     fi
 
-    # Check if it's a git repository - if not, set it up
-    if ! ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "cd $DEPLOY_DIR && git rev-parse --git-dir" &>/dev/null; then
-        echo "⚠ Git repository not found - this appears to be a first-time setup"
-        setup_git_repo
+    # Check if it's a git repository - if not, set it up (only required in git mode)
+    if [ "$DEPLOYMENT_MODE" = "git" ]; then
+        if ! ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "cd $DEPLOY_DIR && git rev-parse --git-dir" &>/dev/null; then
+            echo "⚠ Git repository not found - this appears to be a first-time setup"
+            setup_git_repo
+        else
+            echo "✓ Git repository found"
+        fi
     else
-        echo "✓ Git repository found"
+        # Rsync mode - git repo not required
+        echo "✓ Skipping git repository check (rsync mode)"
     fi
 
     # Check Docker access
@@ -121,6 +151,56 @@ check_remote_prerequisites() {
     echo "✓ Remote environment ready"
 }
 
+# Sync local files to remote using rsync
+rsync_local_files() {
+    echo ""
+    echo "==================================="
+    echo "⚠️  RSYNC MODE WARNING"
+    echo "==================================="
+    echo "This will sync YOUR LOCAL FILES to the remote server."
+    echo "This includes any uncommitted changes, debug code, etc."
+    echo ""
+    echo "This mode is for TESTING ONLY."
+    echo "For production deployments, use git mode (default)."
+    echo ""
+
+    # Check that we're in the project directory
+    if [ ! -f "docker-compose.prod.yml" ]; then
+        echo "ERROR: Must run this script from the project root directory"
+        echo "Current directory: $(pwd)"
+        exit 1
+    fi
+
+    echo "Syncing local files to remote..."
+    echo ""
+
+    # Rsync with progress, excluding sensitive/unnecessary files
+    # Note: Not using --delete to preserve server state
+    if rsync -avz \
+        --exclude '.git/' \
+        --exclude '.gitignore' \
+        --exclude '.env' \
+        --exclude '.env.*' \
+        --exclude 'node_modules/' \
+        --exclude '.vscode/' \
+        --exclude '*.log' \
+        --exclude '.DS_Store' \
+        --exclude '__pycache__/' \
+        --exclude '*.pyc' \
+        --exclude '.claude/' \
+        --progress \
+        ./ "$REMOTE_USER@$REMOTE_HOST:$DEPLOY_DIR/"; then
+        echo ""
+        echo "✓ Files synced to remote"
+    else
+        echo ""
+        echo "✗ ERROR: Rsync failed"
+        exit 1
+    fi
+
+    echo ""
+}
+
 # Main deployment function
 deploy() {
     echo ""
@@ -129,22 +209,28 @@ deploy() {
     echo "==================================="
     echo ""
 
-    # Show current commit before update
-    echo "Current deployment:"
-    ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "cd $DEPLOY_DIR && git log -1 --oneline && echo '' && git status -s"
-    echo ""
+    if [ "$DEPLOYMENT_MODE" = "git" ]; then
+        # Show current commit before update
+        echo "Current deployment:"
+        ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "cd $DEPLOY_DIR && git log -1 --oneline && echo '' && git status -s"
+        echo ""
 
-    # Git pull
-    if ! ssh_exec "cd $DEPLOY_DIR && git pull" "Pulling latest changes"; then
-        echo "ERROR: Git pull failed. Check remote git configuration."
-        exit 1
+        # Git pull
+        if ! ssh_exec "cd $DEPLOY_DIR && git pull" "Pulling latest changes"; then
+            echo "ERROR: Git pull failed. Check remote git configuration."
+            exit 1
+        fi
+
+        # Show what changed
+        echo ""
+        echo "Updated to:"
+        ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "cd $DEPLOY_DIR && git log -1 --oneline"
+        echo ""
+    else
+        # Rsync mode - files already synced
+        echo "Skipping git pull (rsync mode - files already synced)"
+        echo ""
     fi
-
-    # Show what changed
-    echo ""
-    echo "Updated to:"
-    ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "cd $DEPLOY_DIR && git log -1 --oneline"
-    echo ""
 
     # Build containers
     if ! ssh_exec "cd $DEPLOY_DIR && docker-compose -f $COMPOSE_FILE build" "Building Docker containers"; then
@@ -215,8 +301,15 @@ get_access_urls() {
 # Main execution
 check_ssh_connectivity
 check_remote_prerequisites
+
+# Sync files if rsync mode
+if [ "$DEPLOYMENT_MODE" = "rsync" ]; then
+    rsync_local_files
+fi
+
 deploy
 show_logs
 get_access_urls
 
+echo ""
 echo "Deployment finished at $(date)"
