@@ -14,6 +14,7 @@ A web-based interface that connects to a remote sandbox where AI agents (like Cl
 ## Components
 
 - **Webview** - Frontend (HTML/CSS/JS) with xterm.js terminal and Git UI
+- **Android** - Native Android app (WebView wrapper for mobile)
 - **Bridge** - Go WebSocket server that connects browser to sandbox
 - **Sandbox** - Ubuntu container with SSH, development tools, and Git
 
@@ -62,10 +63,19 @@ docker logs detach-sandbox
 ssh -i keys/dev -p 2222 detach-dev@localhost
 ```
 
+## Android App
+
+The native Android app is a WebView wrapper that provides a mobile app experience.
+
+### Build
+
+1. Open `android/` folder in Android Studio
+2. Build and run on device or emulator
+
 ## Architecture
 
 ```
-Browser (xterm.js)
+Browser/Android (xterm.js)
     ↓ WebSocket
 Bridge (Go)
     ↓ SSH

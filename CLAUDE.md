@@ -21,11 +21,11 @@ Web-based terminal + Git UI prototype. Four-panel interface:
 3. **Terminal** - Standard bash shell for running applications, tests, and commands
 4. **Git** - Git status viewer for reviewing and committing changes
 
-At the moment, the user connects via browser to interact with a remote sandbox
-environment. In the future we might wrap this around a web view in a mobile app.
+Users can connect via browser or the native Android app to interact with a remote sandbox environment.
 
 ## Architecture
 - **Frontend (webview/)**: HTML/CSS/JS served via nginx
+- **Android (android/)**: Native Android app with WebView wrapper
 - **Backend (bridge/)**: Go WebSocket server that bridges browser ↔ SSH sandbox
 - **Sandbox**: Ubuntu container with SSH, dev tools, git
 
@@ -74,6 +74,13 @@ environment. In the future we might wrap this around a web view in a mobile app.
 - `bridge/types.go` - Go struct definitions for WebSocket messages
 - `bridge/Dockerfile` - Multi-stage build (copies all *.go files)
 
+### Android
+- `android/app/src/main/java/it/detach/app/MainActivity.kt` - Main activity with WebView
+- `android/app/src/main/AndroidManifest.xml` - App manifest (permissions, config)
+- `android/app/src/main/res/values/strings.xml` - App name and strings
+- `android/app/build.gradle.kts` - App-level build config
+- `android/gradle/libs.versions.toml` - Dependency versions
+
 ## Build
 
 The webview container loads the HTML/CSS via mounted volumes, so it doesn't
@@ -92,6 +99,14 @@ docker-compose up -d bridge
 docker-compose build --no-cache webview
 docker-compose up -d webview
 ```
+
+### Android App
+
+In `android/` there is an app, which is a native WebView wrapper that connects to
+the hosted web app.
+
+To change the server URL, edit `MainActivity.kt` and update the URL in the
+`DetachWebView` call.
 
 ## WebSocket Protocol
 
