@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"io"
+	"log"
 	"sync"
 	"time"
 
@@ -34,6 +35,11 @@ type Session struct {
 func (s *Session) SetWebSocket(conn *websocket.Conn) {
 	s.wsMu.Lock()
 	defer s.wsMu.Unlock()
+	// Close old connection if exists to prevent multiple handlers
+	if s.wsConn != nil && conn != nil {
+		log.Printf("[Session:%s] Closing old WebSocket before attaching new one", s.ID)
+		s.wsConn.Close()
+	}
 	s.wsConn = conn
 }
 

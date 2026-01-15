@@ -5,6 +5,98 @@ const WS_PORT = '8081';
 // Authentication - HARDCODED FOR NOW
 const USERNAME = 'detach-dev';
 
+// Debug logging configuration
+const DEBUG = {
+    WS: true,        // WebSocket connection events
+    HEALTH: true,    // Health check events
+    VISIBILITY: true, // Page visibility events
+    ANDROID: true    // Android lifecycle events
+};
+
+// Correlation ID for tracking connection attempts
+let connectionAttemptId = 0;
+let currentCorrelationId = null;
+
+// Connection state machine
+const WS_STATES = {
+    DISCONNECTED: 'DISCONNECTED',
+    CONNECTING: 'CONNECTING',
+    CONNECTED: 'CONNECTED',
+    RECONNECTING: 'RECONNECTING',
+    CLOSING: 'CLOSING'
+};
+let wsState = WS_STATES.DISCONNECTED;
+let lastStateChange = Date.now();
+let connectionStartTime = null;
+
+// WebSocket close code meanings
+const CLOSE_CODE_MEANINGS = {
+    1000: 'Normal closure',
+    1001: 'Going away (browser/tab closing)',
+    1002: 'Protocol error',
+    1003: 'Unsupported data',
+    1005: 'No status received',
+    1006: 'Abnormal closure (no close frame)',
+    1007: 'Invalid frame payload data',
+    1008: 'Policy violation',
+    1009: 'Message too big',
+    1010: 'Mandatory extension',
+    1011: 'Internal server error',
+    1015: 'TLS handshake failure'
+};
+
+// Debug logger that routes to Android if available
+function debugLog(category, level, message, data = {}) {
+    if (!DEBUG[category]) return;
+
+    const sessionId = localStorage.getItem(SESSION_KEY) || 'no-session';
+    const timestamp = Date.now();
+    const logEntry = {
+        ts: timestamp,
+        cat: category,
+        corrId: currentCorrelationId,
+        sessionId: sessionId,
+        msg: message,
+        ...data
+    };
+
+    const formattedMsg = JSON.stringify(logEntry);
+
+    // Log to browser console
+    if (level === 'error') {
+        console.error(`[${category}] ${message}`, data);
+    } else if (level === 'warn') {
+        console.warn(`[${category}] ${message}`, data);
+    } else {
+        console.log(`[${category}] ${message}`, data);
+    }
+
+    // Route to Android Logcat if available
+    if (window.Android && typeof window.Android.logFromWebView === 'function') {
+        window.Android.logFromWebView(level, category, formattedMsg);
+    }
+}
+
+// Connection state transition logging
+function setWsState(newState, reason = '') {
+    const prevState = wsState;
+    const duration = Date.now() - lastStateChange;
+    wsState = newState;
+    lastStateChange = Date.now();
+
+    debugLog('WS', 'info', 'State transition', {
+        from: prevState,
+        to: newState,
+        reason: reason,
+        durationInPrevState: duration
+    });
+}
+
+// Generate correlation ID for connection attempts
+function generateCorrelationId() {
+    return `conn-${Date.now()}-${++connectionAttemptId}`;
+}
+
 // Exponential backoff reconnection
 const RECONNECT_BASE_DELAY = 1000;  // Start at 1 second
 const RECONNECT_MAX_DELAY = 30000;  // Max 30 seconds
@@ -24,22 +116,37 @@ function getReconnectDelay() {
 }
 
 function startHealthCheck() {
+    debugLog('HEALTH', 'info', 'Starting health check', {
+        interval: 15000,
+        staleThreshold: 45000
+    });
+
     if (healthCheckInterval) {
         clearInterval(healthCheckInterval);
     }
     lastPongTime = Date.now();
     healthCheckInterval = setInterval(() => {
         const timeSinceLastPong = Date.now() - lastPongTime;
+
+        debugLog('HEALTH', 'debug', 'Health check tick', {
+            timeSinceLastPong: timeSinceLastPong,
+            wsState: wsState,
+            wsReadyState: ws ? ws.readyState : null
+        });
+
         if (timeSinceLastPong > 45000) {
-            console.log('Connection appears stale (no pong for 45s), reconnecting...');
+            debugLog('HEALTH', 'warn', 'Connection stale, forcing close', {
+                timeSinceLastPong: timeSinceLastPong
+            });
             if (ws) {
-                ws.close();
+                ws.close(4000, 'Health check timeout');
             }
         }
     }, 15000);
 }
 
 function stopHealthCheck() {
+    debugLog('HEALTH', 'info', 'Stopping health check');
     if (healthCheckInterval) {
         clearInterval(healthCheckInterval);
         healthCheckInterval = null;
@@ -1129,23 +1236,71 @@ function updateStatus(status, message) {
     statusEl.textContent = message;
 }
 
+// Flag to prevent concurrent connection attempts
+let isConnecting = false;
+
 function connect() {
+    // Prevent concurrent connection attempts
+    if (isConnecting) {
+        debugLog('WS', 'info', 'Connection already in progress, skipping', {
+            wsState: wsState
+        });
+        return;
+    }
+    isConnecting = true;
+
+    currentCorrelationId = generateCorrelationId();
+    connectionStartTime = Date.now();
+
+    debugLog('WS', 'info', 'Starting connection', {
+        attempt: reconnectAttempts,
+        hasExistingWs: !!ws,
+        existingWsState: ws ? ws.readyState : null
+    });
+
     if (ws) {
+        debugLog('WS', 'info', 'Closing existing WebSocket', {
+            readyState: ws.readyState
+        });
         ws.close();
     }
 
+    setWsState(WS_STATES.CONNECTING, 'connect() called');
     updateStatus('connecting', 'Connecting to terminal...');
 
     try {
         const wsUrl = getWebSocketURL();
         const hasExistingSession = localStorage.getItem(SESSION_KEY) !== null;
+
+        debugLog('WS', 'info', 'Creating WebSocket', {
+            url: wsUrl,
+            hasExistingSession: hasExistingSession
+        });
+
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
+            isConnecting = false;  // Connection complete
+            const connectDuration = Date.now() - connectionStartTime;
             const sessionId = localStorage.getItem(SESSION_KEY);
+
+            debugLog('WS', 'info', 'WebSocket opened', {
+                connectDuration: connectDuration,
+                sessionId: sessionId
+            });
+
+            setWsState(WS_STATES.CONNECTED, 'onopen');
             updateStatus('connected', `Connected`);
             if (!sessionId) {
                 term.clear();
+            }
+
+            // Cancel any pending reconnect timeout - critical to prevent stale timeouts
+            // from firing after successful connection
+            if (reconnectTimeout) {
+                debugLog('WS', 'info', 'Clearing stale reconnect timeout');
+                clearTimeout(reconnectTimeout);
+                reconnectTimeout = null;
             }
 
             // Reset reconnection backoff on successful connection
@@ -1166,6 +1321,10 @@ function connect() {
                     const msg = JSON.parse(event.data);
                     if (msg.type === 'pong') {
                         // Server heartbeat - update last pong time for health monitoring
+                        const timeSinceLastPong = Date.now() - lastPongTime;
+                        debugLog('HEALTH', 'debug', 'Pong received', {
+                            timeSinceLastPong: timeSinceLastPong
+                        });
                         lastPongTime = Date.now();
                     } else if (msg.type === 'terminal_data') {
                         // Route terminal data to correct terminal
@@ -1199,25 +1358,57 @@ function connect() {
         };
 
         ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
+            // Note: onerror is always followed by onclose, so don't reset isConnecting here
+            // to avoid race conditions. Let onclose handle it.
+            debugLog('WS', 'error', 'WebSocket error', {
+                errorType: error.type,
+                message: error.message || 'No message',
+                readyState: ws ? ws.readyState : null
+            });
             updateStatus('disconnected', 'Connection error');
         };
 
-        ws.onclose = () => {
+        ws.onclose = (event) => {
+            isConnecting = false;  // Connection attempt complete (failed or closed)
+            const closeInfo = {
+                code: event.code,
+                reason: event.reason || 'No reason provided',
+                wasClean: event.wasClean,
+                codeMeaning: CLOSE_CODE_MEANINGS[event.code] || 'Unknown',
+                timeSinceOpen: connectionStartTime ? Date.now() - connectionStartTime : null
+            };
+
+            debugLog('WS', 'warn', 'WebSocket closed', closeInfo);
+
             stopHealthCheck();
+            setWsState(WS_STATES.DISCONNECTED, `Close code: ${event.code}`);
+
             const delay = getReconnectDelay();
             reconnectAttempts++;
+
+            debugLog('WS', 'info', 'Scheduling reconnect', {
+                delay: delay,
+                nextAttempt: reconnectAttempts
+            });
+
             updateStatus('disconnected', `Disconnected. Reconnecting in ${Math.round(delay/1000)}s...`);
 
             // Auto-reconnect with exponential backoff
             if (reconnectTimeout) {
                 clearTimeout(reconnectTimeout);
             }
-            reconnectTimeout = setTimeout(connect, delay);
+            reconnectTimeout = setTimeout(() => {
+                setWsState(WS_STATES.RECONNECTING, 'reconnect timeout fired');
+                connect();
+            }, delay);
         };
 
     } catch (error) {
-        console.error('Connection error:', error);
+        isConnecting = false;  // Connection attempt failed
+        debugLog('WS', 'error', 'Connection exception', {
+            error: error.message,
+            stack: error.stack
+        });
         const delay = getReconnectDelay();
         reconnectAttempts++;
         updateStatus('disconnected', `Failed to connect. Retrying in ${Math.round(delay/1000)}s...`);
@@ -1319,21 +1510,76 @@ connect();
 
 // Handle page visibility (reconnect when coming back to the page)
 document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        // Page hidden - stop health checks to save battery on mobile
+    const visibilityState = document.visibilityState;
+    const hidden = document.hidden;
+
+    debugLog('VISIBILITY', 'info', 'Visibility changed', {
+        visibilityState: visibilityState,
+        hidden: hidden,
+        wsState: wsState,
+        wsReadyState: ws ? ws.readyState : null,
+        reconnectAttempts: reconnectAttempts,
+        timeSinceLastPong: Date.now() - lastPongTime
+    });
+
+    if (hidden) {
+        debugLog('VISIBILITY', 'info', 'Page hidden - stopping health checks');
         stopHealthCheck();
     } else {
-        // Page visible - check connection and reconnect if needed
+        debugLog('VISIBILITY', 'info', 'Page visible - checking connection');
+
         if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+            debugLog('VISIBILITY', 'info', 'Connection lost while hidden, reconnecting', {
+                wsExists: !!ws,
+                wsReadyState: ws ? ws.readyState : null
+            });
             // Reset backoff when user returns to give quick reconnection
             reconnectAttempts = 0;
             connect();
         } else if (ws.readyState === WebSocket.OPEN) {
+            debugLog('VISIBILITY', 'info', 'Connection still open, restarting health monitoring');
             // Connection still open - restart health monitoring
             startHealthCheck();
+        } else if (ws.readyState === WebSocket.CONNECTING) {
+            debugLog('VISIBILITY', 'info', 'Connection in progress, waiting');
         }
         // If CONNECTING, let the pending connection complete
     }
+});
+
+// Android lifecycle event handlers
+window.addEventListener('androidPause', (e) => {
+    debugLog('ANDROID', 'info', 'Android onPause received', {
+        timestamp: e.detail?.timestamp,
+        wsState: wsState,
+        wsReadyState: ws ? ws.readyState : null,
+        timeSinceLastPong: Date.now() - lastPongTime
+    });
+});
+
+window.addEventListener('androidResume', (e) => {
+    const timeSinceLastPong = Date.now() - lastPongTime;
+    debugLog('ANDROID', 'info', 'Android onResume received', {
+        timestamp: e.detail?.timestamp,
+        wsState: wsState,
+        wsReadyState: ws ? ws.readyState : null,
+        timeSinceLastPong: timeSinceLastPong
+    });
+
+    // Force reconnect on Android resume - the WebSocket appears connected but
+    // is likely stale (server pings weren't received while WebView was paused)
+    debugLog('ANDROID', 'info', 'Forcing fresh connection on resume');
+    stopHealthCheck();
+    if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+    }
+    if (ws) {
+        ws.close();
+    }
+    reconnectAttempts = 0;
+    isConnecting = false;  // Reset flag to allow new connection
+    connect();
 });
 
 // Cleanup on page unload

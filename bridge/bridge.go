@@ -10,12 +10,23 @@ import (
 )
 
 func handleConnection(conn *websocket.Conn, session *Session) {
+	connectionStart := time.Now()
+	log.Printf("[WS:%s] Connection handler started", session.ID)
+
 	session.SetWebSocket(conn)
 
 	// Set up pong handler to reset read deadline
 	conn.SetReadDeadline(time.Now().Add(pongWait))
-	conn.SetPongHandler(func(string) error {
+	conn.SetPongHandler(func(appData string) error {
+		log.Printf("[WS:%s] Pong received, extending deadline by %v", session.ID, pongWait)
 		conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	// Set up close handler for logging
+	conn.SetCloseHandler(func(code int, text string) error {
+		duration := time.Since(connectionStart)
+		log.Printf("[WS:%s] Close handler: code=%d, reason=%q, duration=%v", session.ID, code, text, duration)
 		return nil
 	})
 
@@ -24,17 +35,23 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 	go func() {
 		ticker := time.NewTicker(pingInterval)
 		defer ticker.Stop()
+		pingCount := 0
 		for {
 			select {
 			case <-ticker.C:
+				pingCount++
+				log.Printf("[WS:%s] Sending ping #%d", session.ID, pingCount)
 				// Send WebSocket protocol ping and JSON pong using session's mutex
 				if err := session.SendPing(); err != nil {
-					log.Printf("Session %s ping error: %v", session.ID, err)
+					log.Printf("[WS:%s] Ping #%d error: %v", session.ID, pingCount, err)
 					return
 				}
+				log.Printf("[WS:%s] Ping #%d sent successfully", session.ID, pingCount)
 			case <-stopPing:
+				log.Printf("[WS:%s] Ping goroutine stopped (stopPing signal)", session.ID)
 				return
 			case <-session.Done:
+				log.Printf("[WS:%s] Ping goroutine stopped (session done)", session.ID)
 				return
 			}
 		}
@@ -42,10 +59,12 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 
 	// Cleanup on disconnect
 	defer func() {
+		duration := time.Since(connectionStart)
+		log.Printf("[WS:%s] Cleaning up connection, duration=%v", session.ID, duration)
 		close(stopPing)
 		session.SetWebSocket(nil)
 		conn.Close()
-		log.Printf("WebSocket disconnected from session %s (session still alive)", session.ID)
+		log.Printf("[WS:%s] WebSocket disconnected (session still alive)", session.ID)
 	}()
 
 	// Handle incoming WebSocket messages
@@ -58,7 +77,18 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 
 		_, p, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("Session %s WebSocket read error: %v", session.ID, err)
+			// Enhanced error logging with close code parsing
+			if closeErr, ok := err.(*websocket.CloseError); ok {
+				log.Printf("[WS:%s] WebSocket close error: code=%d, text=%q", session.ID, closeErr.Code, closeErr.Text)
+			} else if websocket.IsUnexpectedCloseError(err,
+				websocket.CloseNormalClosure,
+				websocket.CloseGoingAway,
+				websocket.CloseAbnormalClosure,
+				websocket.CloseNoStatusReceived) {
+				log.Printf("[WS:%s] Unexpected WebSocket close: %v", session.ID, err)
+			} else {
+				log.Printf("[WS:%s] WebSocket read error: %v", session.ID, err)
+			}
 			return
 		}
 

@@ -1,8 +1,12 @@
 package it.detach.app
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.view.ViewGroup
+import android.webkit.ConsoleMessage
+import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -12,8 +16,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -21,11 +28,27 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import it.detach.app.ui.theme.DetachitTheme
 
+private const val TAG = "DetachActivity"
+
+class WebAppInterface(private val context: Context) {
+    @JavascriptInterface
+    fun logFromWebView(level: String, tag: String, message: String) {
+        when (level) {
+            "debug" -> Log.d("WV:$tag", message)
+            "info" -> Log.i("WV:$tag", message)
+            "warn" -> Log.w("WV:$tag", message)
+            "error" -> Log.e("WV:$tag", message)
+            else -> Log.v("WV:$tag", message)
+        }
+    }
+}
+
 class MainActivity : ComponentActivity() {
 
     private var webView: WebView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        Log.d(TAG, "onCreate: savedInstanceState=${savedInstanceState != null}")
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -45,24 +68,55 @@ class MainActivity : ComponentActivity() {
             DetachitTheme {
                 DetachWebView(
                     url = "https://nightly01.tail5fb253.ts.net/",
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black)
+                        .safeDrawingPadding(),
                     onWebViewCreated = { webView = it }
                 )
             }
         }
     }
 
+    override fun onStart() {
+        Log.d(TAG, "onStart")
+        super.onStart()
+    }
+
     override fun onResume() {
+        Log.d(TAG, "onResume: webView=${webView != null}")
         super.onResume()
-        webView?.onResume()
+        webView?.let {
+            Log.d(TAG, "onResume: calling webView.onResume()")
+            it.onResume()
+            it.evaluateJavascript(
+                "window.dispatchEvent(new CustomEvent('androidResume', { detail: { timestamp: ${System.currentTimeMillis()} } }));",
+                null
+            )
+        }
     }
 
     override fun onPause() {
-        webView?.onPause()
+        Log.d(TAG, "onPause: webView=${webView != null}")
+        webView?.let {
+            Log.d(TAG, "onPause: dispatching androidPause event")
+            it.evaluateJavascript(
+                "window.dispatchEvent(new CustomEvent('androidPause', { detail: { timestamp: ${System.currentTimeMillis()} } }));",
+                null
+            )
+            Log.d(TAG, "onPause: calling webView.onPause()")
+            it.onPause()
+        }
         super.onPause()
     }
 
+    override fun onStop() {
+        Log.d(TAG, "onStop")
+        super.onStop()
+    }
+
     override fun onDestroy() {
+        Log.d(TAG, "onDestroy: webView=${webView != null}")
         webView?.destroy()
         webView = null
         super.onDestroy()
@@ -125,7 +179,26 @@ fun DetachWebView(
                 }
             }
 
-            webChromeClient = WebChromeClient()
+            webChromeClient = object : WebChromeClient() {
+                override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                    consoleMessage?.let {
+                        val logLevel = when (it.messageLevel()) {
+                            ConsoleMessage.MessageLevel.ERROR -> Log.ERROR
+                            ConsoleMessage.MessageLevel.WARNING -> Log.WARN
+                            ConsoleMessage.MessageLevel.DEBUG -> Log.DEBUG
+                            else -> Log.INFO
+                        }
+                        Log.println(
+                            logLevel,
+                            "WV:Console",
+                            "${it.sourceId()}:${it.lineNumber()} - ${it.message()}"
+                        )
+                    }
+                    return true
+                }
+            }
+
+            addJavascriptInterface(WebAppInterface(context), "Android")
 
             loadUrl(url)
         }

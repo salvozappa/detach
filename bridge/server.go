@@ -33,40 +33,48 @@ func main() {
 }
 
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	remoteAddr := r.RemoteAddr
+	userAgent := r.Header.Get("User-Agent")
+
+	log.Printf("[WS] New connection attempt from %s, User-Agent: %s", remoteAddr, userAgent)
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Failed to upgrade connection: %v", err)
+		log.Printf("[WS] Failed to upgrade connection from %s: %v", remoteAddr, err)
 		return
 	}
 
+	log.Printf("[WS] Connection upgraded successfully from %s", remoteAddr)
+
 	user := r.URL.Query().Get("user")
 	if user == "" {
-		log.Println("Missing user parameter")
+		log.Printf("[WS] Missing user parameter from %s", remoteAddr)
 		conn.Close()
 		return
 	}
 
 	sessionID := r.URL.Query().Get("session")
+	log.Printf("[WS] Connection params: user=%s, requestedSession=%s, remoteAddr=%s", user, sessionID, remoteAddr)
 
 	// Try to reconnect to existing session
 	if sessionID != "" {
 		if session := getSession(sessionID); session != nil {
-			log.Printf("Reconnecting to session %s", sessionID)
+			log.Printf("[WS] Reconnecting session %s from %s", sessionID, remoteAddr)
 			handleReconnect(conn, session)
 			return
 		}
-		log.Printf("Session %s not found, creating new session", sessionID)
+		log.Printf("[WS] Session %s not found (from %s), creating new session", sessionID, remoteAddr)
 	}
 
 	// Create new session
 	session, err := createSession(user)
 	if err != nil {
-		log.Printf("Failed to create session: %v", err)
+		log.Printf("[WS] Failed to create session for user %s from %s: %v", user, remoteAddr, err)
 		conn.Close()
 		return
 	}
 
-	log.Printf("Created new session %s", session.ID)
+	log.Printf("[WS] Created new session %s for user %s from %s", session.ID, user, remoteAddr)
 
 	// Send session ID to client
 	sessionMsg := SessionMessage{Type: "session", ID: session.ID}
