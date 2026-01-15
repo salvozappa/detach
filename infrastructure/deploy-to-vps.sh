@@ -119,20 +119,33 @@ echo "Checking service status..."
 docker-compose -f docker-compose.prod.yml ps
 
 echo ""
+echo "Configuring Tailscale HTTPS..."
+
+# Check if Tailscale serve is already configured
+if sudo tailscale serve status 2>&1 | grep -q "https://$TAILSCALE_HOSTNAME"; then
+  echo "✓ Tailscale HTTPS already configured"
+else
+  echo "Setting up Tailscale HTTPS for PWA support..."
+
+  # Try to configure Tailscale serve
+  if sudo tailscale serve --bg --https 443 http://localhost:8080 2>&1 | grep -q "Available within your tailnet"; then
+    echo "✓ Tailscale HTTPS configured successfully"
+  else
+    echo "⚠ Could not configure Tailscale HTTPS automatically"
+    echo "  This usually means HTTPS is not enabled in Tailscale admin"
+    echo "  Enable it at: https://login.tailscale.com/admin/dns"
+    echo "  Then run: sudo tailscale serve --bg --https 443 http://localhost:8080"
+  fi
+fi
+
+echo ""
 echo "==================================="
 echo "Deployment Complete!"
 echo "==================================="
 echo ""
 echo "Access your app:"
-echo "  HTTP (works now):  http://$TAILSCALE_IP:8080"
-echo "  HTTPS (for PWA):   https://$TAILSCALE_HOSTNAME"
-echo ""
-echo "To enable HTTPS for Progressive Web App:"
-echo "  1. Enable HTTPS in Tailscale admin console:"
-echo "     https://login.tailscale.com/admin/dns"
-echo "  2. Enable 'HTTPS Certificates' in DNS settings"
-echo "  3. Run: sudo tailscale serve --bg --https 443 http://localhost:8080"
-echo "  4. Access at: https://$TAILSCALE_HOSTNAME"
+echo "  HTTP:  http://$TAILSCALE_IP:8080"
+echo "  HTTPS: https://$TAILSCALE_HOSTNAME (recommended for PWA)"
 echo ""
 echo "Useful commands:"
 echo "  cd $DEPLOY_DIR"

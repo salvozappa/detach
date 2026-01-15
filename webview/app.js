@@ -451,7 +451,13 @@ function getWebSocketURL() {
     if (sessionId) {
         params.set('session', sessionId);
     }
-    return `ws://${WS_HOST}:${WS_PORT}?${params.toString()}`;
+
+    // Use wss:// for HTTPS pages, ws:// for HTTP
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+    // Use /ws path for WebSocket connections (proxied by nginx)
+    // This works for both HTTP and HTTPS
+    return `${protocol}//${WS_HOST}/ws?${params.toString()}`;
 }
 
 // Status elements

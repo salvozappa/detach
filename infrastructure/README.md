@@ -81,7 +81,16 @@ chmod 600 ~/.ssh/config ~/.ssh/github_deploy_key
 ssh -T git@github.com
 ```
 
-### 3. Deploy Application
+### 3. Enable HTTPS in Tailscale (Optional but Recommended for PWA)
+
+For Progressive Web App features, enable HTTPS before deploying:
+
+1. Go to https://login.tailscale.com/admin/dns
+2. Enable "HTTPS Certificates" in DNS settings
+
+This allows the deployment script to automatically configure HTTPS.
+
+### 4. Deploy Application
 
 From your local machine, copy the deployment script to VPS:
 
@@ -100,15 +109,19 @@ The script will:
 - Prompt for repository URL
 - Clone the repo
 - Generate SSH keys if needed
+- Fix SSH key permissions for container compatibility
 - Build Docker containers
 - Start services
-- Display access URL
+- **Automatically configure Tailscale HTTPS** (if enabled in admin)
+- Display access URLs
 
-### 4. Access from Phone/Device
+### 5. Access from Phone/Device
 
 1. Install Tailscale app on your device
 2. Sign in with same account
-3. Open browser to: `http://<vps-tailscale-ip>:8080`
+3. Open browser to:
+   - **HTTPS (recommended)**: `https://<vps-hostname>.tail-scale.ts.net`
+   - HTTP (fallback): `http://<vps-tailscale-ip>:8080`
 
 ## Manual Deployment (Alternative)
 
