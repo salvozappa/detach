@@ -1,161 +1,222 @@
 #!/bin/bash
 set -e
 
-# Deployment script for detach.it on VPS
-# Run this after VPS is provisioned with vps-config-init.yaml
+# Remote Deployment Script for detach.it
+# Deploys to VPS from local machine via SSH
+
+REMOTE_HOST="77.42.17.162"
+REMOTE_USER="sal"
+DEPLOY_DIR="/home/sal/detach.it"
+COMPOSE_FILE="docker-compose.prod.yml"
+SSH_OPTS="-o ConnectTimeout=10 -o BatchMode=yes"
 
 echo "==================================="
-echo "Detach.it VPS Deployment Script"
+echo "Detach.it Remote Deployment"
+echo "Target: $REMOTE_USER@$REMOTE_HOST"
 echo "==================================="
 echo ""
 
-# Check if we're root
-if [ "$EUID" -eq 0 ]; then
-  echo "ERROR: Don't run this script as root. Run as 'sal' user."
-  exit 1
-fi
+# Execute command on remote server
+ssh_exec() {
+    local cmd="$1"
+    local description="$2"
 
-# Check if docker is available
-if ! command -v docker &> /dev/null; then
-  echo "ERROR: Docker not found. Is the VPS properly initialized?"
-  exit 1
-fi
+    echo "→ $description..."
+    if ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "$cmd"; then
+        echo "✓ $description complete"
+        return 0
+    else
+        echo "✗ ERROR: $description failed"
+        return 1
+    fi
+}
 
-# Check if user is in docker group
-if ! groups | grep -q docker; then
-  echo "ERROR: User not in docker group. You may need to log out and back in."
-  echo "Or run: sudo usermod -aG docker $USER && newgrp docker"
-  exit 1
-fi
+# Test SSH connection before attempting deployment
+check_ssh_connectivity() {
+    echo "Checking SSH connectivity to $REMOTE_HOST..."
+    if ! ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "echo 'Connected'" &>/dev/null; then
+        echo "ERROR: Cannot connect to $REMOTE_HOST"
+        echo "Please ensure:"
+        echo "  1. VPS is running"
+        echo "  2. SSH key is configured for user 'sal'"
+        echo "  3. Server is reachable at 77.42.17.162"
+        exit 1
+    fi
+    echo "✓ SSH connection verified"
+}
 
-# Check if Tailscale is installed
-if ! command -v tailscale &> /dev/null; then
-  echo "ERROR: Tailscale not installed. Run: curl -fsSL https://tailscale.com/install.sh | sh"
-  exit 1
-fi
+# Setup git repository if it doesn't exist
+setup_git_repo() {
+    echo ""
+    echo "Setting up git repository..."
 
-# Check if Tailscale is up
-if ! tailscale status &> /dev/null; then
-  echo "WARNING: Tailscale is not running or not authenticated"
-  echo "Run: sudo tailscale up"
-  echo "Then run this script again."
-  exit 1
-fi
+    # Check if GitHub deploy key is configured
+    if ! ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "test -f ~/.ssh/github_deploy_key" &>/dev/null; then
+        echo ""
+        echo "ERROR: GitHub deploy key not found on remote server"
+        echo ""
+        echo "To set up GitHub access:"
+        echo "  1. SSH into the server: ssh $REMOTE_USER@$REMOTE_HOST"
+        echo "  2. Generate deploy key: ssh-keygen -t ed25519 -f ~/.ssh/github_deploy_key -C 'detach-deploy' -N ''"
+        echo "  3. Display public key: cat ~/.ssh/github_deploy_key.pub"
+        echo "  4. Add to GitHub: https://github.com/salvozappa/detach.it/settings/keys"
+        echo "  5. Create SSH config:"
+        echo "     cat > ~/.ssh/config <<EOF"
+        echo "     Host github.com"
+        echo "         HostName github.com"
+        echo "         User git"
+        echo "         IdentityFile ~/.ssh/github_deploy_key"
+        echo "         IdentitiesOnly yes"
+        echo "     EOF"
+        echo "  6. Run this script again"
+        echo ""
+        exit 1
+    fi
 
-# Get Tailscale IP
-TAILSCALE_IP=$(tailscale ip -4)
-TAILSCALE_HOSTNAME=$(tailscale status --json | grep -o '"DNSName":"[^"]*"' | head -1 | cut -d'"' -f4 | sed 's/\.$//')
-echo "Tailscale IP: $TAILSCALE_IP"
-echo ""
+    # Clone the repository
+    if ! ssh_exec "cd $DEPLOY_DIR && git clone git@github.com:salvozappa/detach.it.git ." "Cloning repository"; then
+        echo "ERROR: Failed to clone repository. Check GitHub deploy key permissions."
+        exit 1
+    fi
 
-# Check if GitHub deploy key is set up
-if [ ! -f "$HOME/.ssh/github_deploy_key" ]; then
-  echo "WARNING: GitHub deploy key not found at ~/.ssh/github_deploy_key"
-  echo ""
-  echo "To set up GitHub access for deployment:"
-  echo "  1. Generate key: ssh-keygen -t ed25519 -f ~/.ssh/github_deploy_key -C 'detach-nightly-deploy' -N ''"
-  echo "  2. Display public key: cat ~/.ssh/github_deploy_key.pub"
-  echo "  3. Add to GitHub: Repo → Settings → Deploy keys → Add deploy key"
-  echo "  4. Configure SSH: See infrastructure/README.md for details"
-  echo ""
-  read -p "Press Enter when GitHub deploy key is configured, or Ctrl+C to exit..."
-fi
-echo ""
+    # Generate SSH keys for sandbox if they don't exist
+    if ! ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "test -f $DEPLOY_DIR/keys/dev" &>/dev/null; then
+        if ! ssh_exec "cd $DEPLOY_DIR && ssh-keygen -t ed25519 -f keys/dev -N '' -C 'detach-dev-key'" "Generating sandbox SSH keys"; then
+            echo "ERROR: Failed to generate SSH keys for sandbox"
+            exit 1
+        fi
+    fi
 
-# Set deployment directory
-DEPLOY_DIR="$HOME/detach.it"
+    echo "✓ Git repository set up"
+}
 
-# Ask for confirmation if directory exists
-if [ -d "$DEPLOY_DIR" ]; then
-  echo "WARNING: $DEPLOY_DIR already exists."
-  read -p "Do you want to pull latest changes? (y/n): " -n 1 -r
-  echo ""
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    cd "$DEPLOY_DIR"
-    git pull
-  fi
-else
-  # Clone repository
-  echo "Cloning repository..."
-  read -p "Enter git repository URL: " REPO_URL
-  git clone "$REPO_URL" "$DEPLOY_DIR"
-  cd "$DEPLOY_DIR"
-fi
+# Verify remote environment is ready
+check_remote_prerequisites() {
+    echo ""
+    echo "Verifying remote environment..."
 
-cd "$DEPLOY_DIR"
+    # Check deploy directory exists
+    if ! ssh_exec "test -d $DEPLOY_DIR" "Checking deploy directory" &>/dev/null; then
+        echo "ERROR: Deploy directory $DEPLOY_DIR not found"
+        echo "This should have been created by cloud-init during VPS provisioning."
+        exit 1
+    fi
 
-# Check if SSH keys exist
-if [ ! -f "keys/dev" ] || [ ! -f "keys/dev.pub" ]; then
-  echo "WARNING: SSH keys not found in keys/ directory"
-  echo "Generating new SSH keys..."
-  mkdir -p keys
-  ssh-keygen -t ed25519 -f keys/dev -N "" -C "detach-dev-key"
-fi
+    # Check if it's a git repository - if not, set it up
+    if ! ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "cd $DEPLOY_DIR && git rev-parse --git-dir" &>/dev/null; then
+        echo "⚠ Git repository not found - this appears to be a first-time setup"
+        setup_git_repo
+    else
+        echo "✓ Git repository found"
+    fi
 
-# Fix SSH key permissions and ownership for container compatibility
-# The sandbox container's detach-dev user has UID 1001
-# SSH requires authorized_keys to be owned by the user and have 600 permissions
-echo "Setting correct SSH key permissions..."
-chmod 600 keys/dev keys/dev.pub
-sudo chown 1001:1001 keys/dev.pub
-echo "✓ SSH keys configured"
-echo ""
+    # Check Docker access
+    if ! ssh_exec "docker ps" "Verifying Docker access" &>/dev/null; then
+        echo "ERROR: Docker not accessible on remote server"
+        echo "This should have been configured by cloud-init."
+        echo "You may need to re-login or run: ssh $REMOTE_USER@$REMOTE_HOST 'newgrp docker'"
+        exit 1
+    fi
 
-# Build and start containers
-echo ""
-echo "Building Docker containers..."
-docker-compose -f docker-compose.prod.yml build
+    echo "✓ Remote environment ready"
+}
 
-echo ""
-echo "Starting services..."
-docker-compose -f docker-compose.prod.yml up -d
+# Main deployment function
+deploy() {
+    echo ""
+    echo "==================================="
+    echo "Starting Deployment"
+    echo "==================================="
+    echo ""
 
-# Wait a moment for services to start
-sleep 3
+    # Show current commit before update
+    echo "Current deployment:"
+    ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "cd $DEPLOY_DIR && git log -1 --oneline && echo '' && git status -s"
+    echo ""
 
-# Check status
-echo ""
-echo "Checking service status..."
-docker-compose -f docker-compose.prod.yml ps
+    # Git pull
+    if ! ssh_exec "cd $DEPLOY_DIR && git pull" "Pulling latest changes"; then
+        echo "ERROR: Git pull failed. Check remote git configuration."
+        exit 1
+    fi
 
-echo ""
-echo "Configuring Tailscale HTTPS..."
+    # Show what changed
+    echo ""
+    echo "Updated to:"
+    ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "cd $DEPLOY_DIR && git log -1 --oneline"
+    echo ""
 
-# Check if Tailscale serve is already configured
-if sudo tailscale serve status 2>&1 | grep -q "https://$TAILSCALE_HOSTNAME"; then
-  echo "✓ Tailscale HTTPS already configured"
-else
-  echo "Setting up Tailscale HTTPS for PWA support..."
+    # Build containers
+    if ! ssh_exec "cd $DEPLOY_DIR && docker-compose -f $COMPOSE_FILE build" "Building Docker containers"; then
+        echo "ERROR: Docker build failed"
+        exit 1
+    fi
 
-  # Try to configure Tailscale serve
-  if sudo tailscale serve --bg --https 443 http://localhost:8080 2>&1 | grep -q "Available within your tailnet"; then
-    echo "✓ Tailscale HTTPS configured successfully"
-  else
-    echo "⚠ Could not configure Tailscale HTTPS automatically"
-    echo "  This usually means HTTPS is not enabled in Tailscale admin"
-    echo "  Enable it at: https://login.tailscale.com/admin/dns"
-    echo "  Then run: sudo tailscale serve --bg --https 443 http://localhost:8080"
-  fi
-fi
+    # Stop old containers first (avoids docker-compose 1.29.2 ContainerConfig bug)
+    echo "→ Stopping old containers..."
+    ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "cd $DEPLOY_DIR && docker-compose -f $COMPOSE_FILE down" || true
+    echo "✓ Old containers stopped"
 
-echo ""
-echo "==================================="
-echo "Deployment Complete!"
-echo "==================================="
-echo ""
-echo "Access your app:"
-echo "  HTTP:  http://$TAILSCALE_IP:8080"
-echo "  HTTPS: https://$TAILSCALE_HOSTNAME (recommended for PWA)"
-echo ""
-echo "Useful commands:"
-echo "  cd $DEPLOY_DIR"
-echo "  docker-compose -f docker-compose.prod.yml ps       # Check status"
-echo "  docker-compose -f docker-compose.prod.yml logs -f  # View logs"
-echo "  docker-compose -f docker-compose.prod.yml restart  # Restart services"
-echo ""
-echo "To update and redeploy:"
-echo "  cd $DEPLOY_DIR"
-echo "  git pull"
-echo "  docker-compose -f docker-compose.prod.yml build"
-echo "  docker-compose -f docker-compose.prod.yml up -d"
-echo ""
+    # Start services with new images
+    if ! ssh_exec "cd $DEPLOY_DIR && docker-compose -f $COMPOSE_FILE up -d" "Starting services"; then
+        echo "ERROR: Failed to start services"
+        exit 1
+    fi
+
+    # Wait for services to stabilize
+    echo ""
+    echo "Waiting for services to start..."
+    sleep 5
+
+    # Check status
+    echo ""
+    echo "Service Status:"
+    ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "cd $DEPLOY_DIR && docker-compose -f $COMPOSE_FILE ps"
+
+    echo ""
+    echo "==================================="
+    echo "Deployment Complete!"
+    echo "==================================="
+}
+
+# Display recent logs from services
+show_logs() {
+    echo ""
+    echo "Recent logs (last 20 lines per service):"
+    echo "-----------------------------------"
+    ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "cd $DEPLOY_DIR && docker-compose -f $COMPOSE_FILE logs --tail=20"
+}
+
+# Get and display access URLs
+get_access_urls() {
+    echo ""
+    echo "Access URLs:"
+
+    # Try to get Tailscale info
+    TAILSCALE_HOSTNAME=$(ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "tailscale status --json 2>/dev/null | grep -o '\"DNSName\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4 | sed 's/\.$//'")
+    TAILSCALE_IP=$(ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "tailscale ip -4 2>/dev/null")
+
+    if [ -n "$TAILSCALE_HOSTNAME" ]; then
+        echo "  HTTPS: https://$TAILSCALE_HOSTNAME"
+    fi
+
+    if [ -n "$TAILSCALE_IP" ]; then
+        echo "  HTTP:  http://$TAILSCALE_IP:8080"
+    fi
+
+    echo ""
+    echo "Useful commands:"
+    echo "  ssh $REMOTE_USER@$REMOTE_HOST"
+    echo "  ssh $REMOTE_USER@$REMOTE_HOST 'cd $DEPLOY_DIR && docker-compose -f $COMPOSE_FILE logs -f'"
+    echo "  ssh $REMOTE_USER@$REMOTE_HOST 'cd $DEPLOY_DIR && docker-compose -f $COMPOSE_FILE restart'"
+    echo ""
+}
+
+# Main execution
+check_ssh_connectivity
+check_remote_prerequisites
+deploy
+show_logs
+get_access_urls
+
+echo "Deployment finished at $(date)"

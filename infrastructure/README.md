@@ -7,6 +7,21 @@ This directory contains configuration and deployment scripts for running detach.
 - **vps-config-init.yaml** - Cloud-init configuration for VPS provisioning
 - **deploy-to-vps.sh** - Automated deployment script
 
+## Quick Start (New VPS)
+
+For provisioning a brand new VPS:
+
+1. **Provision VPS** with `vps-config-init.yaml` as cloud-init
+2. **Wait 2-3 minutes** for cloud-init to complete
+3. **Connect and configure Tailscale**: `ssh sal@<vps-ip>` → `sudo tailscale up`
+4. **Setup GitHub deploy key** (one-time, see below)
+5. **Run deploy script** from your local machine: `./infrastructure/deploy-to-vps.sh`
+6. **Done!** Access via Tailscale HTTPS URL
+
+See detailed steps below for first-time setup.
+
+---
+
 ## Deployment Process
 
 ### 1. Provision VPS
@@ -92,28 +107,31 @@ This allows the deployment script to automatically configure HTTPS.
 
 ### 4. Deploy Application
 
-From your local machine, copy the deployment script to VPS:
+**For a new VPS:** First, update the server IP in the deploy script:
 
 ```bash
-scp infrastructure/deploy-to-vps.sh sal@<vps-public-ip>:~/
+# Edit infrastructure/deploy-to-vps.sh
+# Change REMOTE_HOST="77.42.17.162" to your new VPS IP
 ```
 
-Then SSH into the VPS and run it:
+Then run the deploy script from your local machine:
 
 ```bash
-ssh sal@<vps-public-ip>
-./deploy-to-vps.sh
+# From your local machine in the project directory
+./infrastructure/deploy-to-vps.sh
 ```
 
 The script will:
-- Prompt for repository URL
-- Clone the repo
-- Generate SSH keys if needed
-- Fix SSH key permissions for container compatibility
+- Connect to the VPS via SSH
+- Detect if this is a first-time deployment
+- Clone the repository (first time only)
+- Generate SSH keys for sandbox (first time only)
+- Pull latest changes from git
 - Build Docker containers
-- Start services
-- **Automatically configure Tailscale HTTPS** (if enabled in admin)
-- Display access URLs
+- Restart services
+- Display logs and access URLs
+
+**First-time deployment:** The script will automatically detect if the git repo isn't set up yet and guide you through configuring the GitHub deploy key if needed.
 
 ### 5. Access from Phone/Device
 
@@ -123,37 +141,45 @@ The script will:
    - **HTTPS (recommended)**: `https://<vps-hostname>.tail-scale.ts.net`
    - HTTP (fallback): `http://<vps-tailscale-ip>:8080`
 
-## Manual Deployment (Alternative)
+## Manual Commands (Advanced)
 
-If you prefer manual deployment:
+If you need to run commands directly on the VPS:
 
 ```bash
-# On VPS
-cd ~
-git clone <repo-url> detach.it
-cd detach.it
+# SSH into VPS
+ssh sal@<vps-ip-or-hostname>
 
-# Ensure SSH keys exist
-ls keys/dev keys/dev.pub
-# If not, generate them:
-# ssh-keygen -t ed25519 -f keys/dev -N ""
+# Navigate to project
+cd ~/detach.it
 
-# Deploy
-docker-compose -f docker-compose.prod.yml build
-docker-compose -f docker-compose.prod.yml up -d
+# View logs
+docker-compose -f docker-compose.prod.yml logs -f
+
+# Restart a specific service
+docker-compose -f docker-compose.prod.yml restart bridge
 
 # Check status
 docker-compose -f docker-compose.prod.yml ps
-```
 
-## Updating the Application
-
-```bash
-cd ~/detach.it
+# Rebuild manually (not recommended - use deploy script instead)
 git pull
 docker-compose -f docker-compose.prod.yml build
 docker-compose -f docker-compose.prod.yml up -d
 ```
+
+## Updating the Application
+
+Simply run the deploy script again from your local machine:
+
+```bash
+./infrastructure/deploy-to-vps.sh
+```
+
+The script will automatically:
+- Pull the latest changes from git
+- Rebuild Docker containers if needed
+- Restart services with zero downtime
+- Show you what changed
 
 ## Troubleshooting
 
