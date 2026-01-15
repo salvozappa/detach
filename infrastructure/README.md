@@ -215,12 +215,37 @@ docker-compose -f docker-compose.prod.yml restart sandbox bridge
 
 ## Security Notes
 
-- VPS is **NOT** exposed to public internet (except SSH)
-- All application ports (8080, 8081, 2222) are only accessible via Tailscale
-- Firewall blocks all incoming traffic except SSH and Tailscale
-- SSH is hardened: no root login, no password authentication
-- fail2ban protects against brute force attacks
-- Automatic security updates enabled
+### Network Isolation
+
+The VPS is configured to **only accept connections via Tailscale VPN**:
+
+**Port Binding:**
+- All application ports (8080, 8081, 2222) are bound to `127.0.0.1` (localhost only)
+- Services are **not accessible** from the public IP address
+- Tailscale serve proxies `localhost:8080` to provide HTTPS access via the VPN
+
+**Firewall (UFW):**
+- SSH (port 22): Allowed from anywhere (for initial setup and management)
+- Tailscale interface: All traffic allowed (VPN access)
+- All other incoming traffic: **Denied by default**
+
+**Testing Security:**
+```bash
+# From public internet - these should fail:
+curl http://<public-vps-ip>:8080  # Connection refused
+curl http://<public-vps-ip>:8081  # Connection refused
+
+# From Tailscale network - works:
+curl https://<hostname>.tail-scale.ts.net  # Success!
+```
+
+### Additional Security Measures
+
+- **SSH Hardening**: No root login, no password authentication (key-based only)
+- **fail2ban**: Automatic blocking of brute force SSH attempts
+- **Automatic Updates**: Security patches applied automatically
+- **Container Isolation**: Services run in isolated Docker containers
+- **Read-only SSH Keys**: Sandbox SSH keys mounted read-only
 
 ## Cost Considerations
 

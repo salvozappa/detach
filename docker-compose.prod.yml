@@ -8,7 +8,8 @@ services:
     networks:
       - detach-network
     ports:
-      - "2222:22"
+      # Bind to localhost only - not accessible from public IP
+      - "127.0.0.1:2222:22"
     volumes:
       - ./keys/dev.pub:/home/detach-dev/.ssh/authorized_keys:ro
       - sandbox-home:/home/detach-dev
@@ -42,7 +43,8 @@ services:
     networks:
       - detach-network
     ports:
-      - "8081:8081"
+      # Bind to localhost only - not accessible from public IP
+      - "127.0.0.1:8081:8081"
     environment:
       - SANDBOX_HOST=sandbox
       - SANDBOX_PORT=22
@@ -77,7 +79,9 @@ services:
     networks:
       - detach-network
     ports:
-      - "8080:80"
+      # Bind to localhost only - not accessible from public IP
+      # Tailscale serve proxies to localhost:8080
+      - "127.0.0.1:8080:80"
     # NO BIND MOUNTS - files are copied during build
     # This makes deployment self-contained
     depends_on:
