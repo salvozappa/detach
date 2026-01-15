@@ -157,3 +157,6 @@ docker-compose up -d webview
 - 8081 → bridge (WebSocket)
 - 2222 → sandbox (SSH)
 - 5432 → postgres (not used by detach.it currently)
+
+## Development workflow
+Don't worry about git. All git commands will be executed by the human in the loop.
