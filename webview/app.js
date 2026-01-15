@@ -1,5 +1,5 @@
 // Configuration - use same host as the page is served from
-const WS_HOST = window.location.hostname || 'localhost';
+const WS_HOST = window.location.host || 'localhost';
 const WS_PORT = '8081';
 
 // Authentication - HARDCODED FOR NOW
