@@ -1,8 +1,15 @@
 package it.detach.app
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
@@ -46,11 +53,124 @@ class WebAppInterface(private val context: Context) {
 class MainActivity : ComponentActivity() {
 
     private var webView: WebView? = null
+    private lateinit var connectivityManager: ConnectivityManager
+    private var isNetworkAvailable = true
+
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            Log.d(TAG, "Network available (waiting for validation)")
+        }
+
+        override fun onLost(network: Network) {
+            Log.d(TAG, "Network lost - checking if any network remains")
+            // Check if there's still an active network (might have switched networks)
+            val activeNetwork = connectivityManager.activeNetwork
+            if (activeNetwork == null && isNetworkAvailable) {
+                Log.d(TAG, "No active network remaining - dispatching offline event")
+                isNetworkAvailable = false
+                runOnUiThread {
+                    webView?.evaluateJavascript(
+                        "window.dispatchEvent(new CustomEvent('androidNetworkOffline', { detail: { timestamp: ${System.currentTimeMillis()}, reason: 'network_lost' } }));",
+                        null
+                    )
+                }
+            }
+        }
+
+        override fun onUnavailable() {
+            Log.d(TAG, "Network unavailable")
+            if (isNetworkAvailable) {
+                isNetworkAvailable = false
+                runOnUiThread {
+                    webView?.evaluateJavascript(
+                        "window.dispatchEvent(new CustomEvent('androidNetworkOffline', { detail: { timestamp: ${System.currentTimeMillis()}, reason: 'unavailable' } }));",
+                        null
+                    )
+                }
+            }
+        }
+
+        override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+            val hasInternet = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            val hasValidated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+
+            // Check if airplane mode is on - don't trust network capabilities during airplane mode
+            val isAirplaneModeOn = Settings.Global.getInt(
+                contentResolver,
+                Settings.Global.AIRPLANE_MODE_ON,
+                0
+            ) != 0
+
+            Log.d(TAG, "Network capabilities changed: internet=$hasInternet, validated=$hasValidated, airplaneMode=$isAirplaneModeOn, wasAvailable=$isNetworkAvailable")
+
+            // Network is usable when it has both internet and validation AND airplane mode is off
+            val isUsable = hasInternet && hasValidated && !isAirplaneModeOn
+
+            if (isUsable && !isNetworkAvailable) {
+                Log.d(TAG, "Network became usable - dispatching online event")
+                isNetworkAvailable = true
+                runOnUiThread {
+                    webView?.evaluateJavascript(
+                        "window.dispatchEvent(new CustomEvent('androidNetworkOnline', { detail: { timestamp: ${System.currentTimeMillis()} } }));",
+                        null
+                    )
+                }
+            }
+        }
+    }
+
+    // BroadcastReceiver for airplane mode changes
+    private val airplaneModeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            Log.d(TAG, "Airplane broadcast received: action=${intent?.action}")
+
+            if (intent?.action == Intent.ACTION_AIRPLANE_MODE_CHANGED) {
+                // Get state from intent extra (more reliable than Settings query)
+                val isOnFromIntent = intent.getBooleanExtra("state", false)
+
+                // Also check Settings as fallback
+                val isOnFromSettings = Settings.Global.getInt(
+                    contentResolver,
+                    Settings.Global.AIRPLANE_MODE_ON,
+                    0
+                ) != 0
+
+                Log.d(TAG, "Airplane mode changed: fromIntent=$isOnFromIntent, fromSettings=$isOnFromSettings, wasNetworkAvailable=$isNetworkAvailable")
+
+                val isAirplaneModeOn = isOnFromIntent || isOnFromSettings
+
+                if (isAirplaneModeOn && isNetworkAvailable) {
+                    Log.d(TAG, "Airplane mode ON - dispatching offline event")
+                    isNetworkAvailable = false
+                    webView?.evaluateJavascript(
+                        "window.dispatchEvent(new CustomEvent('androidNetworkOffline', { detail: { timestamp: ${System.currentTimeMillis()}, reason: 'airplane_mode' } }));",
+                        null
+                    )
+                }
+                // When airplane mode turns OFF, the networkCallback.onCapabilitiesChanged
+                // will handle dispatching the online event once network is validated
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.d(TAG, "onCreate: savedInstanceState=${savedInstanceState != null}")
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Set up network connectivity monitoring
+        // Use registerDefaultNetworkCallback to monitor the system's active network
+        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        connectivityManager.registerDefaultNetworkCallback(networkCallback)
+
+        // Register airplane mode receiver for immediate detection
+        // Use RECEIVER_EXPORTED for system broadcasts like airplane mode
+        val airplaneModeFilter = IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(airplaneModeReceiver, airplaneModeFilter, Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(airplaneModeReceiver, airplaneModeFilter)
+        }
 
         // Handle back button for WebView navigation
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -86,9 +206,30 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         Log.d(TAG, "onResume: webView=${webView != null}")
         super.onResume()
+
+        // Check current network state on resume (in case it changed while backgrounded)
+        val activeNetwork = connectivityManager.activeNetwork
+        val capabilities = activeNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
+        val hasInternet = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        val hasValidated = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+        val isCurrentlyConnected = hasInternet && hasValidated
+
+        Log.d(TAG, "onResume: network check - activeNetwork=$activeNetwork, hasInternet=$hasInternet, hasValidated=$hasValidated, wasAvailable=$isNetworkAvailable")
+
         webView?.let {
             Log.d(TAG, "onResume: calling webView.onResume()")
             it.onResume()
+
+            // If network state changed while backgrounded, notify JS
+            if (!isCurrentlyConnected && isNetworkAvailable) {
+                Log.d(TAG, "onResume: network lost while backgrounded - dispatching offline event")
+                isNetworkAvailable = false
+                it.evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('androidNetworkOffline', { detail: { timestamp: ${System.currentTimeMillis()}, reason: 'resume_check' } }));",
+                    null
+                )
+            }
+
             it.evaluateJavascript(
                 "window.dispatchEvent(new CustomEvent('androidResume', { detail: { timestamp: ${System.currentTimeMillis()} } }));",
                 null
@@ -117,6 +258,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         Log.d(TAG, "onDestroy: webView=${webView != null}")
+        connectivityManager.unregisterNetworkCallback(networkCallback)
+        unregisterReceiver(airplaneModeReceiver)
         webView?.destroy()
         webView = null
         super.onDestroy()
@@ -145,9 +288,6 @@ fun DetachWebView(
 
                 // Enable DOM storage for localStorage (session persistence)
                 domStorageEnabled = true
-
-                // Enable database storage
-                databaseEnabled = true
 
                 // Allow loading resources from CDNs
                 allowContentAccess = true

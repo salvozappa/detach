@@ -10,7 +10,8 @@ const DEBUG = {
     WS: true,        // WebSocket connection events
     HEALTH: true,    // Health check events
     VISIBILITY: true, // Page visibility events
-    ANDROID: true    // Android lifecycle events
+    ANDROID: true,   // Android lifecycle events
+    NETWORK: true    // Network online/offline events
 };
 
 // Correlation ID for tracking connection attempts
@@ -117,8 +118,8 @@ function getReconnectDelay() {
 
 function startHealthCheck() {
     debugLog('HEALTH', 'info', 'Starting health check', {
-        interval: 15000,
-        staleThreshold: 45000
+        interval: 10000,
+        staleThreshold: 20000
     });
 
     if (healthCheckInterval) {
@@ -134,7 +135,7 @@ function startHealthCheck() {
             wsReadyState: ws ? ws.readyState : null
         });
 
-        if (timeSinceLastPong > 45000) {
+        if (timeSinceLastPong > 20000) {
             debugLog('HEALTH', 'warn', 'Connection stale, forcing close', {
                 timeSinceLastPong: timeSinceLastPong
             });
@@ -142,7 +143,7 @@ function startHealthCheck() {
                 ws.close(4000, 'Health check timeout');
             }
         }
-    }, 15000);
+    }, 10000);
 }
 
 function stopHealthCheck() {
@@ -1582,6 +1583,46 @@ window.addEventListener('androidResume', (e) => {
     connect();
 });
 
+// Android network connectivity event handlers
+// These are more reliable than browser online/offline events in WebView
+window.addEventListener('androidNetworkOffline', (e) => {
+    debugLog('NETWORK', 'warn', 'Android network lost', {
+        timestamp: e.detail?.timestamp,
+        wsState: wsState,
+        wsReadyState: ws ? ws.readyState : null
+    });
+
+    // Update status immediately - don't wait for health check timeout
+    setWsState(WS_STATES.DISCONNECTED, 'android network offline');
+    updateStatus('disconnected', 'Connection lost - offline');
+
+    // Stop health checks and pending reconnects (they won't work offline)
+    stopHealthCheck();
+    if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+    }
+
+    // Close the WebSocket - it's dead anyway
+    if (ws) {
+        ws.close();
+    }
+});
+
+window.addEventListener('androidNetworkOnline', (e) => {
+    debugLog('NETWORK', 'info', 'Android network available', {
+        timestamp: e.detail?.timestamp,
+        wsState: wsState,
+        wsReadyState: ws ? ws.readyState : null
+    });
+
+    // Network is back - reconnect immediately
+    updateStatus('connecting', 'Network restored - reconnecting...');
+    reconnectAttempts = 0;
+    isConnecting = false;
+    connect();
+});
+
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
     stopHealthCheck();
@@ -1591,4 +1632,41 @@ window.addEventListener('beforeunload', () => {
     if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
     }
+});
+
+// Network status change handlers - detect airplane mode, wifi loss, etc.
+window.addEventListener('offline', () => {
+    debugLog('NETWORK', 'warn', 'Browser went offline', {
+        wsState: wsState,
+        wsReadyState: ws ? ws.readyState : null
+    });
+
+    // Update status immediately - don't wait for health check timeout
+    setWsState(WS_STATES.DISCONNECTED, 'network offline');
+    updateStatus('disconnected', 'Connection lost - offline');
+
+    // Stop health checks and pending reconnects (they won't work offline)
+    stopHealthCheck();
+    if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+    }
+
+    // Close the WebSocket - it's dead anyway
+    if (ws) {
+        ws.close();
+    }
+});
+
+window.addEventListener('online', () => {
+    debugLog('NETWORK', 'info', 'Browser came online', {
+        wsState: wsState,
+        wsReadyState: ws ? ws.readyState : null
+    });
+
+    // Network is back - reconnect immediately
+    updateStatus('connecting', 'Network restored - reconnecting...');
+    reconnectAttempts = 0;
+    isConnecting = false;
+    connect();
 });
