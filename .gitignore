@@ -1,2 +1,5 @@
 .vscode/
 .idea/
+
+# Android assets (copied from webview/ at build time)
+android/app/src/main/assets/

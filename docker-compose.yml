@@ -53,6 +53,7 @@ services:
       - ./webview/index.html:/usr/share/nginx/html/index.html:ro
       - ./webview/app.js:/usr/share/nginx/html/app.js:ro
       - ./webview/styles.css:/usr/share/nginx/html/styles.css:ro
+      - ./webview/lib:/usr/share/nginx/html/lib:ro
     depends_on:
       - bridge
     restart: unless-stopped

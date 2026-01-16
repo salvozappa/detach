@@ -187,7 +187,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             DetachitTheme {
                 DetachWebView(
-                    url = "https://nightly01.tail5fb253.ts.net/",
+                    url = "file:///android_asset/index.html",
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Color.Black)

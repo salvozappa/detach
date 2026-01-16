@@ -1,5 +1,5 @@
 // Configuration - use same host as the page is served from
-const WS_HOST = window.location.host || 'localhost';
+const WS_HOST = window.location.host || 'nightly01.tail5fb253.ts.net';
 const WS_PORT = '8081';
 
 // Authentication - HARDCODED FOR NOW
@@ -560,8 +560,8 @@ function getWebSocketURL() {
         params.set('session', sessionId);
     }
 
-    // Use wss:// for HTTPS pages, ws:// for HTTP
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // Use wss:// for HTTPS pages or file:// (Android bundled assets), ws:// for HTTP
+    const protocol = (window.location.protocol === 'https:' || window.location.protocol === 'file:') ? 'wss:' : 'ws:';
 
     // Use /ws path for WebSocket connections (proxied by nginx)
     // This works for both HTTP and HTTPS

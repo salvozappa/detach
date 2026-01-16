@@ -58,3 +58,15 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
+// Copy webview files to assets before build
+tasks.register<Copy>("copyWebviewAssets") {
+    from("${rootProject.projectDir}/../webview") {
+        include("index.html", "app.js", "styles.css", "lib/**")
+    }
+    into("src/main/assets")
+}
+
+tasks.named("preBuild") {
+    dependsOn("copyWebviewAssets")
+}
