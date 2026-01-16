@@ -12,7 +12,7 @@ import (
 // WebSocket keepalive configuration
 const (
 	pongWait     = 60 * time.Second // Time to wait for pong response
-	pingInterval = 30 * time.Second // Send pings at this interval
+	pingInterval = 15 * time.Second // Send pings at this interval
 	writeWait    = 10 * time.Second // Time to complete write operations
 )
 
