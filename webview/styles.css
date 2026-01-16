@@ -25,9 +25,9 @@ body {
 }
 
 #status.connecting {
-    background: #FF9800;
-    background: radial-gradient(circle,rgba(255, 152, 0, 1) 0%, rgba(199, 119, 0, 1) 100%);
-    color: #000;
+    background: #F44336;
+    background: radial-gradient(circle,rgba(244, 67, 54, 1) 0%, rgba(222, 46, 33, 1) 100%);
+    color: #fff;
 }
 
 #status.connected {
