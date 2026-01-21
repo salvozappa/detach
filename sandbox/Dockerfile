@@ -42,9 +42,10 @@ RUN mkdir -p /home/detach-dev/.ssh && \
     chown -R detach-dev:detach-dev /home/detach-dev/.ssh
 
 # Create projects directory for development work
-RUN mkdir -p /home/detach-dev/projects/sample && \
+RUN mkdir -p /home/detach-dev/projects && \
     chown -R detach-dev:detach-dev /home/detach-dev && \
     chmod -R 755 /home/detach-dev/projects
+
 
 # Install Claude CLI as detach-dev user
 USER detach-dev
@@ -52,14 +53,9 @@ WORKDIR /home/detach-dev
 RUN curl -fsSL https://claude.ai/install.sh | bash
 RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/detach-dev/.bashrc
 
-# Initialize git repository in sample project
-WORKDIR /home/detach-dev/projects/sample
-RUN git init && \
-    git config user.email "dev@detach.it" && \
-    git config user.name "Detach Dev" && \
-    echo "# Sample Project" > README.md && \
-    git add README.md && \
-    git commit -m "Initial commit"
+# Configure git user for detach-dev
+RUN git config --global user.email "salvatorezappala@fastmail.com" && \
+    git config --global user.name "Salvatore Zappalà"
 
 # Switch back to root for remaining setup
 USER root
@@ -68,7 +64,7 @@ USER root
 EXPOSE 22
 
 # Add entrypoint script that fixes key ownership before starting sshd
-COPY entrypoint.sh /entrypoint.sh
+COPY sandbox/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Start via entrypoint (fixes key ownership, then starts sshd)

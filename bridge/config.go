@@ -7,7 +7,7 @@ var (
 	sandboxHost = getEnv("SANDBOX_HOST", "77.42.17.162")
 	sandboxPort = getEnv("SANDBOX_PORT", "22")
 	sshKeyPath  = getEnv("SSH_KEY_PATH", "../keys/bridge")
-	workingDir  = getEnv("WORKING_DIR", "~/projects/sample")
+	workingDir  = getEnv("WORKING_DIR", "~/projects/notestash")
 )
 
 // Helper function to get environment variables with defaults
