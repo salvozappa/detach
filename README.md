@@ -21,7 +21,7 @@ A web-based interface that connects to a remote sandbox where AI agents (like Cl
 ## Prerequisites
 
 - Docker & Docker Compose
-- SSH key pair in `keys/dev` and `keys/dev.pub`
+- SSH key pair in `keys/bridge` and `keys/bridge.pub`
 
 ## Quick Start
 
@@ -32,7 +32,7 @@ cd detach.it
 
 # Generate SSH keys if needed
 mkdir -p keys
-ssh-keygen -t rsa -b 4096 -f keys/dev -N ""
+ssh-keygen -t rsa -b 4096 -f keys/bridge -N ""
 
 # Start all services
 docker-compose up -d
@@ -60,7 +60,7 @@ docker logs detach-webview
 docker logs detach-sandbox
 
 # SSH into sandbox for debugging
-ssh -i keys/dev -p 2222 detach-dev@localhost
+ssh -i keys/bridge -p 2222 detach-dev@localhost
 ```
 
 ## Android App

@@ -78,37 +78,51 @@ check_ssh_connectivity() {
     echo "✓ SSH connection verified"
 }
 
+# Sync GitHub deploy key from local repo to VPS
+sync_github_deploy_key() {
+    echo ""
+    echo "Syncing GitHub deploy key to VPS..."
+
+    LOCAL_KEY="keys/github_deploy_key"
+    LOCAL_KEY_PUB="keys/github_deploy_key.pub"
+
+    # Check local key exists
+    if [ ! -f "$LOCAL_KEY" ]; then
+        echo "ERROR: GitHub deploy key not found at $LOCAL_KEY"
+        echo "The key should be stored in the repository's keys/ directory."
+        exit 1
+    fi
+
+    # Copy key to VPS
+    scp $SSH_OPTS "$LOCAL_KEY" "$REMOTE_USER@$REMOTE_HOST:~/.ssh/github_deploy_key"
+    scp $SSH_OPTS "$LOCAL_KEY_PUB" "$REMOTE_USER@$REMOTE_HOST:~/.ssh/github_deploy_key.pub"
+
+    # Set permissions and configure SSH
+    ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "chmod 600 ~/.ssh/github_deploy_key ~/.ssh/github_deploy_key.pub"
+
+    # Create SSH config for GitHub if not exists
+    ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "grep -q 'Host github.com' ~/.ssh/config 2>/dev/null || cat >> ~/.ssh/config << 'EOF'
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/github_deploy_key
+    IdentitiesOnly yes
+EOF
+chmod 600 ~/.ssh/config"
+
+    echo "✓ GitHub deploy key synced"
+}
+
 # Setup git repository if it doesn't exist
 setup_git_repo() {
     echo ""
     echo "Setting up git repository..."
 
-    # Check if GitHub deploy key is configured
-    if ! ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "test -f ~/.ssh/github_deploy_key" &>/dev/null; then
-        echo ""
-        echo "ERROR: GitHub deploy key not found on remote server"
-        echo ""
-        echo "To set up GitHub access:"
-        echo "  1. SSH into the server: ssh $REMOTE_USER@$REMOTE_HOST"
-        echo "  2. Generate deploy key: ssh-keygen -t ed25519 -f ~/.ssh/github_deploy_key -C 'detach-deploy' -N ''"
-        echo "  3. Display public key: cat ~/.ssh/github_deploy_key.pub"
-        echo "  4. Add to GitHub: https://github.com/salvozappa/detach.it/settings/keys"
-        echo "  5. Create SSH config:"
-        echo "     cat > ~/.ssh/config <<EOF"
-        echo "     Host github.com"
-        echo "         HostName github.com"
-        echo "         User git"
-        echo "         IdentityFile ~/.ssh/github_deploy_key"
-        echo "         IdentitiesOnly yes"
-        echo "     EOF"
-        echo "  6. Run this script again"
-        echo ""
-        exit 1
-    fi
-
     # Clone the repository
     if ! ssh_exec "cd $DEPLOY_DIR && git clone git@github.com:salvozappa/detach.it.git ." "Cloning repository"; then
         echo "ERROR: Failed to clone repository. Check GitHub deploy key permissions."
+        echo "Ensure the public key (keys/github_deploy_key.pub) is added to:"
+        echo "  https://github.com/salvozappa/detach.it/settings/keys"
         exit 1
     fi
 
@@ -300,6 +314,12 @@ get_access_urls() {
 
 # Main execution
 check_ssh_connectivity
+
+# Sync GitHub deploy key (needed for git mode)
+if [ "$DEPLOYMENT_MODE" = "git" ]; then
+    sync_github_deploy_key
+fi
+
 check_remote_prerequisites
 
 # Sync files if rsync mode

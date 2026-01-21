@@ -57,44 +57,22 @@ sudo tailscale up
 tailscale ip -4
 ```
 
-### 2.5. Setup GitHub Deploy Key
+### 2.5. Setup GitHub Deploy Key (One-time)
 
-Generate and configure GitHub deploy key for read-only repository access:
+The GitHub deploy key is stored in the repository at `keys/github_deploy_key`. The deploy script automatically syncs it to the VPS.
 
-```bash
-# On VPS
-ssh sal@<vps-public-ip>
+**Add the public key to GitHub (one-time):**
+1. Copy contents of `keys/github_deploy_key.pub`
+2. Go to: https://github.com/salvozappa/detach.it/settings/keys
+3. Click "Add deploy key"
+4. Title: "VPS Nightly Server"
+5. Paste public key
+6. Don't check "Allow write access" (read-only is sufficient)
+7. Click "Add key"
 
-# Generate deploy key
-ssh-keygen -t ed25519 -f ~/.ssh/github_deploy_key -C "detach-nightly-deploy" -N ""
-
-# Display public key to add to GitHub
-cat ~/.ssh/github_deploy_key.pub
-```
-
-**Add to GitHub:**
-1. Go to repository → Settings → Deploy keys
-2. Click "Add deploy key"
-3. Title: "VPS Nightly Server"
-4. Paste public key
-5. Don't check "Allow write access"
-6. Click "Add key"
-
-**Configure SSH:**
-```bash
-# Create SSH config
-cat > ~/.ssh/config << 'EOF'
-Host github.com
-    HostName github.com
-    User git
-    IdentityFile ~/.ssh/github_deploy_key
-    IdentitiesOnly yes
-EOF
-chmod 600 ~/.ssh/config ~/.ssh/github_deploy_key
-
-# Test
-ssh -T git@github.com
-```
+The deploy script will automatically:
+- Copy the key to `~/.ssh/github_deploy_key` on the VPS
+- Configure SSH to use it for GitHub
 
 ### 3. Enable HTTPS in Tailscale (Optional but Recommended for PWA)
 
@@ -230,8 +208,8 @@ ls -la keys/
 
 # The dev.pub file must be owned by UID 1001 (container's detach-dev user)
 # and have 600 permissions
-sudo chown 1001:1001 keys/dev.pub
-chmod 600 keys/dev keys/dev.pub
+sudo chown 1001:1001 keys/bridge.pub
+chmod 600 keys/bridge keys/bridge.pub
 
 # Restart containers
 docker-compose -f docker-compose.prod.yml restart sandbox bridge

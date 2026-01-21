@@ -30,7 +30,7 @@ git clone <your-repo> detach.it
 cd detach.it
 
 # Ensure SSH keys exist
-ls -la keys/dev keys/dev.pub
+ls -la keys/bridge keys/bridge.pub
 
 # Build and start services (production config)
 docker-compose -f docker-compose.prod.yml build

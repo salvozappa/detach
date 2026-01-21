@@ -10,7 +10,7 @@ services:
     ports:
       - "2222:22"  # SSH accessible from host for debugging
     volumes:
-      - ./keys/dev.pub:/tmp/authorized_keys:ro
+      - ./keys/bridge.pub:/tmp/authorized_keys:ro
       - ./keys/detach_dev:/home/detach-dev/.ssh/id_ed25519:ro
       - ./keys/detach_dev.pub:/home/detach-dev/.ssh/id_ed25519.pub:ro
       - sandbox-home:/home/detach-dev
@@ -33,9 +33,9 @@ services:
     environment:
       - SANDBOX_HOST=sandbox
       - SANDBOX_PORT=22
-      - SSH_KEY_PATH=/app/keys/dev
+      - SSH_KEY_PATH=/app/keys/bridge
     volumes:
-      - ./keys/dev:/app/keys/dev:ro
+      - ./keys/bridge:/app/keys/bridge:ro
     depends_on:
       sandbox:
         condition: service_healthy
