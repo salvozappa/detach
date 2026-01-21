@@ -20,6 +20,17 @@ if [ -f /home/detach-dev/.ssh/id_ed25519 ]; then
     cp /home/detach-dev/.ssh/id_ed25519.pub /tmp/id_ed25519_tmp.pub 2>/dev/null || true
     chown detach-dev:detach-dev /tmp/id_ed25519_tmp /tmp/id_ed25519_tmp.pub 2>/dev/null || true
     chmod 600 /tmp/id_ed25519_tmp
+
+    # Create SSH config to use the writable key for GitHub
+    cat > /home/detach-dev/.ssh/config << 'EOF'
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile /tmp/id_ed25519_tmp
+    IdentitiesOnly yes
+EOF
+    chown detach-dev:detach-dev /home/detach-dev/.ssh/config
+    chmod 600 /home/detach-dev/.ssh/config
 fi
 
 # Add GitHub to known_hosts if not present

@@ -158,7 +158,7 @@ function stopHealthCheck() {
 const SESSION_KEY = 'detach_session_id';
 
 // Code view state
-const PROJECT_ROOT = '~/projects/sample';
+const PROJECT_ROOT = '~/projects/notestash';
 let currentPath = PROJECT_ROOT;
 let codeViewInitialized = false;
 

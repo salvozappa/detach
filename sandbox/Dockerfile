@@ -64,7 +64,7 @@ USER root
 EXPOSE 22
 
 # Add entrypoint script that fixes key ownership before starting sshd
-COPY sandbox/entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Start via entrypoint (fixes key ownership, then starts sshd)
