@@ -718,12 +718,12 @@ function setupTouchScroll(terminal, containerEl) {
     viewport.addEventListener('touchend', () => {
         const lineHeight = getLineHeight();
 
-        // Only apply momentum if velocity is significant
-        if (Math.abs(velocityY) > 0.3) {
-            // Convert velocity to pixels and scale for momentum feel
-            let pixelVelocity = velocityY * 16; // ~16ms per frame
-            const friction = 0.92;
-            const minPixelVelocity = 0.5;
+        // Apply momentum if there's any meaningful velocity
+        if (Math.abs(velocityY) > 0.1) {
+            // Scale velocity for natural momentum feel
+            let pixelVelocity = velocityY * 25;
+            const friction = 0.96; // Higher = longer glide
+            const minPixelVelocity = 0.3;
             let momentumDelta = 0;
 
             function momentumStep() {
