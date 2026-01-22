@@ -50,13 +50,12 @@ const CLOSE_CODE_MEANINGS = {
 function debugLog(category, level, message, data = {}) {
     if (!DEBUG[category]) return;
 
-    const sessionId = localStorage.getItem(SESSION_KEY) || 'no-session';
     const timestamp = Date.now();
     const logEntry = {
         ts: timestamp,
         cat: category,
         corrId: currentCorrelationId,
-        sessionId: sessionId,
+        user: USERNAME,
         msg: message,
         ...data
     };
@@ -153,9 +152,6 @@ function stopHealthCheck() {
         healthCheckInterval = null;
     }
 }
-
-// Session persistence
-const SESSION_KEY = 'detach_session_id';
 
 // Code view state
 const PROJECT_ROOT = '~/projects/notestash';
@@ -555,10 +551,6 @@ function handleFileMessage(msg) {
 
 function getWebSocketURL() {
     const params = new URLSearchParams({ user: USERNAME });
-    const sessionId = localStorage.getItem(SESSION_KEY);
-    if (sessionId) {
-        params.set('session', sessionId);
-    }
 
     // Use wss:// for HTTPS pages or file:// (Android bundled assets), ws:// for HTTP
     const protocol = (window.location.protocol === 'https:' || window.location.protocol === 'file:') ? 'wss:' : 'ws:';
@@ -1271,11 +1263,9 @@ function connect() {
 
     try {
         const wsUrl = getWebSocketURL();
-        const hasExistingSession = localStorage.getItem(SESSION_KEY) !== null;
 
         debugLog('WS', 'info', 'Creating WebSocket', {
-            url: wsUrl,
-            hasExistingSession: hasExistingSession
+            url: wsUrl
         });
 
         ws = new WebSocket(wsUrl);
@@ -1283,18 +1273,13 @@ function connect() {
         ws.onopen = () => {
             isConnecting = false;  // Connection complete
             const connectDuration = Date.now() - connectionStartTime;
-            const sessionId = localStorage.getItem(SESSION_KEY);
 
             debugLog('WS', 'info', 'WebSocket opened', {
-                connectDuration: connectDuration,
-                sessionId: sessionId
+                connectDuration: connectDuration
             });
 
             setWsState(WS_STATES.CONNECTED, 'onopen');
             updateStatus('connected', `Connected`);
-            if (!sessionId) {
-                term.clear();
-            }
 
             // Cancel any pending reconnect timeout - critical to prevent stale timeouts
             // from firing after successful connection
@@ -1338,7 +1323,7 @@ function connect() {
                         }
                     } else if (msg.type === 'session' && msg.id) {
                         console.log('Session ID:', msg.id);
-                        localStorage.setItem(SESSION_KEY, msg.id);
+                        // Session ID received (for logging/debugging only, not stored)
                     } else if (msg.type === 'file_list' || msg.type === 'file_content' || msg.type === 'file_with_diff') {
                         handleFileMessage(msg);
                     } else if (msg.type && msg.type.startsWith('git_')) {

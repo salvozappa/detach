@@ -112,9 +112,9 @@ func (s *Session) WriteJSON(v interface{}) error {
 	return s.wsConn.WriteJSON(v)
 }
 
-// Session store
-var sessions = make(map[string]*Session)
-var sessionsMu sync.RWMutex
+// Single global session (one session per instance)
+var globalSession *Session
+var sessionMu sync.RWMutex
 
 func generateSessionID() string {
 	bytes := make([]byte, 16)
@@ -122,22 +122,22 @@ func generateSessionID() string {
 	return hex.EncodeToString(bytes)
 }
 
-func getSession(id string) *Session {
-	sessionsMu.RLock()
-	defer sessionsMu.RUnlock()
-	return sessions[id]
+func getSession() *Session {
+	sessionMu.RLock()
+	defer sessionMu.RUnlock()
+	return globalSession
 }
 
-func addSession(s *Session) {
-	sessionsMu.Lock()
-	defer sessionsMu.Unlock()
-	sessions[s.ID] = s
+func setSession(s *Session) {
+	sessionMu.Lock()
+	defer sessionMu.Unlock()
+	globalSession = s
 }
 
-func removeSession(id string) {
-	sessionsMu.Lock()
-	defer sessionsMu.Unlock()
-	delete(sessions, id)
+func clearSession() {
+	sessionMu.Lock()
+	defer sessionMu.Unlock()
+	globalSession = nil
 }
 
 // Execute a command via SSH and return output

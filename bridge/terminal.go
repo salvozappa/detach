@@ -122,13 +122,13 @@ func createSession(user string) (*Session, error) {
 		DoneTerminal:    make(chan struct{}),
 	}
 
-	addSession(session)
+	setSession(session)
 
 	// Start claude in LLM terminal
 	log.Println("Starting claude...")
 	claudeCmd := fmt.Sprintf("bash -l -c 'cd %s && exec claude'", workingDir)
 	if err := sshSess.Start(claudeCmd); err != nil {
-		removeSession(session.ID)
+		clearSession()
 		sshSessTerminal.Close()
 		sshSess.Close()
 		sshConn.Close()
@@ -140,7 +140,7 @@ func createSession(user string) (*Session, error) {
 	log.Println("Starting shell terminal...")
 	terminalCmd := fmt.Sprintf("bash -l -c 'cd %s && exec bash'", workingDir)
 	if err := sshSessTerminal.Start(terminalCmd); err != nil {
-		removeSession(session.ID)
+		clearSession()
 		sshSessTerminal.Close()
 		sshSess.Close()
 		sshConn.Close()
@@ -221,7 +221,7 @@ func createSession(user string) (*Session, error) {
 		sshSess.Wait()
 		log.Printf("Session %s LLM terminal ended", session.ID)
 		close(session.Done)
-		removeSession(session.ID)
+		clearSession()
 		sshSess.Close()
 		sshSessTerminal.Close()
 		sshConn.Close()

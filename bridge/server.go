@@ -53,17 +53,13 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID := r.URL.Query().Get("session")
-	log.Printf("[WS] Connection params: user=%s, requestedSession=%s, remoteAddr=%s", user, sessionID, remoteAddr)
+	log.Printf("[WS] Connection params: user=%s, remoteAddr=%s", user, remoteAddr)
 
-	// Try to reconnect to existing session
-	if sessionID != "" {
-		if session := getSession(sessionID); session != nil {
-			log.Printf("[WS] Reconnecting session %s from %s", sessionID, remoteAddr)
-			handleReconnect(conn, session)
-			return
-		}
-		log.Printf("[WS] Session %s not found (from %s), creating new session", sessionID, remoteAddr)
+	// Check for existing session (device takeover)
+	if session := getSession(); session != nil {
+		log.Printf("[WS] Taking over session %s from %s", session.ID, remoteAddr)
+		handleReconnect(conn, session)
+		return
 	}
 
 	// Create new session
