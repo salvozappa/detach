@@ -643,6 +643,121 @@ termShell.loadAddon(fitAddonShell);
 termShell.open(document.getElementById('terminal-shell'));
 fitAddonShell.fit();
 
+// Custom touch scroll handler for mobile momentum scrolling
+// xterm.js doesn't support native momentum scrolling, so we implement it manually
+function setupTouchScroll(terminal, containerEl) {
+    const viewport = containerEl.querySelector('.xterm-viewport');
+    if (!viewport) return;
+
+    let touchStartY = 0;
+    let lastTouchY = 0;
+    let lastTouchTime = 0;
+    let velocityY = 0;
+    let momentumAnimationId = null;
+    let accumulatedDelta = 0;
+
+    // Get line height with fallback
+    function getLineHeight() {
+        try {
+            if (terminal._core && terminal._core._renderService) {
+                return Math.ceil(terminal._core._renderService.dimensions.css.cell.height) || 17;
+            }
+        } catch (e) {}
+        // Fallback: estimate from font size (fontSize * ~1.2 line height)
+        return Math.ceil(14 * 1.2);
+    }
+
+    // Cancel any ongoing momentum animation
+    function cancelMomentum() {
+        if (momentumAnimationId) {
+            cancelAnimationFrame(momentumAnimationId);
+            momentumAnimationId = null;
+        }
+    }
+
+    viewport.addEventListener('touchstart', (e) => {
+        cancelMomentum();
+        if (e.touches.length === 1) {
+            touchStartY = e.touches[0].clientY;
+            lastTouchY = touchStartY;
+            lastTouchTime = Date.now();
+            velocityY = 0;
+            accumulatedDelta = 0;
+        }
+    }, { passive: true });
+
+    viewport.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1) {
+            const currentY = e.touches[0].clientY;
+            const currentTime = Date.now();
+            const deltaY = lastTouchY - currentY;
+            const deltaTime = currentTime - lastTouchTime;
+
+            // Calculate velocity (pixels per millisecond)
+            if (deltaTime > 0) {
+                // Smooth velocity with weighted average
+                velocityY = velocityY * 0.3 + (deltaY / deltaTime) * 0.7;
+            }
+
+            // Accumulate delta for sub-line movements
+            accumulatedDelta += deltaY;
+
+            const lineHeight = getLineHeight();
+            const linesToScroll = Math.trunc(accumulatedDelta / lineHeight);
+
+            if (linesToScroll !== 0) {
+                terminal.scrollLines(linesToScroll);
+                accumulatedDelta -= linesToScroll * lineHeight;
+            }
+
+            lastTouchY = currentY;
+            lastTouchTime = currentTime;
+        }
+    }, { passive: true });
+
+    viewport.addEventListener('touchend', () => {
+        const lineHeight = getLineHeight();
+
+        // Only apply momentum if velocity is significant
+        if (Math.abs(velocityY) > 0.3) {
+            // Convert velocity to pixels and scale for momentum feel
+            let pixelVelocity = velocityY * 16; // ~16ms per frame
+            const friction = 0.92;
+            const minPixelVelocity = 0.5;
+            let momentumDelta = 0;
+
+            function momentumStep() {
+                if (Math.abs(pixelVelocity) < minPixelVelocity) {
+                    // Scroll any remaining accumulated distance
+                    const finalLines = Math.round(momentumDelta / lineHeight);
+                    if (finalLines !== 0) {
+                        terminal.scrollLines(finalLines);
+                    }
+                    momentumAnimationId = null;
+                    return;
+                }
+
+                momentumDelta += pixelVelocity;
+                const linesToScroll = Math.trunc(momentumDelta / lineHeight);
+
+                if (linesToScroll !== 0) {
+                    terminal.scrollLines(linesToScroll);
+                    momentumDelta -= linesToScroll * lineHeight;
+                }
+
+                pixelVelocity *= friction;
+                momentumAnimationId = requestAnimationFrame(momentumStep);
+            }
+
+            momentumAnimationId = requestAnimationFrame(momentumStep);
+        }
+    }, { passive: true });
+}
+
+// Setup touch scroll for both terminals
+setupTouchScroll(term, document.getElementById('terminal'));
+setupTouchScroll(termShell, document.getElementById('terminal-shell'));
+
 // Track which terminal is active
 let activeTerminal = 'llm';
 

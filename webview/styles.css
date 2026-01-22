@@ -78,6 +78,8 @@ body {
 .xterm-viewport {
     overflow-y: auto;
     background-color: #000;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
 }
 
 /* Views */
