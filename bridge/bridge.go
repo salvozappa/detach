@@ -303,6 +303,22 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 
 				session.WriteJSON(resp)
 
+			case "register_fcm_token":
+				var req FcmTokenMessage
+				json.Unmarshal(p, &req)
+				log.Printf("[FCM] Session %s registering FCM token via WebSocket: %s...", session.ID, truncateToken(req.Token))
+
+				if req.Token != "" {
+					fcmTokensMu.Lock()
+					fcmTokens[session.ID] = req.Token
+					fcmTokensMu.Unlock()
+					log.Printf("[FCM] Registered token for session %s", session.ID)
+					session.WriteJSON(map[string]string{"type": "fcm_token_registered", "status": "ok"})
+				} else {
+					log.Printf("[FCM] Empty token received from session %s", session.ID)
+					session.WriteJSON(map[string]string{"type": "fcm_token_registered", "status": "error", "error": "empty token"})
+				}
+
 			default:
 				// Unknown JSON message, might be terminal input
 				if _, err := session.Stdin.Write(p); err != nil {

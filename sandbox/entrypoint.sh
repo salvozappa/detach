@@ -57,5 +57,14 @@ if [ ! -d "$PROJECT_DIR" ]; then
         git clone git@github.com:salvozappa/notestash.git "$PROJECT_DIR"
 fi
 
+# Ensure Claude Code hooks configuration exists in project
+CLAUDE_SETTINGS="$PROJECT_DIR/.claude/settings.json"
+if [ ! -f "$CLAUDE_SETTINGS" ]; then
+    echo "Creating Claude Code hooks configuration..."
+    mkdir -p "$PROJECT_DIR/.claude"
+    cp /tmp/claude-settings-template.json "$CLAUDE_SETTINGS"
+    chown -R detach-dev:detach-dev "$PROJECT_DIR/.claude"
+fi
+
 # Start sshd
 exec /usr/sbin/sshd -D

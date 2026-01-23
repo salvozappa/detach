@@ -1,13 +1,18 @@
 package it.detach.app
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
@@ -33,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import com.google.firebase.messaging.FirebaseMessaging
 import it.detach.app.ui.theme.DetachitTheme
 
 private const val TAG = "DetachActivity"
@@ -47,6 +53,14 @@ class WebAppInterface(private val context: Context) {
             "error" -> Log.e("WV:$tag", message)
             else -> Log.v("WV:$tag", message)
         }
+    }
+
+    @JavascriptInterface
+    fun getFcmToken(): String {
+        val token = context.getSharedPreferences("fcm", Context.MODE_PRIVATE)
+            .getString("token", "") ?: ""
+        Log.d(TAG, "getFcmToken called from JS, returning token: ${if (token.isNotEmpty()) token.substring(0, minOf(20, token.length)) + "..." else "empty"}")
+        return token
     }
 }
 
@@ -158,6 +172,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Set up notification channel for Claude Code hooks
+        createNotificationChannel()
+
+        // Request notification permission (Android 13+)
+        requestNotificationPermission()
+
+        // Initialize FCM token
+        initializeFcmToken()
+
         // Set up network connectivity monitoring
         // Use registerDefaultNetworkCallback to monitor the system's active network
         connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -263,6 +286,57 @@ class MainActivity : ComponentActivity() {
         webView?.destroy()
         webView = null
         super.onDestroy()
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "claude_hooks",
+                "Claude Code Updates",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications from Claude Code (task completion, permission requests)"
+            }
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+            Log.d(TAG, "Notification channel created: claude_hooks")
+        }
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "Requesting POST_NOTIFICATIONS permission")
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_PERMISSION_REQUEST_CODE)
+            } else {
+                Log.d(TAG, "POST_NOTIFICATIONS permission already granted")
+            }
+        }
+    }
+
+    private fun initializeFcmToken() {
+        Log.d(TAG, "initializeFcmToken: Requesting FCM token...")
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.e(TAG, "initializeFcmToken: Failed to get FCM token", task.exception)
+                return@addOnCompleteListener
+            }
+
+            val token = task.result
+            Log.d(TAG, "initializeFcmToken: Received FCM token: ${token.substring(0, minOf(20, token.length))}...")
+
+            // Store token in SharedPreferences
+            getSharedPreferences("fcm", MODE_PRIVATE)
+                .edit()
+                .putString("token", token)
+                .apply()
+
+            Log.d(TAG, "initializeFcmToken: Token stored in SharedPreferences")
+        }
+    }
+
+    companion object {
+        private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
     }
 }
 

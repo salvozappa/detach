@@ -25,7 +25,12 @@ var upgrader = websocket.Upgrader{
 }
 
 func main() {
+	// WebSocket endpoint
 	http.HandleFunc("/", handleWebSocket)
+
+	// Hook notification endpoint (called by sandbox scripts)
+	http.HandleFunc("/api/hook", handleHookNotification)
+
 	log.Println("Starting WebSocket server on :8081")
 	if err := http.ListenAndServe(":8081", nil); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

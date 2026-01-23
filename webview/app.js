@@ -30,6 +30,9 @@ let wsState = WS_STATES.DISCONNECTED;
 let lastStateChange = Date.now();
 let connectionStartTime = null;
 
+// Session and FCM state
+let currentSessionId = null;
+
 // WebSocket close code meanings
 const CLOSE_CODE_MEANINGS = {
     1000: 'Normal closure',
@@ -95,6 +98,32 @@ function setWsState(newState, reason = '') {
 // Generate correlation ID for connection attempts
 function generateCorrelationId() {
     return `conn-${Date.now()}-${++connectionAttemptId}`;
+}
+
+// Register FCM token with the backend for push notifications (via WebSocket)
+function registerFcmToken() {
+    debugLog('WS', 'info', 'registerFcmToken called');
+
+    if (!window.Android || typeof window.Android.getFcmToken !== 'function') {
+        debugLog('WS', 'info', 'FCM token registration skipped (not running in Android app)');
+        return;
+    }
+
+    const token = window.Android.getFcmToken();
+    debugLog('WS', 'info', 'FCM token from Android: ' + (token ? token.substring(0, 20) + '...' : 'null'));
+
+    if (!token) {
+        debugLog('WS', 'warn', 'FCM token not available yet');
+        return;
+    }
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        debugLog('WS', 'warn', 'Cannot register FCM token: WebSocket not connected');
+        return;
+    }
+
+    debugLog('WS', 'info', 'Registering FCM token via WebSocket');
+    ws.send(JSON.stringify({ type: 'register_fcm_token', token: token }));
 }
 
 // Exponential backoff reconnection
@@ -1505,7 +1534,9 @@ function connect() {
                         }
                     } else if (msg.type === 'session' && msg.id) {
                         console.log('Session ID:', msg.id);
-                        // Session ID received (for logging/debugging only, not stored)
+                        currentSessionId = msg.id;
+                        // Register FCM token for push notifications
+                        registerFcmToken();
                     } else if (msg.type === 'file_list' || msg.type === 'file_content' || msg.type === 'file_with_diff') {
                         handleFileMessage(msg);
                     } else if (msg.type && msg.type.startsWith('git_')) {

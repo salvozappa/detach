@@ -51,8 +51,10 @@ services:
       - SANDBOX_HOST=sandbox
       - SANDBOX_PORT=22
       - SSH_KEY_PATH=/app/keys/bridge
+      - FCM_SERVICE_ACCOUNT_PATH=/app/keys/fcm-service-account.json
     volumes:
       - ./keys/bridge:/app/keys/bridge:ro
+      - ./keys/fcm-service-account.json:/app/keys/fcm-service-account.json:ro
     depends_on:
       sandbox:
         condition: service_healthy

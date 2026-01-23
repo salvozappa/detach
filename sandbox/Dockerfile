@@ -46,6 +46,15 @@ RUN mkdir -p /home/detach-dev/projects && \
     chown -R detach-dev:detach-dev /home/detach-dev && \
     chmod -R 755 /home/detach-dev/projects
 
+# Create scripts directory and copy notification hook script
+RUN mkdir -p /home/detach-dev/scripts
+COPY notify-hook.sh /home/detach-dev/scripts/notify-hook.sh
+RUN chmod +x /home/detach-dev/scripts/notify-hook.sh && \
+    chown -R detach-dev:detach-dev /home/detach-dev/scripts
+
+# Copy Claude Code hooks configuration template
+COPY claude-settings.json /tmp/claude-settings-template.json
+
 
 # Install Claude CLI as detach-dev user
 USER detach-dev
