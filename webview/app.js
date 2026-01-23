@@ -153,6 +153,64 @@ function stopHealthCheck() {
     }
 }
 
+// Toast notification system
+const toastQueue = [];
+let activeToast = null;
+
+function showToast(message, type = 'success', duration = 3000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+
+    // If there's an active toast, queue this one
+    if (activeToast) {
+        toastQueue.push({ message, type, duration });
+        return;
+    }
+
+    // Show the toast
+    activeToast = toast;
+    container.appendChild(toast);
+
+    // Auto-hide after duration (unless it's an error)
+    if (type !== 'error' && duration > 0) {
+        setTimeout(() => hideToast(toast), duration);
+    }
+}
+
+function hideToast(toast) {
+    if (!toast || !toast.parentNode) return;
+
+    // Fade out animation
+    toast.classList.add('hiding');
+
+    // Remove from DOM after animation
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+
+        activeToast = null;
+
+        // Show next toast in queue
+        if (toastQueue.length > 0) {
+            const next = toastQueue.shift();
+            showToast(next.message, next.type, next.duration);
+        }
+    }, 300); // Match animation duration
+}
+
+// Allow clicking toast to dismiss it early
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('toast')) {
+        hideToast(e.target);
+    }
+});
+
 // Code view state
 const PROJECT_ROOT = '~/projects/notestash';
 let currentPath = PROJECT_ROOT;
@@ -1299,6 +1357,9 @@ function handleGitMessage(msg) {
         commitBtn.textContent = 'Commit';
         messageInput.value = '';
 
+        // Show success toast
+        showToast('Committed successfully');
+
         // Refresh git status
         loadGitStatus();
     } else if (msg.type === 'git_pull_success') {
@@ -1306,12 +1367,18 @@ function handleGitMessage(msg) {
         pullBtn.disabled = false;
         pullBtn.textContent = 'Pull';
 
+        // Show success toast
+        showToast('Pulled changes');
+
         // Refresh git status to show new changes
         loadGitStatus();
     } else if (msg.type === 'git_push_success') {
         const pushBtn = document.getElementById('push-btn');
         pushBtn.disabled = false;
         pushBtn.textContent = 'Push';
+
+        // Show success toast
+        showToast('Pushed to remote');
 
         // Refresh git status
         loadGitStatus();

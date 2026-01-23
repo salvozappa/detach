@@ -921,3 +921,69 @@ span.d2h-code-line-ctn.hljs.markdown {
         padding: 0 4px;
     }
 }
+
+/* ==================== Toast Notifications ==================== */
+
+#toast-container {
+    position: fixed;
+    bottom: 60px; /* Above bottom nav (50px) with 10px clearance */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2000;
+    width: 90%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none; /* Allow clicks through container */
+}
+
+.toast {
+    background: rgba(26, 26, 26, 0.95);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 14px 16px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    pointer-events: auto; /* Toast itself can be clicked */
+
+    /* Slide up animation */
+    animation: toast-slide-up 0.3s ease-out;
+}
+
+.toast.success {
+    border-left: 4px solid #4CAF50; /* Green accent */
+}
+
+.toast.error {
+    border-left: 4px solid #F44336; /* Red accent */
+    background: rgba(244, 67, 54, 0.15);
+}
+
+@keyframes toast-slide-up {
+    from {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.toast.hiding {
+    animation: toast-fade-out 0.3s ease-out forwards;
+}
+
+@keyframes toast-fade-out {
+    to {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+}
