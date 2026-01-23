@@ -41,6 +41,10 @@ fi
 chown detach-dev:detach-dev /home/detach-dev/.ssh/known_hosts 2>/dev/null || true
 chmod 644 /home/detach-dev/.ssh/known_hosts 2>/dev/null || true
 
+# Configure git user (do this every time in case volume doesn't have it)
+sudo -u detach-dev git config --global user.email "salvatorezappala@fastmail.com"
+sudo -u detach-dev git config --global user.name "Salvatore Zappalà"
+
 # Clone project repo if it doesn't exist
 PROJECT_DIR="/home/detach-dev/projects/notestash"
 if [ ! -d "$PROJECT_DIR" ]; then
