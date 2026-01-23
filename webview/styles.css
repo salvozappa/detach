@@ -222,6 +222,7 @@ body {
 .code-panel.active {
     display: flex;
     flex-direction: column;
+    position: relative;
 }
 
 /* Code View Header */
@@ -390,8 +391,8 @@ body {
 .send-to-llm-btn {
     display: none;
     position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    right: 20px;
+    transform: translateY(40px);
     background: #c87699;
     color: #fff;
     border: none;
