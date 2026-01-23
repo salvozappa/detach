@@ -1,16 +1,5 @@
 {
   "hooks": {
-    "Notification": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/home/detach-dev/scripts/notify-hook.sh notification"
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "matcher": "",

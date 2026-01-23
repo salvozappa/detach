@@ -98,17 +98,6 @@ The hooks configuration is automatically provisioned at `~/projects/notestash/.c
 ```json
 {
   "hooks": {
-    "Notification": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/home/detach-dev/scripts/notify-hook.sh notification"
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "matcher": "",
@@ -134,6 +123,11 @@ The hooks configuration is automatically provisioned at `~/projects/notestash/.c
   }
 }
 ```
+
+**Note:** We only hook `Stop` and `PermissionRequest` because:
+- `Stop`: Signals task completion - you need to review the results
+- `PermissionRequest`: Requires your approval to proceed
+- `Notification` (not used): General progress updates - too frequent and not actionable
 
 The hook notification script at `/home/detach-dev/scripts/notify-hook.sh`:
 
@@ -214,9 +208,10 @@ Receive hook notifications from the sandbox and send push notifications.
 
 | Hook Type | Trigger | Default Title | Description |
 |-----------|---------|---------------|-------------|
-| `notification` | Claude Code sends a notification | "Claude Code Notification" | General notifications from Claude Code |
-| `stop` | Task completes or Claude Code stops | "Task Completed" | Indicates the task has finished |
-| `permission_request` | Tool requires approval | "Permission Required" | User needs to approve an action |
+| `stop` | Task completes or Claude Code stops | "Task Completed" | Indicates the task has finished - time to review |
+| `permission_request` | Tool requires approval | "Permission Required" | User needs to approve an action - requires response |
+
+**Note:** The `notification` hook type is available but not configured, as it fires too frequently for general progress updates and is not actionable.
 
 ## Android Permissions
 
