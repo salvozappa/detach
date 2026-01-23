@@ -208,6 +208,7 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 					Type: "git_stage_success",
 				}
 				if err != nil {
+					log.Printf("Stage error: %v", err)
 					resp.Type = "git_error"
 					resp.Error = err.Error()
 				}
@@ -223,6 +224,7 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 					Type: "git_unstage_success",
 				}
 				if err != nil {
+					log.Printf("Unstage error: %v", err)
 					resp.Type = "git_error"
 					resp.Error = err.Error()
 				}
@@ -238,6 +240,7 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 					Type: "git_discard_success",
 				}
 				if err != nil {
+					log.Printf("Discard error: %v", err)
 					resp.Type = "git_error"
 					resp.Error = err.Error()
 				}

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"log"
 	"sync"
@@ -153,6 +154,10 @@ func (s *Session) executeCommand(cmd string) (string, error) {
 	sess.Stderr = &stderr
 
 	if err := sess.Run(cmd); err != nil {
+		// Include stderr in error message for better diagnostics
+		if stderr.Len() > 0 {
+			return "", fmt.Errorf("%v: %s", err, stderr.String())
+		}
 		return "", err
 	}
 
