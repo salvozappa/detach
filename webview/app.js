@@ -1598,6 +1598,8 @@ function switchView(viewName) {
     // Initialize Git view when switching to it
     if (viewName === 'git') {
         initGitView();
+        // Always refresh git status when opening the view
+        loadGitStatus();
     }
 }
 
