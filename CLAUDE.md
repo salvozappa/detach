@@ -105,6 +105,11 @@ docker-compose up -d webview
 In `android/` there is an app, which is a native WebView wrapper that connects to
 the hosted web app.
 
+To build and install the app on a connected Android device:
+```bash
+./run.sh
+```
+
 To change the server URL, edit `MainActivity.kt` and update the URL in the
 `DetachWebView` call.
 
@@ -171,7 +176,7 @@ To change the server URL, edit `MainActivity.kt` and update the URL in the
 - **Remote instance environment**:
   - Defined in `docker-compose.prod.yml`
   - Running in a VPS. Provisioning defined in `infrastructure/vps-config-init.yaml`
-  - Deploy local changes and restart remote instance: `infrastructure/deploy-to-vps.sh --rsync`
+  - Deploy from local machine: `./deploy.sh` (git mode) or `./deploy.sh --rsync` (rsync uncommitted changes)
   - More information in `infrastructure/README.md`
 
 ## Debugging

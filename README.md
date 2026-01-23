@@ -67,10 +67,16 @@ ssh -i keys/bridge -p 2222 detach-dev@localhost
 
 The native Android app is a WebView wrapper that provides a mobile app experience.
 
-### Build
+### Build and Run
 
-1. Open `android/` folder in Android Studio
-2. Build and run on device or emulator
+```bash
+# Quick start - build and install to connected device
+./run.sh
+
+# Or manually in Android Studio
+# 1. Open android/ folder in Android Studio
+# 2. Build and run on device or emulator
+```
 
 ## Architecture
 
@@ -92,7 +98,7 @@ For deploying to a VPS for nightly testing or production:
 3. **Setup GitHub Deploy Key**: See [infrastructure/README.md](infrastructure/README.md)
 
 ### Deploy
-Run `./deploy-to-vps.sh` on VPS
+Run `./deploy.sh` from your local machine (supports git pull or rsync modes)
 
 ### HTTPS for PWA
 To enable HTTPS (required for Progressive Web App features):

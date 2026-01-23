@@ -5,7 +5,7 @@ This directory contains configuration and deployment scripts for running detach.
 ## Files
 
 - **vps-config-init.yaml** - Cloud-init configuration for VPS provisioning
-- **deploy-to-vps.sh** - Automated deployment script
+- **../deploy.sh** - Automated deployment script (in repository root)
 
 ## Quick Start (New VPS)
 
@@ -15,7 +15,7 @@ For provisioning a brand new VPS:
 2. **Wait 2-3 minutes** for cloud-init to complete
 3. **Connect and configure Tailscale**: `ssh sal@<vps-ip>` → `sudo tailscale up`
 4. **Setup GitHub deploy key** (one-time, see below)
-5. **Run deploy script** from your local machine: `./infrastructure/deploy-to-vps.sh`
+5. **Run deploy script** from your local machine: `./deploy.sh`
 6. **Done!** Access via Tailscale HTTPS URL
 
 See detailed steps below for first-time setup.
@@ -88,7 +88,7 @@ This allows the deployment script to automatically configure HTTPS.
 **For a new VPS:** First, update the server hostname in the deploy script:
 
 ```bash
-# Edit infrastructure/deploy-to-vps.sh
+# Edit deploy.sh in repository root
 # Change REMOTE_HOST to your new VPS Tailscale hostname (e.g., "hostname.tail5fb253.ts.net")
 ```
 
@@ -96,7 +96,10 @@ Then run the deploy script from your local machine:
 
 ```bash
 # From your local machine in the project directory
-./infrastructure/deploy-to-vps.sh
+./deploy.sh
+
+# Or to deploy uncommitted local changes (for testing):
+./deploy.sh --rsync
 ```
 
 The script will:
@@ -150,13 +153,17 @@ docker-compose -f docker-compose.prod.yml up -d
 Simply run the deploy script again from your local machine:
 
 ```bash
-./infrastructure/deploy-to-vps.sh
+# Deploy from git (recommended for production)
+./deploy.sh
+
+# Deploy local uncommitted changes (for testing)
+./deploy.sh --rsync
 ```
 
 The script will automatically:
-- Pull the latest changes from git
-- Rebuild Docker containers if needed
-- Restart services with zero downtime
+- Pull the latest changes from git (or sync local files in rsync mode)
+- Rebuild Docker containers
+- Restart services
 - Show you what changed
 
 ## Troubleshooting
