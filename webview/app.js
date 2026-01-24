@@ -945,7 +945,16 @@ if (window.visualViewport) {
 document.querySelectorAll('.key-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         e.preventDefault();
+        const action = btn.dataset.action;
         const key = btn.dataset.key;
+
+        // Handle action buttons (scroll controls)
+        if (action) {
+            handleKeyboardAction(action);
+            return;
+        }
+
+        // Handle key buttons (send sequences to terminal)
         const sequence = getBasicSequence(key);
 
         // Send sequence if valid
@@ -959,6 +968,24 @@ document.querySelectorAll('.key-btn').forEach(btn => {
     });
 });
 
+// Handle keyboard action buttons
+function handleKeyboardAction(action) {
+    // Get the active terminal instance
+    const terminal = activeTerminal === 'terminal' ? termShell : term;
+
+    switch (action) {
+        case 'pgup':
+            terminal.scrollPages(-1);
+            break;
+        case 'pgdn':
+            terminal.scrollPages(1);
+            break;
+        case 'scroll-to-bottom':
+            terminal.scrollToBottom();
+            break;
+    }
+}
+
 // Helper: Get basic (unmodified) escape sequence
 function getBasicSequence(key) {
     const sequences = {
@@ -968,7 +995,9 @@ function getBasicSequence(key) {
         'left': '\x1b[D',
         'esc': '\x1b',
         'enter': '\r',
-        'ctrl-c': '\x03'
+        'ctrl-c': '\x03',
+        'tab': '\t',
+        'mode': '\x1b[Z'  // Shift+Tab
     };
     return sequences[key] || '';
 }
