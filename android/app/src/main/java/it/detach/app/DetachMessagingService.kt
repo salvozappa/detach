@@ -54,15 +54,8 @@ class DetachMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Choose icon based on hook type
-        val icon = when (hookType) {
-            "stop" -> android.R.drawable.ic_media_play
-            "permission_request" -> android.R.drawable.ic_dialog_alert
-            else -> android.R.drawable.ic_dialog_info
-        }
-
         val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(icon)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
