@@ -44,7 +44,7 @@ body {
 
 #terminal-container {
     position: absolute;
-    top: 32px;
+    top: 0px;
     left: 0;
     right: 0;
     bottom: 94px;
@@ -58,7 +58,7 @@ body {
 
 #terminal-shell-container {
     position: absolute;
-    top: 32px;
+    top: 0px;
     left: 0;
     right: 0;
     bottom: 94px;
