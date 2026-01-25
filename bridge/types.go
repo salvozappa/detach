@@ -27,9 +27,10 @@ type FileRequest struct {
 }
 
 type FileInfo struct {
-	Name  string `json:"name"`
-	IsDir bool   `json:"is_dir"`
-	Size  int64  `json:"size"`
+	Name      string `json:"name"`
+	IsDir     bool   `json:"is_dir"`
+	Size      int64  `json:"size"`
+	IsIgnored bool   `json:"is_ignored"`
 }
 
 type FileListResponse struct {

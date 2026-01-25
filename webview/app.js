@@ -301,6 +301,14 @@ function renderFileList(files, path) {
         return untrackedDirPrefixes.some(prefix => relPath.startsWith(prefix));
     };
 
+    // Build set of ignored file/directory names (directly ignored by gitignore)
+    const ignoredNames = new Set();
+    for (const file of files) {
+        if (file.is_ignored) {
+            ignoredNames.add(file.name);
+        }
+    }
+
     let html = '';
 
     // Add parent directory link if not at project root
@@ -331,17 +339,27 @@ function renderFileList(files, path) {
         const hasUnstagedChanges = file.is_dir
             ? dirsWithUnstaged.has(relativePath) || isInsideUntrackedDir(relativePath + '/')
             : unstagedPaths.has(relativePath) || isInsideUntrackedDir(relativePath);
+        // Only show as ignored if not already showing as unstaged (pink takes priority)
+        const isIgnored = !hasUnstagedChanges && ignoredNames.has(file.name);
+
+        // Determine CSS class: unstaged (pink) takes priority over ignored (gray)
+        let cssClass = 'file-item';
+        if (hasUnstagedChanges) {
+            cssClass += ' has-unstaged-changes';
+        } else if (isIgnored) {
+            cssClass += ' is-ignored';
+        }
 
         if (file.is_dir) {
             html += `
-                <div class="file-item${hasUnstagedChanges ? ' has-unstaged-changes' : ''}" onclick="navigateToFolder('${fullPath}')">
+                <div class="${cssClass}" onclick="navigateToFolder('${fullPath}')">
                     <span class="file-icon">${icon}</span>
                     <span class="file-name">${file.name}</span>
                 </div>
             `;
         } else {
             html += `
-                <div class="file-item${hasUnstagedChanges ? ' has-unstaged-changes' : ''}" onclick="openFile('${fullPath}', '${file.name}')">
+                <div class="${cssClass}" onclick="openFile('${fullPath}', '${file.name}')">
                     <span class="file-icon">${icon}</span>
                     <span class="file-name">${file.name}</span>
                     <span class="file-size">${size}</span>
