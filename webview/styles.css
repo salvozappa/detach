@@ -232,6 +232,8 @@ body {
     background: #1a1a1a;
     border-bottom: 1px solid #333;
     gap: 12px;
+    position: relative;
+    z-index: 101;
 }
 
 .code-header-title {
