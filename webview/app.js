@@ -11,7 +11,8 @@ const DEBUG = {
     HEALTH: true,    // Health check events
     VISIBILITY: true, // Page visibility events
     ANDROID: true,   // Android lifecycle events
-    NETWORK: true    // Network online/offline events
+    NETWORK: true,   // Network online/offline events
+    TERMINAL: true   // Terminal input/focus events (for debugging Android input issue)
 };
 
 // Correlation ID for tracking connection attempts
@@ -712,44 +713,93 @@ term.loadAddon(fitAddon);
 term.open(document.getElementById('terminal'));
 fitAddon.fit();
 
-// Initialize shell terminal
-const termShell = new Terminal({
-    cursorBlink: true,
-    fontSize: 14,
-    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-    theme: {
-        background: '#000000',
-        foreground: '#ffffff',
-        cursor: '#ffffff',
-        cursorAccent: '#000000',
-        selection: 'rgba(255, 255, 255, 0.3)',
-        black: '#000000',
-        red: '#e06c75',
-        green: '#98c379',
-        yellow: '#d19a66',
-        blue: '#61afef',
-        magenta: '#c678dd',
-        cyan: '#56b6c2',
-        white: '#abb2bf',
-        brightBlack: '#5c6370',
-        brightRed: '#e06c75',
-        brightGreen: '#98c379',
-        brightYellow: '#d19a66',
-        brightBlue: '#61afef',
-        brightMagenta: '#c678dd',
-        brightCyan: '#56b6c2',
-        brightWhite: '#ffffff'
-    },
-    allowTransparency: false,
-    scrollback: 10000,
-    localEcho: false
+// Shell terminal - lazy initialized when Terminal view is first opened
+let termShell = null;
+let fitAddonShell = null;
+let shellTerminalInitialized = false;
+
+function initShellTerminal() {
+    if (shellTerminalInitialized) return;
+    shellTerminalInitialized = true;
+
+    debugLog('TERMINAL', 'info', 'Lazy-initializing shell terminal (view is now visible)');
+
+    termShell = new Terminal({
+        cursorBlink: true,
+        fontSize: 14,
+        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        theme: {
+            background: '#000000',
+            foreground: '#ffffff',
+            cursor: '#ffffff',
+            cursorAccent: '#000000',
+            selection: 'rgba(255, 255, 255, 0.3)',
+            black: '#000000',
+            red: '#e06c75',
+            green: '#98c379',
+            yellow: '#d19a66',
+            blue: '#61afef',
+            magenta: '#c678dd',
+            cyan: '#56b6c2',
+            white: '#abb2bf',
+            brightBlack: '#5c6370',
+            brightRed: '#e06c75',
+            brightGreen: '#98c379',
+            brightYellow: '#d19a66',
+            brightBlue: '#61afef',
+            brightMagenta: '#c678dd',
+            brightCyan: '#56b6c2',
+            brightWhite: '#ffffff'
+        },
+        allowTransparency: false,
+        scrollback: 10000,
+        localEcho: false
+    });
+
+    fitAddonShell = new FitAddon.FitAddon();
+    termShell.loadAddon(fitAddonShell);
+
+    termShell.open(document.getElementById('terminal-shell'));
+    fitAddonShell.fit();
+
+    // Setup touch scroll for shell terminal
+    setupTouchScroll(termShell, document.getElementById('terminal-shell'));
+
+    // Register onData handler for shell terminal
+    termShell.onData((data) => {
+        debugLog('TERMINAL', 'info', 'termShell.onData called', {
+            dataLength: data.length,
+            dataHex: Array.from(data).map(c => c.charCodeAt(0).toString(16)).join(' '),
+            wsOpen: ws && ws.readyState === WebSocket.OPEN,
+            activeTerminal: activeTerminal
+        });
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'terminal_data',
+                terminal: 'terminal',
+                data: btoa(data)
+            }));
+            debugLog('TERMINAL', 'info', 'termShell data sent to WebSocket');
+        } else {
+            debugLog('TERMINAL', 'warn', 'termShell data NOT sent - WebSocket not open');
+        }
+    });
+
+    // Send terminal size
+    sendTerminalSize('terminal');
+
+    debugLog('TERMINAL', 'info', 'Shell terminal initialized', {
+        rows: termShell.rows,
+        cols: termShell.cols,
+        hasTextarea: !!termShell.textarea
+    });
+}
+
+// Debug: Log LLM terminal initialization state
+debugLog('TERMINAL', 'info', 'LLM terminal initialized', {
+    llm: { rows: term.rows, cols: term.cols, hasTextarea: !!term.textarea },
+    llmViewActive: document.getElementById('view-llm').classList.contains('active')
 });
-
-const fitAddonShell = new FitAddon.FitAddon();
-termShell.loadAddon(fitAddonShell);
-
-termShell.open(document.getElementById('terminal-shell'));
-fitAddonShell.fit();
 
 // Custom touch scroll handler for mobile momentum scrolling
 // xterm.js doesn't support native momentum scrolling, so we implement it manually
@@ -862,9 +912,16 @@ function setupTouchScroll(terminal, containerEl) {
     }, { passive: true });
 }
 
-// Setup touch scroll for both terminals
+// Setup touch scroll for LLM terminal (shell terminal is set up in initShellTerminal)
 setupTouchScroll(term, document.getElementById('terminal'));
-setupTouchScroll(termShell, document.getElementById('terminal-shell'));
+
+// Debug: Track terminal focus events for LLM terminal
+term.textarea?.addEventListener('focus', () => {
+    debugLog('TERMINAL', 'info', 'LLM terminal textarea focused');
+});
+term.textarea?.addEventListener('blur', () => {
+    debugLog('TERMINAL', 'info', 'LLM terminal textarea blurred');
+});
 
 // Track which terminal is active
 let activeTerminal = 'llm';
@@ -887,6 +944,7 @@ function base64ToBytes(base64) {
 function sendTerminalSize(terminal) {
     if (ws && ws.readyState === WebSocket.OPEN) {
         const t = terminal === 'terminal' ? termShell : term;
+        if (!t) return; // Shell terminal not initialized yet
         const terminalId = terminal || activeTerminal;
         const resizeMessage = JSON.stringify({
             type: 'resize',
@@ -901,7 +959,7 @@ function sendTerminalSize(terminal) {
 // Handle window resize
 window.addEventListener('resize', () => {
     fitAddon.fit();
-    fitAddonShell.fit();
+    if (fitAddonShell) fitAddonShell.fit();
     sendTerminalSize('llm');
     sendTerminalSize('terminal');
 });
@@ -910,7 +968,7 @@ window.addEventListener('resize', () => {
 window.addEventListener('orientationchange', () => {
     setTimeout(() => {
         fitAddon.fit();
-        fitAddonShell.fit();
+        if (fitAddonShell) fitAddonShell.fit();
         sendTerminalSize('llm');
         sendTerminalSize('terminal');
     }, 100);
@@ -947,7 +1005,7 @@ function handleViewportResize() {
         if (activeTerminal === 'llm') {
             fitAddon.fit();
             sendTerminalSize('llm');
-        } else if (activeTerminal === 'terminal') {
+        } else if (activeTerminal === 'terminal' && fitAddonShell) {
             fitAddonShell.fit();
             sendTerminalSize('terminal');
         }
@@ -970,6 +1028,13 @@ document.querySelectorAll('.key-btn').forEach(btn => {
 
         const action = btn.dataset.action;
         const key = btn.dataset.key;
+
+        debugLog('TERMINAL', 'info', 'Keyboard toolbar button pressed', {
+            action: action,
+            key: key,
+            activeTerminal: activeTerminal,
+            eventType: e.type
+        });
 
         // Handle action buttons (scroll controls)
         if (action) {
@@ -1008,6 +1073,7 @@ document.querySelectorAll('.key-btn').forEach(btn => {
 function handleKeyboardAction(action) {
     // Get the active terminal instance
     const terminal = activeTerminal === 'terminal' ? termShell : term;
+    if (!terminal) return;
 
     switch (action) {
         case 'pgup':
@@ -1593,7 +1659,11 @@ function connect() {
                         // Decode base64 to bytes for proper UTF-8 handling
                         const data = base64ToBytes(msg.data);
                         if (msg.terminal === 'terminal') {
-                            termShell.write(data);
+                            if (termShell) {
+                                termShell.write(data);
+                            }
+                            // If termShell not initialized, data is lost but that's OK
+                            // since user hasn't opened Terminal view yet
                         } else {
                             term.write(data);
                         }
@@ -1687,20 +1757,16 @@ function connect() {
 
 // Handle terminal input (registered once, uses current ws variable)
 term.onData((data) => {
+    debugLog('TERMINAL', 'info', 'term.onData (LLM) called', {
+        dataLength: data.length,
+        dataHex: Array.from(data).map(c => c.charCodeAt(0).toString(16)).join(' '),
+        wsOpen: ws && ws.readyState === WebSocket.OPEN,
+        activeTerminal: activeTerminal
+    });
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
             type: 'terminal_data',
             terminal: 'llm',
-            data: btoa(data)
-        }));
-    }
-});
-
-termShell.onData((data) => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-            type: 'terminal_data',
-            terminal: 'terminal',
             data: btoa(data)
         }));
     }
@@ -1735,9 +1801,21 @@ function switchView(viewName) {
         keyboardToolbar.classList.add('visible');
         handleViewportResize();  // Immediately recalculate toolbar position
         terminalShellContainer.style.bottom = '94px';
+
+        // Lazy-initialize the shell terminal on first access (when view is visible)
+        initShellTerminal();
+
         setTimeout(() => {
-            fitAddonShell.fit();
-            sendTerminalSize('terminal');
+            if (fitAddonShell) {
+                fitAddonShell.fit();
+                sendTerminalSize('terminal');
+            }
+
+            // Debug: Log terminal state after fit
+            debugLog('TERMINAL', 'info', 'Terminal view ready after fit', {
+                rows: termShell?.rows,
+                cols: termShell?.cols
+            });
         }, 50);
     } else {
         keyboardToolbar.classList.remove('visible');
