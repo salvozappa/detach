@@ -505,9 +505,9 @@ function updateSendToLLMButton() {
     const containerRect = diffContainer.getBoundingClientRect();
     const lineRect = lastLineEl.getBoundingClientRect();
 
-    // Calculate position relative to the code-viewer-panel (which has position: relative via .code-panel)
+    // Calculate position relative to the .code-content container (which has position: relative)
     const scrollTop = diffContainer.scrollTop;
-    const topPosition = lineRect.bottom - containerRect.top + scrollTop + 8;
+    const topPosition = lineRect.bottom - containerRect.top + scrollTop + 48;
 
     btn.style.display = 'block';
     btn.style.top = topPosition + 'px';

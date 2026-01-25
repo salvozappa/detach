@@ -222,7 +222,6 @@ body {
 .code-panel.active {
     display: flex;
     flex-direction: column;
-    position: relative;
 }
 
 /* Code View Header */
@@ -357,6 +356,7 @@ body {
     flex: 1;
     overflow: auto;
     padding: 0;
+    position: relative;
 }
 
 .code-content pre {
@@ -392,7 +392,6 @@ body {
     display: none;
     position: absolute;
     right: 20px;
-    transform: translateY(40px);
     background: #c87699;
     color: #fff;
     border: none;
