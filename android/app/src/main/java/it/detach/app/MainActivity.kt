@@ -70,6 +70,14 @@ class MainActivity : ComponentActivity() {
     private lateinit var connectivityManager: ConnectivityManager
     private var isNetworkAvailable = true
 
+    companion object {
+        private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
+
+        @Volatile
+        var isAppInForeground = false
+            private set
+    }
+
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             Log.d(TAG, "Network available (waiting for validation)")
@@ -229,6 +237,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         Log.d(TAG, "onResume: webView=${webView != null}")
         super.onResume()
+        isAppInForeground = true
 
         // Check current network state on resume (in case it changed while backgrounded)
         val activeNetwork = connectivityManager.activeNetwork
@@ -262,6 +271,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         Log.d(TAG, "onPause: webView=${webView != null}")
+        isAppInForeground = false
         webView?.let {
             Log.d(TAG, "onPause: dispatching androidPause event")
             it.evaluateJavascript(
@@ -335,9 +345,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    companion object {
-        private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
-    }
 }
 
 @SuppressLint("SetJavaScriptEnabled")

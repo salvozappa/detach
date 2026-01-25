@@ -213,6 +213,66 @@ Receive hook notifications from the sandbox and send push notifications.
 
 **Note:** The `notification` hook type is available but not configured, as it fires too frequently for general progress updates and is not actionable.
 
+## Foreground Suppression
+
+Notifications are suppressed when the app is in the foreground (actively being used). This prevents redundant notifications when the user is already looking at Claude's output.
+
+### Implementation
+
+The Android app tracks foreground state via `MainActivity.isAppInForeground`:
+- Set to `true` in `onResume()`
+- Set to `false` in `onPause()`
+
+In `DetachMessagingService.onMessageReceived()`, we check this flag and skip showing the notification if the app is active:
+
+```kotlin
+if (MainActivity.isAppInForeground) {
+    Log.d(TAG, "App is in foreground, skipping notification")
+    return
+}
+```
+
+### Known Edge Case: Delayed FCM Delivery
+
+FCM data messages may be batched or delayed by Android (especially during Doze mode). This can cause notifications to arrive after the app is backgrounded, even if the underlying event occurred while the app was in the foreground.
+
+**Example scenario:**
+1. User is viewing the app (foreground)
+2. Claude completes a task, server sends FCM
+3. FCM delivery is delayed by Android
+4. User backgrounds the app
+5. FCM message arrives, `isAppInForeground=false`, notification shows
+
+This is generally acceptable since the delay is usually short (seconds). If this becomes problematic, the fix would be:
+
+1. **Server side**: Include event timestamp in FCM data payload
+   ```go
+   Data: map[string]string{
+       "hookType":  hookType,
+       "title":     title,
+       "body":      body,
+       "timestamp": fmt.Sprintf("%d", time.Now().UnixMilli()),
+   },
+   ```
+
+2. **Android side**: Track when app went to background and compare
+   ```kotlin
+   companion object {
+       @Volatile var isAppInForeground = false
+       @Volatile var lastBackgroundedAt: Long = 0
+   }
+
+   // In onPause():
+   lastBackgroundedAt = System.currentTimeMillis()
+
+   // In onMessageReceived():
+   val eventTime = message.data["timestamp"]?.toLongOrNull() ?: 0
+   if (eventTime < MainActivity.lastBackgroundedAt) {
+       Log.d(TAG, "Event occurred while app was in foreground, skipping")
+       return
+   }
+   ```
+
 ## Android Permissions
 
 The app requires the `POST_NOTIFICATIONS` permission (Android 13+). This permission is requested at app startup.

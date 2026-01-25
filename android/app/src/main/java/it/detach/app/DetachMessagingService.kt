@@ -28,7 +28,13 @@ class DetachMessagingService : FirebaseMessagingService() {
         val title = message.data["title"] ?: "Claude Code"
         val body = message.data["body"] ?: "Task update"
 
-        Log.d(TAG, "Hook notification: type=$hookType, title=$title, body=$body")
+        Log.d(TAG, "Hook notification: type=$hookType, title=$title, body=$body, appInForeground=${MainActivity.isAppInForeground}")
+
+        // Don't show notification if app is already active
+        if (MainActivity.isAppInForeground) {
+            Log.d(TAG, "App is in foreground, skipping notification")
+            return
+        }
 
         showNotification(hookType, title, body)
     }
