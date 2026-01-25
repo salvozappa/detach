@@ -390,7 +390,7 @@ body {
 /* Send to LLM floating button */
 .send-to-llm-btn {
     display: none;
-    position: absolute;
+    position: fixed;
     right: 20px;
     background: #c87699;
     color: #fff;

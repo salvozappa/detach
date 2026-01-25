@@ -501,16 +501,12 @@ function updateSendToLLMButton() {
     }
 
     // Position the button below the last selected line
-    const diffContainer = document.getElementById('code-content-diff');
-    const containerRect = diffContainer.getBoundingClientRect();
+    // Button uses position: fixed, so we use viewport coordinates directly
     const lineRect = lastLineEl.getBoundingClientRect();
 
-    // Calculate position relative to the .code-content container (which has position: relative)
-    const scrollTop = diffContainer.scrollTop;
-    const topPosition = lineRect.bottom - containerRect.top + scrollTop + 48;
-
+    // Position in viewport coordinates (lineRect.bottom is already viewport-relative)
     btn.style.display = 'block';
-    btn.style.top = topPosition + 'px';
+    btn.style.top = (lineRect.bottom) + 'px';
 }
 
 function handleLineClick(lineNumber) {
@@ -545,6 +541,13 @@ document.getElementById('code-content-diff').addEventListener('click', (e) => {
     const lineEl = e.target.closest('.d2h-code-line-ctn');
     if (lineEl && lineEl.dataset.line !== undefined) {
         handleLineClick(parseInt(lineEl.dataset.line, 10));
+    }
+});
+
+// Update button position on scroll
+document.getElementById('code-content-diff').addEventListener('scroll', () => {
+    if (selectModeActive && selectedLines.size > 0) {
+        updateSendToLLMButton();
     }
 });
 
