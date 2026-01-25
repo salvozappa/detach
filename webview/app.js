@@ -966,6 +966,8 @@ if (window.visualViewport) {
 document.querySelectorAll('.key-btn').forEach(btn => {
     function handleKeyBtn(e) {
         e.preventDefault();
+        e.stopPropagation();
+
         const action = btn.dataset.action;
         const key = btn.dataset.key;
 
@@ -990,9 +992,16 @@ document.querySelectorAll('.key-btn').forEach(btn => {
 
     // Handle on mousedown (desktop) and touchend (mobile) to prevent focus loss
     btn.addEventListener('mousedown', handleKeyBtn);
-    btn.addEventListener('touchend', handleKeyBtn);
-    // Prevent touchstart from causing blur
-    btn.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    btn.addEventListener('touchend', (e) => {
+        btn.classList.remove('active');
+        handleKeyBtn(e);
+    });
+    // Prevent touchstart from causing blur and stop propagation to terminal
+    btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        btn.classList.add('active');
+    }, { passive: false });
 });
 
 // Handle keyboard action buttons

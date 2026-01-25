@@ -198,7 +198,8 @@ body {
     transition: background 0.2s, border-color 0.2s;
 }
 
-.key-btn:active {
+.key-btn:active,
+.key-btn.active {
     background: #555;
     transform: scale(0.95);
 }
