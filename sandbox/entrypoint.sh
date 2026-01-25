@@ -66,5 +66,10 @@ if [ ! -f "$CLAUDE_SETTINGS" ]; then
     chown -R detach-dev:detach-dev "$PROJECT_DIR/.claude"
 fi
 
+# Add .claude/ to local git exclude (doesn't affect remote .gitignore)
+if ! grep -q "^\.claude/$" "$PROJECT_DIR/.git/info/exclude" 2>/dev/null; then
+    echo ".claude/" >> "$PROJECT_DIR/.git/info/exclude"
+fi
+
 # Start sshd
 exec /usr/sbin/sshd -D

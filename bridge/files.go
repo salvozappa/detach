@@ -29,7 +29,7 @@ func (s *Session) listFiles(path string) ([]FileInfo, error) {
 		}
 
 		name := strings.Join(fields[8:], " ")
-		if name == "." || name == ".." {
+		if name == "." || name == ".." || name == ".claude" {
 			continue
 		}
 
