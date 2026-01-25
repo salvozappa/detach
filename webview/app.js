@@ -946,7 +946,7 @@ if (window.visualViewport) {
 
 // Keyboard toolbar functionality
 document.querySelectorAll('.key-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    function handleKeyBtn(e) {
         e.preventDefault();
         const action = btn.dataset.action;
         const key = btn.dataset.key;
@@ -968,7 +968,13 @@ document.querySelectorAll('.key-btn').forEach(btn => {
                 data: btoa(sequence)
             }));
         }
-    });
+    }
+
+    // Handle on mousedown (desktop) and touchend (mobile) to prevent focus loss
+    btn.addEventListener('mousedown', handleKeyBtn);
+    btn.addEventListener('touchend', handleKeyBtn);
+    // Prevent touchstart from causing blur
+    btn.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
 });
 
 // Handle keyboard action buttons
