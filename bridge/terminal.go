@@ -126,7 +126,7 @@ func createSession(user string) (*Session, error) {
 
 	// Start claude in LLM terminal
 	log.Println("Starting claude...")
-	claudeCmd := fmt.Sprintf("bash -l -c 'cd %s && exec claude'", workingDir)
+	claudeCmd := fmt.Sprintf("bash -l -c 'cd %s && exec claude --dangerously-skip-permissions'", workingDir)
 	if err := sshSess.Start(claudeCmd); err != nil {
 		clearSession()
 		sshSessTerminal.Close()
