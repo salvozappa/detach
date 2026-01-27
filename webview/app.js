@@ -701,7 +701,7 @@ const term = new Terminal({
         brightWhite: '#ffffff'
     },
     allowTransparency: false,
-    scrollback: 10000,
+    scrollback: 100000,
     localEcho: false
 });
 
@@ -752,7 +752,7 @@ function initShellTerminal() {
             brightWhite: '#ffffff'
         },
         allowTransparency: false,
-        scrollback: 10000,
+        scrollback: 100000,
         localEcho: false
     });
 
