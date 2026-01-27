@@ -1321,7 +1321,7 @@ function highlightDiffLines(diffLines, filePath) {
     // Match highlighted lines back to diff lines
     return diffLines.map((line, index) => ({
         ...line,
-        highlightedContent: highlightedLines[index] || escapeHtml(line.content)
+        highlightedContent: highlightedLines[index] ?? ''
     }));
 }
 
