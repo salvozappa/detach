@@ -8,6 +8,9 @@ COPY index.html /usr/share/nginx/html/
 COPY styles.css /usr/share/nginx/html/
 COPY app.js /usr/share/nginx/html/
 COPY lib/ /usr/share/nginx/html/lib/
+COPY manifest.json /usr/share/nginx/html/
+COPY service-worker.js /usr/share/nginx/html/
+COPY icons/ /usr/share/nginx/html/icons/
 
 # Expose HTTP port
 EXPOSE 80

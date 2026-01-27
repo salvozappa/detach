@@ -2037,3 +2037,8 @@ window.addEventListener('online', () => {
     isConnecting = false;
     connect();
 });
+
+// PWA Service Worker Registration
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js');
+}
