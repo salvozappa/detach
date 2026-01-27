@@ -230,6 +230,34 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 				}
 				session.WriteJSON(resp)
 
+			case "git_stage_all":
+				log.Printf("Session %s staging all files", session.ID)
+
+				err := session.stageAll()
+				resp := GitActionResponse{
+					Type: "git_stage_all_success",
+				}
+				if err != nil {
+					log.Printf("Stage all error: %v", err)
+					resp.Type = "git_error"
+					resp.Error = err.Error()
+				}
+				session.WriteJSON(resp)
+
+			case "git_unstage_all":
+				log.Printf("Session %s unstaging all files", session.ID)
+
+				err := session.unstageAll()
+				resp := GitActionResponse{
+					Type: "git_unstage_all_success",
+				}
+				if err != nil {
+					log.Printf("Unstage all error: %v", err)
+					resp.Type = "git_error"
+					resp.Error = err.Error()
+				}
+				session.WriteJSON(resp)
+
 			case "git_discard":
 				var req GitActionRequest
 				json.Unmarshal(p, &req)

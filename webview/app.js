@@ -1130,6 +1130,16 @@ function initGitView() {
     document.getElementById('pull-btn').onclick = pullChanges;
     document.getElementById('push-btn').onclick = pushChanges;
 
+    // Set up stage all / unstage all button handlers
+    document.getElementById('stage-all-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        stageAll();
+    });
+    document.getElementById('unstage-all-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        unstageAll();
+    });
+
     // Load git status
     loadGitStatus();
 }
@@ -1381,8 +1391,10 @@ function updateUnstagedChanges(files) {
     unstagedChanges = files;
     const container = document.getElementById('unstaged-content');
     const count = document.getElementById('unstaged-count');
+    const stageAllBtn = document.getElementById('stage-all-btn');
 
     count.textContent = files.length;
+    stageAllBtn.disabled = files.length === 0;
 
     if (files.length === 0) {
         container.innerHTML = '<div class="git-empty">No unstaged changes</div>';
@@ -1408,8 +1420,10 @@ function updateStagedChanges(files) {
     const count = document.getElementById('staged-count');
     const commitBtn = document.getElementById('commit-btn');
     const messageInput = document.getElementById('commit-message');
+    const unstageAllBtn = document.getElementById('unstage-all-btn');
 
     count.textContent = files.length;
+    unstageAllBtn.disabled = files.length === 0;
 
     // Enable/disable based on both staged files and message presence
     const updateCommitButton = () => {
@@ -1446,6 +1460,16 @@ function stageFile(filePath) {
 function unstageFile(filePath) {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: 'git_unstage', file: filePath }));
+}
+
+function stageAll() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'git_stage_all' }));
+}
+
+function unstageAll() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'git_unstage_all' }));
 }
 
 function discardFile(btn, filePath) {
@@ -1505,7 +1529,7 @@ function handleGitMessage(msg) {
         if (document.getElementById('view-code').classList.contains('active') && currentPath) {
             listFiles(currentPath);
         }
-    } else if (msg.type === 'git_stage_success' || msg.type === 'git_unstage_success' || msg.type === 'git_discard_success') {
+    } else if (msg.type === 'git_stage_success' || msg.type === 'git_unstage_success' || msg.type === 'git_discard_success' || msg.type === 'git_stage_all_success' || msg.type === 'git_unstage_all_success') {
         // Reload git status after action
         loadGitStatus();
     } else if (msg.type === 'git_commit_success') {

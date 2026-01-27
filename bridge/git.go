@@ -174,6 +174,20 @@ func (s *Session) unstageFile(filename string) error {
 	return err
 }
 
+// Stage all changes
+func (s *Session) stageAll() error {
+	cmd := fmt.Sprintf("cd %s && git add -A", workingDir)
+	_, err := s.executeCommand(cmd)
+	return err
+}
+
+// Unstage all changes
+func (s *Session) unstageAll() error {
+	cmd := fmt.Sprintf("cd %s && git reset HEAD", workingDir)
+	_, err := s.executeCommand(cmd)
+	return err
+}
+
 // Discard changes to a file
 func (s *Session) discardFile(filename string) error {
 	cmd := fmt.Sprintf("cd %s && git checkout -- '%s'", workingDir, filename)
