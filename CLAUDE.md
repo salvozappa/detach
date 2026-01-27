@@ -278,3 +278,4 @@ Frontend generates `conn-{timestamp}-{counter}` correlation IDs for each connect
 
 ## Development workflow
 Don't worry about git. All git commands will be executed by the human in the loop.
+No need to say or think about how to test the changes or which parts of the app need rebuilding.
