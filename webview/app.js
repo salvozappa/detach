@@ -127,6 +127,86 @@ function registerFcmToken() {
     ws.send(JSON.stringify({ type: 'register_fcm_token', token: token }));
 }
 
+// Register Web Push subscription for PWA push notifications
+async function registerWebPush() {
+    debugLog('WS', 'info', 'registerWebPush called');
+
+    // Skip if running in Android app (uses FCM instead)
+    if (window.Android) {
+        debugLog('WS', 'info', 'Web Push skipped (running in Android app)');
+        return;
+    }
+
+    // Check if service worker and push are supported
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        debugLog('WS', 'info', 'Web Push not supported in this browser');
+        return;
+    }
+
+    // Get VAPID public key from meta tag
+    const vapidMeta = document.querySelector('meta[name="vapid-public-key"]');
+    if (!vapidMeta || !vapidMeta.content) {
+        debugLog('WS', 'info', 'VAPID public key not configured');
+        return;
+    }
+    const vapidPublicKey = vapidMeta.content;
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        debugLog('WS', 'warn', 'Cannot register Web Push: WebSocket not connected');
+        return;
+    }
+
+    try {
+        const registration = await navigator.serviceWorker.ready;
+
+        // Check if already subscribed
+        let subscription = await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+            // Request permission and subscribe
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                debugLog('WS', 'info', 'Notification permission denied');
+                return;
+            }
+
+            // Convert VAPID key to Uint8Array
+            const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: applicationServerKey
+            });
+            debugLog('WS', 'info', 'Created new Web Push subscription');
+        } else {
+            debugLog('WS', 'info', 'Using existing Web Push subscription');
+        }
+
+        // Send subscription to backend
+        debugLog('WS', 'info', 'Registering Web Push subscription via WebSocket');
+        ws.send(JSON.stringify({
+            type: 'register_web_push',
+            subscription: subscription.toJSON()
+        }));
+    } catch (err) {
+        debugLog('WS', 'error', 'Web Push registration failed: ' + err.message);
+    }
+}
+
+// Helper function to convert VAPID key
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
 // Exponential backoff reconnection
 const RECONNECT_BASE_DELAY = 1000;  // Start at 1 second
 const RECONNECT_MAX_DELAY = 30000;  // Max 30 seconds
@@ -1694,8 +1774,9 @@ function connect() {
                     } else if (msg.type === 'session' && msg.id) {
                         console.log('Session ID:', msg.id);
                         currentSessionId = msg.id;
-                        // Register FCM token for push notifications
-                        registerFcmToken();
+                        // Register for push notifications
+                        registerFcmToken();  // Android app (FCM)
+                        registerWebPush();   // PWA (Web Push)
                     } else if (msg.type === 'file_list' || msg.type === 'file_content' || msg.type === 'file_with_diff') {
                         handleFileMessage(msg);
                     } else if (msg.type && msg.type.startsWith('git_')) {

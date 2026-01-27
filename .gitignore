@@ -1,5 +1,8 @@
 .vscode/
 .idea/
 
+# Environment variables (contains secrets like VAPID private key)
+.env
+
 # Android assets (copied from webview/ at build time)
 android/app/src/main/assets/

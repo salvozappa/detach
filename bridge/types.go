@@ -106,3 +106,19 @@ type FcmTokenMessage struct {
 	Type  string `json:"type"`  // "register_fcm_token"
 	Token string `json:"token"` // FCM device token
 }
+
+// Web Push subscription (received from PWA via WebSocket)
+type WebPushKeys struct {
+	P256dh string `json:"p256dh"`
+	Auth   string `json:"auth"`
+}
+
+type WebPushSubscription struct {
+	Endpoint string      `json:"endpoint"`
+	Keys     WebPushKeys `json:"keys"`
+}
+
+type WebPushMessage struct {
+	Type         string              `json:"type"` // "register_web_push"
+	Subscription WebPushSubscription `json:"subscription"`
+}

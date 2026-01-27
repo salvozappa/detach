@@ -347,6 +347,19 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 					session.WriteJSON(map[string]string{"type": "fcm_token_registered", "status": "error", "error": "empty token"})
 				}
 
+			case "register_web_push":
+				var req WebPushMessage
+				json.Unmarshal(p, &req)
+				log.Printf("[WebPush] Session %s registering web push subscription", session.ID)
+
+				if req.Subscription.Endpoint != "" {
+					registerWebPushSubscription(session.ID, req.Subscription)
+					session.WriteJSON(map[string]string{"type": "web_push_registered", "status": "ok"})
+				} else {
+					log.Printf("[WebPush] Empty subscription received from session %s", session.ID)
+					session.WriteJSON(map[string]string{"type": "web_push_registered", "status": "error", "error": "empty subscription"})
+				}
+
 			default:
 				// Unknown JSON message, might be terminal input
 				if _, err := session.Stdin.Write(p); err != nil {

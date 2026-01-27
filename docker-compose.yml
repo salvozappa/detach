@@ -35,9 +35,14 @@ services:
       - SANDBOX_PORT=22
       - SSH_KEY_PATH=/app/keys/bridge
       - FCM_SERVICE_ACCOUNT_PATH=/app/keys/fcm-service-account.json
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@detach.it}
+      - WEB_PUSH_SUBSCRIPTIONS_FILE=/app/data/web-push-subscriptions.json
     volumes:
       - ./keys/bridge:/app/keys/bridge:ro
       - ./keys/fcm-service-account.json:/app/keys/fcm-service-account.json:ro
+      - bridge-data:/app/data
     depends_on:
       sandbox:
         condition: service_healthy
@@ -58,6 +63,9 @@ services:
       - ./webview/app.js:/usr/share/nginx/html/app.js:ro
       - ./webview/styles.css:/usr/share/nginx/html/styles.css:ro
       - ./webview/lib:/usr/share/nginx/html/lib:ro
+      - ./webview/manifest.json:/usr/share/nginx/html/manifest.json:ro
+      - ./webview/service-worker.js:/usr/share/nginx/html/service-worker.js:ro
+      - ./webview/icons:/usr/share/nginx/html/icons:ro
     depends_on:
       - bridge
     restart: unless-stopped
@@ -68,4 +76,6 @@ networks:
 
 volumes:
   sandbox-home:
+    driver: local
+  bridge-data:
     driver: local

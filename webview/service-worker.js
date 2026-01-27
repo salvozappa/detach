@@ -67,3 +67,46 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Push: handle incoming push notifications
+self.addEventListener('push', (event) => {
+  if (!event.data) {
+    return;
+  }
+
+  const data = event.data.json();
+  const title = data.title || 'Detach.it';
+  const options = {
+    body: data.body || '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    data: {
+      url: '/',
+      hookType: data.hookType
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+// Notification click: open or focus the app
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If app is already open, focus it
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // Otherwise open a new window
+      if (clients.openWindow) {
+        return clients.openWindow(event.notification.data.url || '/');
+      }
+    })
+  );
+});

@@ -4,16 +4,20 @@ This document describes how push notifications work in detach.it.
 
 ## Overview
 
-Push notifications are triggered by Claude Code hooks and delivered via Firebase Cloud Messaging (FCM). When Claude Code emits certain events (Notification, Stop, PermissionRequest), a hook script in the sandbox notifies the bridge, which then sends a push notification to all registered Android devices.
+Push notifications are triggered by Claude Code hooks and delivered to both:
+- **Android app** via Firebase Cloud Messaging (FCM)
+- **PWA (browser)** via Web Push (VAPID)
+
+When Claude Code emits certain events (Stop, PermissionRequest), a hook script in the sandbox notifies the bridge, which then sends push notifications to all registered devices.
 
 ## Architecture
 
 ```
-[Android App Startup]
+[Android App / PWA Startup]
     |
-    | (WebSocket: register_fcm_token)
+    | (WebSocket: register_fcm_token / register_web_push)
     v
-[Bridge: stores FCM token for session]
+[Bridge: stores tokens/subscriptions]
 
 [Sandbox: Claude Code]
     |
@@ -25,22 +29,16 @@ Push notifications are triggered by Claude Code hooks and delivered via Firebase
     v
 [Bridge: notifications.go]
     |
-    | (Firebase Admin SDK)
-    v
-[Firebase Cloud Messaging]
+    ├─> [FCM] Firebase Cloud Messaging ──> [Android App]
     |
-    | (push notification)
-    v
-[Android: DetachMessagingService]
-    |
-    v
-[Native Notification]
+    └─> [Web Push] VAPID Protocol ──> [PWA Service Worker]
 ```
 
 **Key Points:**
-- FCM token registration happens via WebSocket (same connection used for terminal)
+- Token/subscription registration happens via WebSocket (same connection used for terminal)
 - Hook notifications use HTTP POST from sandbox to bridge
-- Push delivery uses Firebase Admin SDK with service account credentials
+- Android: Uses Firebase Admin SDK with service account credentials
+- PWA: Uses Web Push protocol with VAPID keys
 
 ## Configuration
 
@@ -72,12 +70,44 @@ gcloud iam service-accounts keys create fcm-service-account.json \
 
 5. Move `fcm-service-account.json` to the `keys/` directory (gitignored)
 
+### Web Push Setup (PWA)
+
+Web Push uses VAPID (Voluntary Application Server Identification) keys for authentication.
+
+1. **Generate VAPID keys** (one-time):
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+
+2. **Add keys to `.env` file** in project root:
+   ```
+   VAPID_PUBLIC_KEY=BG5FQWU0HWKoUaChlDNI2uWFf5C_WUCw21DeULHmw6RFyYUJ5MMcaTF61GMSonvu_D0rpFQJjV7r-u60xKjLSvk
+   VAPID_PRIVATE_KEY=IVIDiCCP6oh0oLDWc4MHKKdPwFnfsjtq5vHoEaoPX24
+   VAPID_SUBJECT=mailto:admin@detach.it
+   ```
+
+3. **Add public key to `webview/index.html`**:
+   ```html
+   <meta name="vapid-public-key" content="BG5FQWU0HWKoUaChlDNI2uWFf5C_...">
+   ```
+
+4. Subscriptions are persisted to `/app/data/web-push-subscriptions.json` (via Docker volume)
+
 ### Environment Variables
 
-The bridge requires the following environment variable:
+The bridge uses the following environment variables:
 
+**FCM (Android):**
 ```
 FCM_SERVICE_ACCOUNT_PATH=/app/keys/fcm-service-account.json
+```
+
+**Web Push (PWA):**
+```
+VAPID_PUBLIC_KEY=<your-public-key>
+VAPID_PRIVATE_KEY=<your-private-key>
+VAPID_SUBJECT=mailto:admin@detach.it
+WEB_PUSH_SUBSCRIPTIONS_FILE=/app/data/web-push-subscriptions.json
 ```
 
 In `docker-compose.yml`:
@@ -85,8 +115,13 @@ In `docker-compose.yml`:
 bridge:
   environment:
     - FCM_SERVICE_ACCOUNT_PATH=/app/keys/fcm-service-account.json
+    - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+    - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+    - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@detach.it}
+    - WEB_PUSH_SUBSCRIPTIONS_FILE=/app/data/web-push-subscriptions.json
   volumes:
     - ./keys/fcm-service-account.json:/app/keys/fcm-service-account.json:ro
+    - bridge-data:/app/data
 ```
 
 ### Sandbox Hooks
@@ -164,9 +199,9 @@ curl -s -X POST "${BRIDGE_URL}/api/hook" \
 
 ## WebSocket Messages
 
-### register_fcm_token
+### register_fcm_token (Android)
 
-Sent by the Android app when it obtains an FCM token. Sent via the existing WebSocket connection.
+Sent by the Android app when it obtains an FCM token.
 
 **Message:**
 ```json
@@ -180,6 +215,32 @@ Sent by the Android app when it obtains an FCM token. Sent via the existing WebS
 ```json
 {
   "type": "fcm_token_registered",
+  "status": "ok"
+}
+```
+
+### register_web_push (PWA)
+
+Sent by the PWA when the user grants notification permission.
+
+**Message:**
+```json
+{
+  "type": "register_web_push",
+  "subscription": {
+    "endpoint": "https://fcm.googleapis.com/fcm/send/...",
+    "keys": {
+      "p256dh": "BNcRd...",
+      "auth": "tBHI..."
+    }
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "type": "web_push_registered",
   "status": "ok"
 }
 ```
@@ -355,3 +416,51 @@ D/DetachFCM: Notification shown: id=1234567890
 2. Verify the Android app is calling `Android.getFcmToken()` successfully
 3. Check frontend logs: look for "Registering FCM token via WebSocket"
 4. Check bridge logs: look for "[FCM] Session ... registering FCM token via WebSocket"
+
+## Web Push (PWA) Debugging
+
+### Check Web Push Subscription
+
+**Browser DevTools > Application > Service Workers:**
+- Verify service worker is "activated and running"
+- Check Push section for subscription status
+
+**Frontend logs (browser console):**
+```
+WV:WS: registerWebPush called
+WV:WS: Created new Web Push subscription
+WV:WS: Registering Web Push subscription via WebSocket
+```
+
+**Bridge logs:**
+```
+[WebPush] Session abc123 registering web push subscription
+[WebPush] Registered subscription for session abc123
+```
+
+### Check Web Push Delivery
+
+```
+[HOOK] Received stop hook: title="Task Completed", body="..."
+[WebPush] Sent notification to session abc123 (hook=stop, title="Task Completed")
+```
+
+### Web Push Troubleshooting
+
+1. **VAPID keys not configured:**
+   - Check `.env` file has `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`
+   - Check `webview/index.html` has the public key in meta tag
+   - Check bridge logs for "[WebPush] VAPID keys not configured"
+
+2. **Permission denied:**
+   - User must grant notification permission when prompted
+   - Check browser settings if permission was previously denied
+
+3. **Subscription expired (410 Gone):**
+   - Subscriptions expire if unused for extended periods
+   - Bridge automatically removes expired subscriptions
+   - User will be re-subscribed on next visit
+
+4. **Service worker not registered:**
+   - Check DevTools > Application > Service Workers
+   - Ensure HTTPS is being used (required for service workers)

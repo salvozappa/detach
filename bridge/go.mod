@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	firebase.google.com/go v3.13.0+incompatible
+	github.com/SherClockHolmes/webpush-go v1.3.0
 	github.com/gorilla/websocket v1.5.3
 	golang.org/x/crypto v0.47.0
 	google.golang.org/api v0.262.0
@@ -31,6 +32,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect

@@ -25,6 +25,9 @@ var upgrader = websocket.Upgrader{
 }
 
 func main() {
+	// Initialize web push subscriptions from file
+	initWebPush()
+
 	// WebSocket endpoint
 	http.HandleFunc("/", handleWebSocket)
 
