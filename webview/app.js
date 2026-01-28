@@ -1932,11 +1932,14 @@ function switchView(viewName) {
     // Load files when switching to Code view
     if (viewName === 'code') {
         if (ws && ws.readyState === WebSocket.OPEN) {
-            // Load git status so we can highlight files with unstaged changes
             loadGitStatus();
             if (!codeViewInitialized) {
                 codeViewInitialized = true;
                 listFiles(PROJECT_ROOT);
+            }
+            // Reload current file if viewer is active
+            if (document.getElementById('code-viewer-panel').classList.contains('active') && currentFilePath) {
+                readFileWithDiff(currentFilePath);
             }
         }
     }
