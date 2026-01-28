@@ -1,4 +1,4 @@
-const CACHE_NAME = 'detach-v10';
+const CACHE_NAME = 'detach-v12';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -70,11 +70,22 @@ self.addEventListener('fetch', (event) => {
 
 // Push: handle incoming push notifications
 self.addEventListener('push', (event) => {
+  console.log('[SW:PUSH] Push event received');
+
   if (!event.data) {
+    console.log('[SW:PUSH] No data in push event');
     return;
   }
 
-  const data = event.data.json();
+  let data;
+  try {
+    data = event.data.json();
+    console.log('[SW:PUSH] Parsed data:', JSON.stringify(data));
+  } catch (e) {
+    console.error('[SW:PUSH] Failed to parse push data:', e);
+    return;
+  }
+
   const title = data.title || 'Detach.it';
   const options = {
     body: data.body || '',
@@ -87,7 +98,24 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(title, options)
+    // Check if any PWA window is currently visible
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      const clientStates = clientList.map(c => ({ url: c.url, visibility: c.visibilityState }));
+      console.log('[SW:PUSH] Clients:', JSON.stringify(clientStates));
+
+      const hasVisibleClient = clientList.some(client => client.visibilityState === 'visible');
+      console.log('[SW:PUSH] hasVisibleClient:', hasVisibleClient);
+
+      if (!hasVisibleClient) {
+        console.log('[SW:PUSH] Showing notification:', title);
+        return self.registration.showNotification(title, options);
+      }
+      console.log('[SW:PUSH] Suppressing notification - PWA is active');
+    }).catch((err) => {
+      console.error('[SW:PUSH] Error in push handler:', err);
+      // Fallback: show notification anyway on error
+      return self.registration.showNotification(title, options);
+    })
   );
 });
 
