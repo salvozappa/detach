@@ -1166,6 +1166,14 @@ function handleKeyboardAction(action) {
             terminal.scrollToBottom();
             break;
     }
+
+    // Action buttons don't need keyboard input.
+    // Move focus to hidden element to prevent Android keyboard from appearing.
+    // Note: blur() alone doesn't work - we need to actively focus something else.
+    const focusTrap = document.getElementById('focus-trap');
+    if (focusTrap) {
+        focusTrap.focus();
+    }
 }
 
 // Helper: Get basic (unmodified) escape sequence
