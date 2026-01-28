@@ -101,12 +101,6 @@ type PongMessage struct {
 	Type string `json:"type"` // "pong"
 }
 
-// FCM token registration message (received from Android app via WebSocket)
-type FcmTokenMessage struct {
-	Type  string `json:"type"`  // "register_fcm_token"
-	Token string `json:"token"` // FCM device token
-}
-
 // Web Push subscription (received from PWA via WebSocket)
 type WebPushKeys struct {
 	P256dh string `json:"p256dh"`

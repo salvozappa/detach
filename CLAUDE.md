@@ -21,11 +21,10 @@ Web-based terminal + Git UI prototype. Four-panel interface:
 3. **Terminal** - Standard bash shell for running applications, tests, and commands
 4. **Git** - Git status viewer for reviewing and committing changes
 
-Users can connect via browser or the native Android app to interact with a remote sandbox environment.
+Users can connect via browser (PWA) to interact with a remote sandbox environment.
 
 ## Architecture
 - **Frontend (webview/)**: HTML/CSS/JS served via nginx
-- **Android (android/)**: Native Android app with WebView wrapper
 - **Backend (bridge/)**: Go WebSocket server that bridges browser ↔ SSH sandbox
 - **Sandbox**: Ubuntu container with SSH, dev tools, git
 
@@ -74,13 +73,6 @@ Users can connect via browser or the native Android app to interact with a remot
 - `bridge/types.go` - Go struct definitions for WebSocket messages
 - `bridge/Dockerfile` - Multi-stage build (copies all *.go files)
 
-### Android
-- `android/app/src/main/java/it/detach/app/MainActivity.kt` - Main activity with WebView
-- `android/app/src/main/AndroidManifest.xml` - App manifest (permissions, config)
-- `android/app/src/main/res/values/strings.xml` - App name and strings
-- `android/app/build.gradle.kts` - App-level build config
-- `android/gradle/libs.versions.toml` - Dependency versions
-
 ## Build
 
 The webview container loads the HTML/CSS via mounted volumes, so it doesn't
@@ -99,19 +91,6 @@ docker-compose up -d bridge
 docker-compose build --no-cache webview
 docker-compose up -d webview
 ```
-
-### Android App
-
-In `android/` there is an app, which is a native WebView wrapper that connects to
-the hosted web app.
-
-To build and install the app on a connected Android device:
-```bash
-./run.sh
-```
-
-To change the server URL, edit `MainActivity.kt` and update the URL in the
-`DetachWebView` call.
 
 ## WebSocket Protocol
 
@@ -183,28 +162,23 @@ To change the server URL, edit `MainActivity.kt` and update the URL in the
 
 You have full ssh access to the remote machine where the nightly instance is hosted, at the FQDN nightly01.tail5fb253.ts.net. You can access the docker containers and their logs for debugging purposes.
 
-You can ask the human in the loop for any webview frontend logs, investigation, HAR traces, or to interact with the android app to generate logs.
+You can ask the human in the loop for any webview frontend logs, investigation, or HAR traces.
 
 ### Debug Logging Infrastructure
 
 The codebase has comprehensive debug logging across all layers:
-
-#### Android Logcat (MainActivity.kt)
-- **Tag `DetachActivity`**: Lifecycle events (onCreate, onStart, onResume, onPause, onStop, onDestroy)
-- **Tag `WV:*`**: WebView logs routed from JavaScript via `WebAppInterface`
-- **Tag `WV:Console`**: Browser console.log/error/warn captured via `WebChromeClient`
 
 #### Frontend Debug Logging (app.js)
 Categories controlled by `DEBUG` object at top of file:
 - **WS**: WebSocket connection events, state transitions, close codes
 - **HEALTH**: Health check ticks, pong receipts, stale detection
 - **VISIBILITY**: Page visibility changes
-- **ANDROID**: Android lifecycle events received via custom events
+- **NETWORK**: Network online/offline events
 - **TERMINAL**: Terminal input/focus events
 - **TOOLBAR**: Keyboard toolbar button events
 - **FOCUS**: Document focus changes (terminal textarea only)
 
-**WebSocket Log Forwarding (PWA):** Frontend debug logs are forwarded to the bridge server via WebSocket, making them visible in `docker logs`. This is essential for debugging PWAs where console.log doesn't appear in adb logcat. Logs are queued before WebSocket connects and flushed once connected. Server-side logs appear with `[CLIENT:<category>]` prefix.
+**WebSocket Log Forwarding (PWA):** Frontend debug logs are forwarded to the bridge server via WebSocket, making them visible in `docker logs`. This is essential for debugging PWAs where console.log doesn't appear in remote logs. Logs are queued before WebSocket connects and flushed once connected. Server-side logs appear with `[CLIENT:<category>]` prefix.
 
 WebSocket close codes are decoded:
 - 1000: Normal closure
@@ -217,15 +191,6 @@ WebSocket close codes are decoded:
 - **`[WS:<session-id>]`**: Per-session events, ping/pong, close codes (bridge.go)
 
 ### Viewing Logs
-
-**Android app (via adb):**
-```bash
-# All relevant logs
-adb logcat -s DetachActivity:* WV:*:*
-
-# Filter by specific tag
-adb logcat -s WV:WS:*
-```
 
 **Backend (bridge container):**
 ```bash
@@ -260,21 +225,14 @@ ssh nightly01.tail5fb253.ts.net "docker logs -f detach-bridge 2>&1 | grep '\[CLI
 
 1. **Start log capture** before reproducing:
    ```bash
-   # Terminal 1 - Android
-   adb logcat -s DetachActivity:* WV:*:*
-
-   # Terminal 2 - Backend
    docker logs -f detach-bridge 2>&1 | grep '\[WS'
    ```
 
 2. **Expected sequence (normal resume):**
    ```
-   DetachActivity: onPause
    WV:VISIBILITY: Page hidden
    WV:HEALTH: Stopping health check
    (app backgrounded)
-   DetachActivity: onResume
-   WV:ANDROID: Android onResume received
    WV:VISIBILITY: Page visible
    WV:WS: Connection check
    WV:HEALTH: Starting health check

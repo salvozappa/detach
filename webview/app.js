@@ -14,9 +14,8 @@ const DEBUG = {
     WS: true,        // WebSocket connection events
     HEALTH: true,    // Health check events
     VISIBILITY: true, // Page visibility events
-    ANDROID: true,   // Android lifecycle events
     NETWORK: true,   // Network online/offline events
-    TERMINAL: true,  // Terminal input/focus events (for debugging Android input issue)
+    TERMINAL: true,  // Terminal input/focus events
     TOOLBAR: true,   // Keyboard toolbar button events
     FOCUS: true      // Document focus events
 };
@@ -37,7 +36,7 @@ let wsState = WS_STATES.DISCONNECTED;
 let lastStateChange = Date.now();
 let connectionStartTime = null;
 
-// Session and FCM state
+// Session state
 let currentSessionId = null;
 
 // WebSocket close code meanings
@@ -85,11 +84,6 @@ function debugLog(category, level, message, data = {}) {
         console.log(`[${category}] ${message}`, data);
     }
 
-    // Route to Android Logcat if available
-    if (window.Android && typeof window.Android.logFromWebView === 'function') {
-        window.Android.logFromWebView(level, category, formattedMsg);
-    }
-
     // Route to server via WebSocket for docker logs visibility
     const wsLogEntry = { type: 'debug_log', level, category, message, data };
     if (debugLogWsReady) {
@@ -134,41 +128,9 @@ function generateCorrelationId() {
     return `conn-${Date.now()}-${++connectionAttemptId}`;
 }
 
-// Register FCM token with the backend for push notifications (via WebSocket)
-function registerFcmToken() {
-    debugLog('WS', 'info', 'registerFcmToken called');
-
-    if (!window.Android || typeof window.Android.getFcmToken !== 'function') {
-        debugLog('WS', 'info', 'FCM token registration skipped (not running in Android app)');
-        return;
-    }
-
-    const token = window.Android.getFcmToken();
-    debugLog('WS', 'info', 'FCM token from Android: ' + (token ? token.substring(0, 20) + '...' : 'null'));
-
-    if (!token) {
-        debugLog('WS', 'warn', 'FCM token not available yet');
-        return;
-    }
-
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-        debugLog('WS', 'warn', 'Cannot register FCM token: WebSocket not connected');
-        return;
-    }
-
-    debugLog('WS', 'info', 'Registering FCM token via WebSocket');
-    ws.send(JSON.stringify({ type: 'register_fcm_token', token: token }));
-}
-
 // Register Web Push subscription for PWA push notifications
 async function registerWebPush() {
     debugLog('WS', 'info', 'registerWebPush called');
-
-    // Skip if running in Android app (uses FCM instead)
-    if (window.Android) {
-        debugLog('WS', 'info', 'Web Push skipped (running in Android app)');
-        return;
-    }
 
     // Check if service worker and push are supported
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -1826,9 +1788,8 @@ function connect() {
                     } else if (msg.type === 'session' && msg.id) {
                         console.log('Session ID:', msg.id);
                         currentSessionId = msg.id;
-                        // Register for push notifications
-                        registerFcmToken();  // Android app (FCM)
-                        registerWebPush();   // PWA (Web Push)
+                        // Register for push notifications (PWA Web Push)
+                        registerWebPush();
                     } else if (msg.type === 'file_list' || msg.type === 'file_content' || msg.type === 'file_with_diff') {
                         handleFileMessage(msg);
                     } else if (msg.type && msg.type.startsWith('git_')) {
@@ -2049,81 +2010,6 @@ document.addEventListener('visibilitychange', () => {
         }
         // If CONNECTING, let the pending connection complete
     }
-});
-
-// Android lifecycle event handlers
-window.addEventListener('androidPause', (e) => {
-    debugLog('ANDROID', 'info', 'Android onPause received', {
-        timestamp: e.detail?.timestamp,
-        wsState: wsState,
-        wsReadyState: ws ? ws.readyState : null,
-        timeSinceLastPong: Date.now() - lastPongTime
-    });
-});
-
-window.addEventListener('androidResume', (e) => {
-    const timeSinceLastPong = Date.now() - lastPongTime;
-    debugLog('ANDROID', 'info', 'Android onResume received', {
-        timestamp: e.detail?.timestamp,
-        wsState: wsState,
-        wsReadyState: ws ? ws.readyState : null,
-        timeSinceLastPong: timeSinceLastPong
-    });
-
-    // Force reconnect on Android resume - the WebSocket appears connected but
-    // is likely stale (server pings weren't received while WebView was paused)
-    debugLog('ANDROID', 'info', 'Forcing fresh connection on resume');
-    stopHealthCheck();
-    if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-        reconnectTimeout = null;
-    }
-    if (ws) {
-        ws.close();
-    }
-    reconnectAttempts = 0;
-    isConnecting = false;  // Reset flag to allow new connection
-    connect();
-});
-
-// Android network connectivity event handlers
-// These are more reliable than browser online/offline events in WebView
-window.addEventListener('androidNetworkOffline', (e) => {
-    debugLog('NETWORK', 'warn', 'Android network lost', {
-        timestamp: e.detail?.timestamp,
-        wsState: wsState,
-        wsReadyState: ws ? ws.readyState : null
-    });
-
-    // Update status immediately - don't wait for health check timeout
-    setWsState(WS_STATES.DISCONNECTED, 'android network offline');
-    updateStatus('disconnected', 'Connection lost - offline');
-
-    // Stop health checks and pending reconnects (they won't work offline)
-    stopHealthCheck();
-    if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-        reconnectTimeout = null;
-    }
-
-    // Close the WebSocket - it's dead anyway
-    if (ws) {
-        ws.close();
-    }
-});
-
-window.addEventListener('androidNetworkOnline', (e) => {
-    debugLog('NETWORK', 'info', 'Android network available', {
-        timestamp: e.detail?.timestamp,
-        wsState: wsState,
-        wsReadyState: ws ? ws.readyState : null
-    });
-
-    // Network is back - reconnect immediately
-    updateStatus('connecting', 'Network restored - reconnecting...');
-    reconnectAttempts = 0;
-    isConnecting = false;
-    connect();
 });
 
 // Cleanup on page unload
