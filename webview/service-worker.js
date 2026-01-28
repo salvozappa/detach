@@ -1,4 +1,4 @@
-const CACHE_NAME = 'detach-v1';
+const CACHE_NAME = 'detach-v10';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

@@ -1,3 +1,7 @@
+// App version for cache debugging
+const APP_VERSION = '2026-01-28-v9';
+console.log('[APP] Version:', APP_VERSION);
+
 // Configuration - use same host as the page is served from
 const WS_HOST = window.location.host || 'nightly01.tail5fb253.ts.net';
 const WS_PORT = '8081';
@@ -12,7 +16,9 @@ const DEBUG = {
     VISIBILITY: true, // Page visibility events
     ANDROID: true,   // Android lifecycle events
     NETWORK: true,   // Network online/offline events
-    TERMINAL: true   // Terminal input/focus events (for debugging Android input issue)
+    TERMINAL: true,  // Terminal input/focus events (for debugging Android input issue)
+    TOOLBAR: true,   // Keyboard toolbar button events
+    FOCUS: true      // Document focus events
 };
 
 // Correlation ID for tracking connection attempts
@@ -50,7 +56,11 @@ const CLOSE_CODE_MEANINGS = {
     1015: 'TLS handshake failure'
 };
 
-// Debug logger that routes to Android if available
+// Queue for debug logs before WebSocket is ready
+const debugLogQueue = [];
+let debugLogWsReady = false;
+
+// Debug logger that routes to Android and server
 function debugLog(category, level, message, data = {}) {
     if (!DEBUG[category]) return;
 
@@ -78,6 +88,29 @@ function debugLog(category, level, message, data = {}) {
     // Route to Android Logcat if available
     if (window.Android && typeof window.Android.logFromWebView === 'function') {
         window.Android.logFromWebView(level, category, formattedMsg);
+    }
+
+    // Route to server via WebSocket for docker logs visibility
+    const wsLogEntry = { type: 'debug_log', level, category, message, data };
+    if (debugLogWsReady) {
+        sendDebugLogToServer(wsLogEntry);
+    } else {
+        debugLogQueue.push(wsLogEntry);
+    }
+}
+
+// Send a debug log entry to the server
+function sendDebugLogToServer(entry) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(entry));
+    }
+}
+
+// Flush queued debug logs when WebSocket connects
+function flushDebugLogQueue() {
+    debugLogWsReady = true;
+    while (debugLogQueue.length > 0) {
+        sendDebugLogToServer(debugLogQueue.shift());
     }
 }
 
@@ -868,6 +901,14 @@ function initShellTerminal() {
     // Send terminal size
     sendTerminalSize('terminal');
 
+    // Debug: Track terminal focus events for shell terminal
+    termShell.textarea?.addEventListener('focus', () => {
+        debugLog('TERMINAL', 'info', 'Shell terminal textarea focused');
+    });
+    termShell.textarea?.addEventListener('blur', () => {
+        debugLog('TERMINAL', 'info', 'Shell terminal textarea blurred');
+    });
+
     debugLog('TERMINAL', 'info', 'Shell terminal initialized', {
         rows: termShell.rows,
         cols: termShell.cols,
@@ -1003,6 +1044,14 @@ term.textarea?.addEventListener('blur', () => {
     debugLog('TERMINAL', 'info', 'LLM terminal textarea blurred');
 });
 
+// Debug: Track focus changes to terminal textareas
+document.addEventListener('focusin', (e) => {
+    const isTerminal = e.target === term.textarea || e.target === termShell?.textarea;
+    if (isTerminal) {
+        debugLog('FOCUS', 'info', 'Terminal textarea focused');
+    }
+}, true);
+
 // Track which terminal is active
 let activeTerminal = 'llm';
 
@@ -1109,12 +1158,7 @@ document.querySelectorAll('.key-btn').forEach(btn => {
         const action = btn.dataset.action;
         const key = btn.dataset.key;
 
-        debugLog('TERMINAL', 'info', 'Keyboard toolbar button pressed', {
-            action: action,
-            key: key,
-            activeTerminal: activeTerminal,
-            eventType: e.type
-        });
+        debugLog('TOOLBAR', 'info', 'Button pressed', { action, key });
 
         // Handle action buttons (scroll controls)
         if (action) {
@@ -1124,8 +1168,6 @@ document.querySelectorAll('.key-btn').forEach(btn => {
 
         // Handle key buttons (send sequences to terminal)
         const sequence = getBasicSequence(key);
-
-        // Send sequence if valid
         if (ws && ws.readyState === WebSocket.OPEN && sequence) {
             ws.send(JSON.stringify({
                 type: 'terminal_data',
@@ -1135,13 +1177,11 @@ document.querySelectorAll('.key-btn').forEach(btn => {
         }
     }
 
-    // Handle on mousedown (desktop) and touchend (mobile) to prevent focus loss
     btn.addEventListener('mousedown', handleKeyBtn);
     btn.addEventListener('touchend', (e) => {
         btn.classList.remove('active');
         handleKeyBtn(e);
     });
-    // Prevent touchstart from causing blur and stop propagation to terminal
     btn.addEventListener('touchstart', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1149,11 +1189,12 @@ document.querySelectorAll('.key-btn').forEach(btn => {
     }, { passive: false });
 });
 
-// Handle keyboard action buttons
+// Handle keyboard action buttons (pgup/pgdn/scroll)
 function handleKeyboardAction(action) {
-    // Get the active terminal instance
     const terminal = activeTerminal === 'terminal' ? termShell : term;
     if (!terminal) return;
+
+    debugLog('TOOLBAR', 'info', 'handleKeyboardAction', { action: action });
 
     switch (action) {
         case 'pgup':
@@ -1727,6 +1768,9 @@ function connect() {
         ws.onopen = () => {
             isConnecting = false;  // Connection complete
             const connectDuration = Date.now() - connectionStartTime;
+
+            // Flush queued debug logs now that WebSocket is ready
+            flushDebugLogQueue();
 
             debugLog('WS', 'info', 'WebSocket opened', {
                 connectDuration: connectDuration

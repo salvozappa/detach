@@ -360,6 +360,17 @@ func handleConnection(conn *websocket.Conn, session *Session) {
 					session.WriteJSON(map[string]string{"type": "web_push_registered", "status": "error", "error": "empty subscription"})
 				}
 
+			case "debug_log":
+				// Forward client-side debug logs to server stdout for docker logs visibility
+				category, _ := msg["category"].(string)
+				message, _ := msg["message"].(string)
+				data, _ := msg["data"].(map[string]interface{})
+				if len(data) > 0 {
+					log.Printf("[CLIENT:%s] %s %v", category, message, data)
+				} else {
+					log.Printf("[CLIENT:%s] %s", category, message)
+				}
+
 			default:
 				// Unknown JSON message, might be terminal input
 				if _, err := session.Stdin.Write(p); err != nil {
