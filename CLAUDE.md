@@ -200,6 +200,11 @@ Categories controlled by `DEBUG` object at top of file:
 - **HEALTH**: Health check ticks, pong receipts, stale detection
 - **VISIBILITY**: Page visibility changes
 - **ANDROID**: Android lifecycle events received via custom events
+- **TERMINAL**: Terminal input/focus events
+- **TOOLBAR**: Keyboard toolbar button events
+- **FOCUS**: Document focus changes (terminal textarea only)
+
+**WebSocket Log Forwarding (PWA):** Frontend debug logs are forwarded to the bridge server via WebSocket, making them visible in `docker logs`. This is essential for debugging PWAs where console.log doesn't appear in adb logcat. Logs are queued before WebSocket connects and flushed once connected. Server-side logs appear with `[CLIENT:<category>]` prefix.
 
 WebSocket close codes are decoded:
 - 1000: Normal closure
@@ -236,7 +241,19 @@ docker logs detach-bridge 2>&1 | grep 'abc123'
 
 **Remote nightly instance:**
 ```bash
-ssh nightly01.tail5fb253.ts.ne "docker logs -f detach-bridge 2>&1 | grep '\[WS'"
+ssh nightly01.tail5fb253.ts.net "docker logs -f detach-bridge 2>&1 | grep '\[WS'"
+```
+
+**PWA frontend logs (via WebSocket forwarding):**
+```bash
+# All forwarded client logs
+docker logs -f detach-bridge 2>&1 | grep '\[CLIENT'
+
+# Filter by category (e.g., TOOLBAR events)
+docker logs -f detach-bridge 2>&1 | grep '\[CLIENT:TOOLBAR'
+
+# Remote nightly instance
+ssh nightly01.tail5fb253.ts.net "docker logs -f detach-bridge 2>&1 | grep '\[CLIENT'"
 ```
 
 ### Debugging WebSocket Connection Issues
