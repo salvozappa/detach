@@ -190,6 +190,7 @@ rsync_local_files() {
 
     # Rsync with progress, excluding sensitive/unnecessary files
     # Note: Not using --delete to preserve server state
+    # Note: .env is excluded from main rsync and copied separately below
     if rsync -avz \
         --exclude '.git/' \
         --exclude '.gitignore' \
@@ -210,6 +211,18 @@ rsync_local_files() {
         echo ""
         echo "✗ ERROR: Rsync failed"
         exit 1
+    fi
+
+    # Copy .env file separately (contains VAPID keys for push notifications, etc.)
+    if [ -f ".env" ]; then
+        echo "Copying .env file to remote..."
+        if scp $SSH_OPTS ".env" "$REMOTE_USER@$REMOTE_HOST:$DEPLOY_DIR/.env"; then
+            echo "✓ .env file copied"
+        else
+            echo "⚠ Warning: Failed to copy .env file"
+        fi
+    else
+        echo "⚠ Warning: No local .env file found"
     fi
 
     echo ""
