@@ -1,5 +1,48 @@
 package main
 
+import "encoding/json"
+
+// Message type constants
+const (
+	MsgTypeTerminalData     = "terminal_data"
+	MsgTypeResize           = "resize"
+	MsgTypeListFiles        = "list_files"
+	MsgTypeReadFile         = "read_file"
+	MsgTypeReadFileWithDiff = "read_file_with_diff"
+	MsgTypeGitStatus        = "git_status"
+	MsgTypeGitStage         = "git_stage"
+	MsgTypeGitUnstage       = "git_unstage"
+	MsgTypeGitStageAll      = "git_stage_all"
+	MsgTypeGitUnstageAll    = "git_unstage_all"
+	MsgTypeGitDiscard       = "git_discard"
+	MsgTypeGitCommit        = "git_commit"
+	MsgTypeGitPull          = "git_pull"
+	MsgTypeGitPush          = "git_push"
+	MsgTypeRegisterWebPush  = "register_web_push"
+	MsgTypeDebugLog         = "debug_log"
+)
+
+// WSMessage is the standard wrapper for all incoming WebSocket messages.
+// It uses json.RawMessage to delay parsing the payload until the message type is known.
+type WSMessage struct {
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"-"`
+}
+
+// UnmarshalJSON implements custom unmarshaling to capture raw payload
+func (m *WSMessage) UnmarshalJSON(data []byte) error {
+	// Extract just the type field
+	var typeOnly struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &typeOnly); err != nil {
+		return err
+	}
+	m.Type = typeOnly.Type
+	m.Payload = data
+	return nil
+}
+
 // Message types
 
 type ResizeMessage struct {
