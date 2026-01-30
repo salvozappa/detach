@@ -9,24 +9,24 @@ import (
 	"detach.it/bridge/internal/types"
 )
 
-// Service handles file operations
-type Service struct {
+// Explorer browses directories and reads files
+type Explorer struct {
 	exec       executor.Executor
 	workingDir string
 }
 
-// NewService creates a new file service
-func NewService(exec executor.Executor, workingDir string) *Service {
-	return &Service{
+// NewExplorer creates a new file explorer
+func NewExplorer(exec executor.Executor, workingDir string) *Explorer {
+	return &Explorer{
 		exec:       exec,
 		workingDir: workingDir,
 	}
 }
 
 // List returns files in a directory
-func (s *Service) List(path string) ([]types.FileInfo, error) {
+func (e *Explorer) List(path string) ([]types.FileInfo, error) {
 	// Use ls -la with specific format for parsing
-	output, err := s.exec.Run("ls -la " + path)
+	output, err := e.exec.Run("ls -la " + path)
 	if err != nil {
 		return nil, err
 	}
@@ -63,13 +63,13 @@ func (s *Service) List(path string) ([]types.FileInfo, error) {
 
 	// Check which files are git-ignored
 	if len(files) > 0 {
-		ignoredSet := s.getIgnoredFiles(path, files)
+		ignoredSet := e.getIgnoredFiles(path, files)
 
 		// Convert path to relative path from workingDir for matching
 		relDir := path
-		if strings.HasPrefix(path, s.workingDir+"/") {
-			relDir = strings.TrimPrefix(path, s.workingDir+"/")
-		} else if path == s.workingDir {
+		if strings.HasPrefix(path, e.workingDir+"/") {
+			relDir = strings.TrimPrefix(path, e.workingDir+"/")
+		} else if path == e.workingDir {
 			relDir = "."
 		}
 
@@ -90,14 +90,14 @@ func (s *Service) List(path string) ([]types.FileInfo, error) {
 }
 
 // getIgnoredFiles checks which files are git-ignored using git check-ignore
-func (s *Service) getIgnoredFiles(dir string, files []types.FileInfo) map[string]bool {
+func (e *Explorer) getIgnoredFiles(dir string, files []types.FileInfo) map[string]bool {
 	ignoredSet := make(map[string]bool)
 
 	// Convert directory to relative path from workingDir
 	relDir := dir
-	if strings.HasPrefix(dir, s.workingDir+"/") {
-		relDir = strings.TrimPrefix(dir, s.workingDir+"/")
-	} else if dir == s.workingDir {
+	if strings.HasPrefix(dir, e.workingDir+"/") {
+		relDir = strings.TrimPrefix(dir, e.workingDir+"/")
+	} else if dir == e.workingDir {
 		relDir = "."
 	}
 
@@ -126,8 +126,8 @@ func (s *Service) getIgnoredFiles(dir string, files []types.FileInfo) map[string
 
 	// Use git check-ignore from the working directory
 	// The command returns only the paths that are ignored
-	cmd := fmt.Sprintf("cd %s && git check-ignore %s 2>/dev/null", s.workingDir, pathsArg)
-	output, _ := s.exec.Run(cmd)
+	cmd := fmt.Sprintf("cd %s && git check-ignore %s 2>/dev/null", e.workingDir, pathsArg)
+	output, _ := e.exec.Run(cmd)
 
 	// Parse output - each line is an ignored path (relative to workingDir)
 	for _, line := range strings.Split(output, "\n") {
@@ -141,6 +141,6 @@ func (s *Service) getIgnoredFiles(dir string, files []types.FileInfo) map[string
 }
 
 // Read returns file content
-func (s *Service) Read(path string) (string, error) {
-	return s.exec.Run("cat " + path)
+func (e *Explorer) Read(path string) (string, error) {
+	return e.exec.Run("cat " + path)
 }

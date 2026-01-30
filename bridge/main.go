@@ -106,15 +106,15 @@ func runConnectionHandler(conn *websocket.Conn, sess *session.Session) {
 	exec := executor.NewSSHExecutor(sess.SSHConn)
 
 	// Create services
-	filesSvc := files.NewService(exec, cfg.WorkingDir)
-	gitSvc := git.NewService(exec, filesSvc, cfg.WorkingDir)
+	explorer := files.NewExplorer(exec, cfg.WorkingDir)
+	gitSvc := git.NewService(exec, explorer, cfg.WorkingDir)
 
 	// Create handler dependencies
 	deps := &handler.Deps{
 		SessionID:  sess.ID,
 		Done:       sess.Done,
 		Git:        gitSvc,
-		Files:      filesSvc,
+		Files:      explorer,
 		Notify:     notifyService,
 		Responder:  sess,
 		Resizer:    sess,
