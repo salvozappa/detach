@@ -5,26 +5,22 @@ import (
 	"strings"
 
 	"detach.it/bridge/internal/executor"
+	"detach.it/bridge/internal/files"
 	"detach.it/bridge/internal/types"
 )
-
-// FileReader reads file content (used for untracked files in status)
-type FileReader interface {
-	Read(path string) (string, error)
-}
 
 // Service handles git operations
 type Service struct {
 	exec       executor.Executor
-	files      FileReader
+	reader     files.Reader
 	workingDir string
 }
 
 // NewService creates a new git service
-func NewService(exec executor.Executor, files FileReader, workingDir string) *Service {
+func NewService(exec executor.Executor, reader files.Reader, workingDir string) *Service {
 	return &Service{
 		exec:       exec,
-		files:      files,
+		reader:     reader,
 		workingDir: workingDir,
 	}
 }
@@ -74,7 +70,7 @@ func (s *Service) Status() (*types.GitStatusResponse, error) {
 		// Handle newly added files in staged section (were untracked before staging)
 		if stagedStatus == 'A' {
 			// Read full file content (same approach as untracked files)
-			content, err := s.files.Read(fmt.Sprintf("%s/%s", s.workingDir, filename))
+			content, err := s.reader.Read(fmt.Sprintf("%s/%s", s.workingDir, filename))
 			if err != nil {
 				content = "Error reading file"
 			}
@@ -125,7 +121,7 @@ func (s *Service) Status() (*types.GitStatusResponse, error) {
 		// Handle untracked files
 		if stagedStatus == '?' && unstagedStatus == '?' {
 			// Read full file content
-			content, err := s.files.Read(fmt.Sprintf("%s/%s", s.workingDir, filename))
+			content, err := s.reader.Read(fmt.Sprintf("%s/%s", s.workingDir, filename))
 			if err != nil {
 				content = "Error reading file"
 			}
@@ -275,7 +271,7 @@ func (s *Service) FileWithDiff(path string) (*types.FileWithDiffResponse, error)
 	}
 
 	// Read file content
-	content, err := s.files.Read(path)
+	content, err := s.reader.Read(path)
 	if err != nil {
 		return nil, err
 	}

@@ -9,6 +9,11 @@ import (
 	"detach.it/bridge/internal/types"
 )
 
+// Reader reads file content
+type Reader interface {
+	Read(path string) (string, error)
+}
+
 // Explorer browses directories and reads files
 type Explorer struct {
 	exec       executor.Executor
