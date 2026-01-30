@@ -14,6 +14,7 @@ RUN go mod download
 
 # Copy source code
 COPY *.go ./
+COPY internal/ ./internal/
 
 # Build the application
 # CGO_ENABLED=0 for static binary
