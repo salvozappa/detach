@@ -5,19 +5,23 @@ import (
 	"strings"
 
 	"detach.it/bridge/internal/executor"
-	"detach.it/bridge/internal/files"
 	"detach.it/bridge/internal/types"
 )
+
+// fileReader reads file content (used for untracked files in status)
+type fileReader interface {
+	Read(path string) (string, error)
+}
 
 // Service handles git operations
 type Service struct {
 	exec       executor.Executor
-	reader     files.Reader
+	reader     fileReader
 	workingDir string
 }
 
 // NewService creates a new git service
-func NewService(exec executor.Executor, reader files.Reader, workingDir string) *Service {
+func NewService(exec executor.Executor, reader fileReader, workingDir string) *Service {
 	return &Service{
 		exec:       exec,
 		reader:     reader,
