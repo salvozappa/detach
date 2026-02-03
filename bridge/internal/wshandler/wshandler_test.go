@@ -24,16 +24,16 @@ func (m *mockResponder) WriteJSON(v interface{}) error {
 }
 
 type mockGitService struct {
-	StatusResp      *types.GitStatusResponse
-	StatusErr       error
-	StageErr        error
-	UnstageErr      error
-	DiscardErr      error
-	StageAllErr     error
-	UnstageAllErr   error
-	CommitErr       error
-	PullErr         error
-	PushErr         error
+	StatusResp       *types.GitStatusResponse
+	StatusErr        error
+	StageErr         error
+	UnstageErr       error
+	DiscardErr       error
+	StageAllErr      error
+	UnstageAllErr    error
+	CommitErr        error
+	PullErr          error
+	PushErr          error
 	FileWithDiffResp *types.FileWithDiffResponse
 	FileWithDiffErr  error
 

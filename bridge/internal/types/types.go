@@ -122,7 +122,7 @@ type GitActionRequest struct {
 }
 
 type GitCommitRequest struct {
-	Type    string `json:"type"`    // "git_commit"
+	Type    string `json:"type"` // "git_commit"
 	Message string `json:"message"`
 }
 
