@@ -12,7 +12,7 @@ import (
 	"detach.it/bridge/internal/executor"
 	"detach.it/bridge/internal/files"
 	"detach.it/bridge/internal/git"
-	"detach.it/bridge/internal/handler"
+	"detach.it/bridge/internal/wshandler"
 	"detach.it/bridge/internal/notify"
 	"detach.it/bridge/internal/session"
 	"detach.it/bridge/internal/types"
@@ -110,7 +110,7 @@ func runConnectionHandler(conn *websocket.Conn, sess *session.Session) {
 	gitSvc := git.NewService(exec, explorer, cfg.WorkingDir)
 
 	// Create handler dependencies
-	deps := &handler.Deps{
+	deps := &wshandler.Deps{
 		SessionID:  sess.ID,
 		Done:       sess.Done,
 		Git:        gitSvc,
@@ -123,12 +123,12 @@ func runConnectionHandler(conn *websocket.Conn, sess *session.Session) {
 	}
 
 	// Connection configuration
-	connCfg := handler.ConnectionConfig{
+	connCfg := wshandler.ConnectionConfig{
 		PongWait:     session.PongWait,
 		PingInterval: session.PingInterval,
 		WriteWait:    session.WriteWait,
 	}
 
 	// Handle connection
-	handler.HandleConnection(conn, deps, sess, connCfg)
+	wshandler.HandleConnection(conn, deps, sess, connCfg)
 }

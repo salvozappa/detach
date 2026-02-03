@@ -1,4 +1,4 @@
-package handler
+package wshandler
 
 import (
 	"encoding/base64"
