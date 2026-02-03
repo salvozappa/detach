@@ -1,0 +1,20 @@
+{
+  "name": "detach-webview",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xterm/xterm": "5.5.0",
+    "@xterm/addon-fit": "0.10.0",
+    "highlight.js": "11.11.1",
+    "diff2html": "3.4.48"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3",
+    "esbuild": "0.24.2"
+  }
+}

@@ -1,19 +1,15 @@
-const CACHE_NAME = 'detach-v12';
+const CACHE_NAME = 'detach-v13';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/app.js',
+  '/dist/app.js',
+  '/dist/xterm.css',
+  '/dist/highlight.css',
+  '/dist/diff2html.css',
   '/styles.css',
   '/manifest.json',
   '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/lib/xterm.js',
-  '/lib/xterm-addon-fit.js',
-  '/lib/xterm.css',
-  '/lib/highlight.min.js',
-  '/lib/highlight.min.css',
-  '/lib/diff2html-ui.min.js',
-  '/lib/diff2html.min.css'
+  '/icons/icon-512.png'
 ];
 
 // Install: cache app shell

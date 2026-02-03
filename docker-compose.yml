@@ -58,9 +58,8 @@ services:
     volumes:
       - ./webview/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./webview/index.html:/usr/share/nginx/html/index.html:ro
-      - ./webview/app.js:/usr/share/nginx/html/app.js:ro
+      - ./webview/dist:/usr/share/nginx/html/dist:ro
       - ./webview/styles.css:/usr/share/nginx/html/styles.css:ro
-      - ./webview/lib:/usr/share/nginx/html/lib:ro
       - ./webview/manifest.json:/usr/share/nginx/html/manifest.json:ro
       - ./webview/service-worker.js:/usr/share/nginx/html/service-worker.js:ro
       - ./webview/icons:/usr/share/nginx/html/icons:ro

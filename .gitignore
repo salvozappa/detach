@@ -6,3 +6,7 @@
 
 # Android assets (copied from webview/ at build time)
 android/app/src/main/assets/
+
+# Webview build artifacts
+webview/dist/
+webview/node_modules/

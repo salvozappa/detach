@@ -1,3 +1,56 @@
+// TypeScript imports for dependencies
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import hljs from 'highlight.js';
+import { Diff2HtmlUI } from 'diff2html/lib/ui/js/diff2html-ui-slim';
+import { ColorSchemeType } from 'diff2html/lib/types';
+
+// Type definitions
+interface FileInfo {
+    name: string;
+    is_dir: boolean;
+    size: number;
+    is_ignored?: boolean;
+}
+
+interface FileChange {
+    path: string;
+    diff: string;
+    added: number;
+    removed: number;
+    isUntracked: boolean;
+}
+
+interface DiffLine {
+    type: 'added' | 'removed' | 'context';
+    content: string;
+    highlightedContent?: string;
+}
+
+interface ToastItem {
+    message: string;
+    type: string;
+    duration: number;
+}
+
+interface DebugConfig {
+    WS: boolean;
+    HEALTH: boolean;
+    VISIBILITY: boolean;
+    NETWORK: boolean;
+    TERMINAL: boolean;
+    TOOLBAR: boolean;
+    FOCUS: boolean;
+}
+
+interface WsLogEntry {
+    type: string;
+    level: string;
+    category: string;
+    message: string;
+    data: Record<string, unknown>;
+}
+
 // App version for cache debugging
 const APP_VERSION = '2026-01-28-v9';
 console.log('[APP] Version:', APP_VERSION);
@@ -10,7 +63,7 @@ const WS_PORT = '8081';
 const USERNAME = 'detach-dev';
 
 // Debug logging configuration
-const DEBUG = {
+const DEBUG: DebugConfig = {
     WS: true,        // WebSocket connection events
     HEALTH: true,    // Health check events
     VISIBILITY: true, // Page visibility events
@@ -22,7 +75,7 @@ const DEBUG = {
 
 // Correlation ID for tracking connection attempts
 let connectionAttemptId = 0;
-let currentCorrelationId = null;
+let currentCorrelationId: string | null = null;
 
 // Connection state machine
 const WS_STATES = {
@@ -31,16 +84,19 @@ const WS_STATES = {
     CONNECTED: 'CONNECTED',
     RECONNECTING: 'RECONNECTING',
     CLOSING: 'CLOSING'
-};
-let wsState = WS_STATES.DISCONNECTED;
+} as const;
+
+type WsState = typeof WS_STATES[keyof typeof WS_STATES];
+
+let wsState: WsState = WS_STATES.DISCONNECTED;
 let lastStateChange = Date.now();
-let connectionStartTime = null;
+let connectionStartTime: number | null = null;
 
 // Session state
-let currentSessionId = null;
+let currentSessionId: string | null = null;
 
 // WebSocket close code meanings
-const CLOSE_CODE_MEANINGS = {
+const CLOSE_CODE_MEANINGS: Record<number, string> = {
     1000: 'Normal closure',
     1001: 'Going away (browser/tab closing)',
     1002: 'Protocol error',
@@ -56,11 +112,11 @@ const CLOSE_CODE_MEANINGS = {
 };
 
 // Queue for debug logs before WebSocket is ready
-const debugLogQueue = [];
+const debugLogQueue: WsLogEntry[] = [];
 let debugLogWsReady = false;
 
 // Debug logger that routes to Android and server
-function debugLog(category, level, message, data = {}) {
+function debugLog(category: keyof DebugConfig, level: string, message: string, data: Record<string, unknown> = {}): void {
     if (!DEBUG[category]) return;
 
     const timestamp = Date.now();
@@ -85,7 +141,7 @@ function debugLog(category, level, message, data = {}) {
     }
 
     // Route to server via WebSocket for docker logs visibility
-    const wsLogEntry = { type: 'debug_log', level, category, message, data };
+    const wsLogEntry: WsLogEntry = { type: 'debug_log', level, category, message, data };
     if (debugLogWsReady) {
         sendDebugLogToServer(wsLogEntry);
     } else {
@@ -94,22 +150,23 @@ function debugLog(category, level, message, data = {}) {
 }
 
 // Send a debug log entry to the server
-function sendDebugLogToServer(entry) {
+function sendDebugLogToServer(entry: WsLogEntry): void {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(entry));
     }
 }
 
 // Flush queued debug logs when WebSocket connects
-function flushDebugLogQueue() {
+function flushDebugLogQueue(): void {
     debugLogWsReady = true;
     while (debugLogQueue.length > 0) {
-        sendDebugLogToServer(debugLogQueue.shift());
+        const entry = debugLogQueue.shift();
+        if (entry) sendDebugLogToServer(entry);
     }
 }
 
 // Connection state transition logging
-function setWsState(newState, reason = '') {
+function setWsState(newState: WsState, reason = ''): void {
     const prevState = wsState;
     const duration = Date.now() - lastStateChange;
     wsState = newState;
@@ -124,12 +181,12 @@ function setWsState(newState, reason = '') {
 }
 
 // Generate correlation ID for connection attempts
-function generateCorrelationId() {
+function generateCorrelationId(): string {
     return `conn-${Date.now()}-${++connectionAttemptId}`;
 }
 
 // Register Web Push subscription for PWA push notifications
-async function registerWebPush() {
+async function registerWebPush(): Promise<void> {
     debugLog('WS', 'info', 'registerWebPush called');
 
     // Check if service worker and push are supported
@@ -139,7 +196,7 @@ async function registerWebPush() {
     }
 
     // Get VAPID public key from meta tag
-    const vapidMeta = document.querySelector('meta[name="vapid-public-key"]');
+    const vapidMeta = document.querySelector('meta[name="vapid-public-key"]') as HTMLMetaElement | null;
     if (!vapidMeta || !vapidMeta.content) {
         debugLog('WS', 'info', 'VAPID public key not configured');
         return;
@@ -184,12 +241,12 @@ async function registerWebPush() {
             subscription: subscription.toJSON()
         }));
     } catch (err) {
-        debugLog('WS', 'error', 'Web Push registration failed: ' + err.message);
+        debugLog('WS', 'error', 'Web Push registration failed: ' + (err as Error).message);
     }
 }
 
 // Helper function to convert VAPID key
-function urlBase64ToUint8Array(base64String) {
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding)
         .replace(/-/g, '+')
@@ -209,9 +266,9 @@ let reconnectAttempts = 0;
 
 // Connection health monitoring
 let lastPongTime = Date.now();
-let healthCheckInterval = null;
+let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
 
-function getReconnectDelay() {
+function getReconnectDelay(): number {
     const delay = Math.min(
         RECONNECT_BASE_DELAY * Math.pow(2, reconnectAttempts),
         RECONNECT_MAX_DELAY
@@ -220,7 +277,7 @@ function getReconnectDelay() {
     return delay + Math.random() * 1000;
 }
 
-function startHealthCheck() {
+function startHealthCheck(): void {
     debugLog('HEALTH', 'info', 'Starting health check', {
         interval: 10000,
         staleThreshold: 20000
@@ -250,7 +307,7 @@ function startHealthCheck() {
     }, 10000);
 }
 
-function stopHealthCheck() {
+function stopHealthCheck(): void {
     debugLog('HEALTH', 'info', 'Stopping health check');
     if (healthCheckInterval) {
         clearInterval(healthCheckInterval);
@@ -259,10 +316,10 @@ function stopHealthCheck() {
 }
 
 // Toast notification system
-const toastQueue = [];
-let activeToast = null;
+const toastQueue: ToastItem[] = [];
+let activeToast: HTMLElement | null = null;
 
-function showToast(message, type = 'success', duration = 3000) {
+function showToast(message: string, type = 'success', duration = 3000): void {
     const container = document.getElementById('toast-container');
     if (!container) return;
 
@@ -287,7 +344,7 @@ function showToast(message, type = 'success', duration = 3000) {
     }
 }
 
-function hideToast(toast) {
+function hideToast(toast: HTMLElement): void {
     if (!toast || !toast.parentNode) return;
 
     // Fade out animation
@@ -304,15 +361,15 @@ function hideToast(toast) {
         // Show next toast in queue
         if (toastQueue.length > 0) {
             const next = toastQueue.shift();
-            showToast(next.message, next.type, next.duration);
+            if (next) showToast(next.message, next.type, next.duration);
         }
     }, 300); // Match animation duration
 }
 
 // Allow clicking toast to dismiss it early
 document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('toast')) {
-        hideToast(e.target);
+    if ((e.target as HTMLElement).classList.contains('toast')) {
+        hideToast(e.target as HTMLElement);
     }
 });
 
@@ -323,40 +380,42 @@ let codeViewInitialized = false;
 
 // Selection mode state
 let selectModeActive = false;
-let selectedLines = new Set();
+let selectedLines = new Set<number>();
 let currentFilePath = '';
-let selectionPhase = 'none'; // 'none' | 'first' | 'range'
+let selectionPhase: 'none' | 'first' | 'range' = 'none';
 
 // Code view functions
-function listFiles(path) {
+function listFiles(path: string): void {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'list_files', path: path }));
     }
 }
 
-function readFile(path) {
+function readFile(path: string): void {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'read_file', path: path }));
     }
 }
 
-function readFileWithDiff(path) {
+function readFileWithDiff(path: string): void {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'read_file_with_diff', path: path }));
     }
 }
 
-function renderFileList(files, path) {
+function renderFileList(files: FileInfo[], path: string): void {
     const fileList = document.getElementById('file-list');
     const currentPathEl = document.getElementById('current-path');
+
+    if (!fileList || !currentPathEl) return;
 
     currentPath = path;
     currentPathEl.textContent = path;
 
     // Build set of unstaged file paths and directories containing unstaged files
     const unstagedPaths = new Set(unstagedChanges.map(f => f.path));
-    const dirsWithUnstaged = new Set();
-    const untrackedDirPrefixes = []; // Untracked directories - all contents are unstaged
+    const dirsWithUnstaged = new Set<string>();
+    const untrackedDirPrefixes: string[] = []; // Untracked directories - all contents are unstaged
     for (const f of unstagedChanges) {
         // Untracked directories end with / - track them separately
         if (f.path.endsWith('/')) {
@@ -373,12 +432,12 @@ function renderFileList(files, path) {
     }
 
     // Helper to check if path is inside an untracked directory
-    const isInsideUntrackedDir = (relPath) => {
+    const isInsideUntrackedDir = (relPath: string): boolean => {
         return untrackedDirPrefixes.some(prefix => relPath.startsWith(prefix));
     };
 
     // Build set of ignored file/directory names (directly ignored by gitignore)
-    const ignoredNames = new Set();
+    const ignoredNames = new Set<string>();
     for (const file of files) {
         if (file.is_ignored) {
             ignoredNames.add(file.name);
@@ -447,26 +506,29 @@ function renderFileList(files, path) {
     fileList.innerHTML = html;
 }
 
-function formatFileSize(bytes) {
+function formatFileSize(bytes: number): string {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-function navigateToFolder(path) {
+function navigateToFolder(path: string): void {
     listFiles(path);
 }
 
-function openFile(path, filename) {
-    document.getElementById('code-filename').textContent = filename;
+function openFile(path: string, filename: string): void {
+    const filenameEl = document.getElementById('code-filename');
+    if (filenameEl) filenameEl.textContent = filename;
     currentFilePath = path;
     readFileWithDiff(path);
 }
 
-function showCodeViewer(content, filename) {
+function showCodeViewer(content: string, filename: string): void {
     const codeEl = document.getElementById('code-content');
     const normalContainer = document.getElementById('code-content-normal');
     const diffContainer = document.getElementById('code-content-diff');
+
+    if (!codeEl || !normalContainer || !diffContainer) return;
 
     // Show normal view, hide diff view
     normalContainer.style.display = 'block';
@@ -475,12 +537,12 @@ function showCodeViewer(content, filename) {
     codeEl.textContent = content;
 
     // Auto-detect language and highlight
-    delete codeEl.dataset.highlighted;
+    delete (codeEl as HTMLElement & { dataset: { highlighted?: string } }).dataset.highlighted;
     hljs.highlightElement(codeEl);
 
     // Switch panels
-    document.getElementById('file-explorer-panel').classList.remove('active');
-    document.getElementById('code-viewer-panel').classList.add('active');
+    document.getElementById('file-explorer-panel')?.classList.remove('active');
+    document.getElementById('code-viewer-panel')?.classList.add('active');
 }
 
 // diff2html configuration - line-by-line is more mobile-friendly
@@ -488,17 +550,19 @@ const diff2htmlConfig = {
     drawFileList: false,
     fileListToggle: false,
     fileContentToggle: false,
-    matching: 'lines',
-    outputFormat: 'line-by-line',
+    matching: 'lines' as const,
+    outputFormat: 'line-by-line' as const,
     synchronisedScroll: true,
     highlight: true,
     renderNothingWhenEmpty: false,
-    colorScheme: 'dark',
+    colorScheme: ColorSchemeType.DARK,
 };
 
-function showDiffViewer(diff, filename, hasChanges = true) {
+function showDiffViewer(diff: string, filename: string, hasChanges = true): void {
     const normalContainer = document.getElementById('code-content-normal');
     const diffContainer = document.getElementById('code-content-diff');
+
+    if (!normalContainer || !diffContainer) return;
 
     // Hide normal view, show diff view
     normalContainer.style.display = 'none';
@@ -519,35 +583,37 @@ function showDiffViewer(diff, filename, hasChanges = true) {
     // Add data-line attributes to each line for selection
     const lineElements = diffContainer.querySelectorAll('.d2h-code-line-ctn');
     lineElements.forEach((el, index) => {
-        el.dataset.line = index;
+        (el as HTMLElement).dataset.line = String(index);
     });
 
     // Clear selection when viewing new file
     clearSelection();
 
     // Switch panels
-    document.getElementById('file-explorer-panel').classList.remove('active');
-    document.getElementById('code-viewer-panel').classList.add('active');
+    document.getElementById('file-explorer-panel')?.classList.remove('active');
+    document.getElementById('code-viewer-panel')?.classList.add('active');
 }
 
-function showFileExplorer() {
-    document.getElementById('code-viewer-panel').classList.remove('active');
-    document.getElementById('file-explorer-panel').classList.add('active');
+function showFileExplorer(): void {
+    document.getElementById('code-viewer-panel')?.classList.remove('active');
+    document.getElementById('file-explorer-panel')?.classList.add('active');
 
     // Reset select mode when leaving code viewer
     if (selectModeActive) {
         selectModeActive = false;
-        document.getElementById('code-select-toggle').classList.remove('active');
-        document.getElementById('code-content-diff').classList.remove('select-mode');
+        document.getElementById('code-select-toggle')?.classList.remove('active');
+        document.getElementById('code-content-diff')?.classList.remove('select-mode');
         clearSelection();
     }
 }
 
 // Selection mode functions
-function toggleSelectMode() {
+function toggleSelectMode(): void {
     selectModeActive = !selectModeActive;
     const btn = document.getElementById('code-select-toggle');
     const diffContainer = document.getElementById('code-content-diff');
+
+    if (!btn || !diffContainer) return;
 
     if (selectModeActive) {
         btn.classList.add('active');
@@ -559,7 +625,7 @@ function toggleSelectMode() {
     }
 }
 
-function clearSelection() {
+function clearSelection(): void {
     selectedLines.clear();
     document.querySelectorAll('.d2h-code-line-ctn.selected').forEach(el => {
         el.classList.remove('selected');
@@ -568,7 +634,7 @@ function clearSelection() {
     updateSendToLLMButton();
 }
 
-function selectLine(lineNumber) {
+function selectLine(lineNumber: number): void {
     const lineEl = document.querySelector(`.d2h-code-line-ctn[data-line="${lineNumber}"]`);
     if (lineEl) {
         selectedLines.add(lineNumber);
@@ -576,8 +642,9 @@ function selectLine(lineNumber) {
     }
 }
 
-function updateSendToLLMButton() {
-    const btn = document.getElementById('send-to-llm-btn');
+function updateSendToLLMButton(): void {
+    const btn = document.getElementById('send-to-llm-btn') as HTMLElement | null;
+    if (!btn) return;
 
     if (selectedLines.size === 0) {
         btn.style.display = 'none';
@@ -603,7 +670,7 @@ function updateSendToLLMButton() {
     btn.style.top = (lineRect.bottom) + 'px';
 }
 
-function handleLineClick(lineNumber) {
+function handleLineClick(lineNumber: number): void {
     if (!selectModeActive) return;
 
     if (selectionPhase === 'range') {
@@ -631,22 +698,22 @@ function handleLineClick(lineNumber) {
 }
 
 // Set up click handler for code lines using event delegation
-document.getElementById('code-content-diff').addEventListener('click', (e) => {
-    const lineEl = e.target.closest('.d2h-code-line-ctn');
+document.getElementById('code-content-diff')?.addEventListener('click', (e) => {
+    const lineEl = (e.target as HTMLElement).closest('.d2h-code-line-ctn') as HTMLElement | null;
     if (lineEl && lineEl.dataset.line !== undefined) {
         handleLineClick(parseInt(lineEl.dataset.line, 10));
     }
 });
 
 // Update button position on scroll
-document.getElementById('code-content-diff').addEventListener('scroll', () => {
+document.getElementById('code-content-diff')?.addEventListener('scroll', () => {
     if (selectModeActive && selectedLines.size > 0) {
         updateSendToLLMButton();
     }
 });
 
 // Send to LLM button click handler
-document.getElementById('send-to-llm-btn').addEventListener('click', () => {
+document.getElementById('send-to-llm-btn')?.addEventListener('click', () => {
     if (selectedLines.size === 0 || !currentFilePath) return;
 
     // Get line range (convert to 1-based for display)
@@ -655,7 +722,7 @@ document.getElementById('send-to-llm-btn').addEventListener('click', () => {
     const endLine = sortedLines[sortedLines.length - 1] + 1;
 
     // Create reference string
-    let reference;
+    let reference: string;
     if (startLine === endLine) {
         reference = `${currentFilePath}:${startLine} `;
     } else {
@@ -679,13 +746,14 @@ document.getElementById('send-to-llm-btn').addEventListener('click', () => {
 
     // Clear selection and exit select mode
     selectModeActive = false;
-    document.getElementById('code-select-toggle').classList.remove('active');
-    document.getElementById('code-content-diff').classList.remove('select-mode');
+    document.getElementById('code-select-toggle')?.classList.remove('active');
+    document.getElementById('code-content-diff')?.classList.remove('select-mode');
     clearSelection();
 });
 
-function performCommit() {
-    const messageInput = document.getElementById('commit-message');
+function performCommit(): void {
+    const messageInput = document.getElementById('commit-message') as HTMLTextAreaElement | null;
+    if (!messageInput) return;
     const message = messageInput.value.trim();
 
     if (!message) {
@@ -693,7 +761,8 @@ function performCommit() {
         return;
     }
 
-    const commitBtn = document.getElementById('commit-btn');
+    const commitBtn = document.getElementById('commit-btn') as HTMLButtonElement | null;
+    if (!commitBtn || !ws) return;
 
     // Send commit request via WebSocket
     ws.send(JSON.stringify({
@@ -706,7 +775,31 @@ function performCommit() {
     commitBtn.textContent = 'Committing...';
 }
 
-function handleFileMessage(msg) {
+interface FileListMessage {
+    type: 'file_list';
+    files?: FileInfo[];
+    path: string;
+    error?: string;
+}
+
+interface FileContentMessage {
+    type: 'file_content';
+    content: string;
+    path: string;
+    error?: string;
+}
+
+interface FileWithDiffMessage {
+    type: 'file_with_diff';
+    diff: string;
+    path: string;
+    hasDiff: boolean;
+    error?: string;
+}
+
+type FileMessage = FileListMessage | FileContentMessage | FileWithDiffMessage;
+
+function handleFileMessage(msg: FileMessage): void {
     if (msg.type === 'file_list') {
         if (msg.error) {
             console.error('File list error:', msg.error);
@@ -718,14 +811,14 @@ function handleFileMessage(msg) {
             console.error('File read error:', msg.error);
             return;
         }
-        showCodeViewer(msg.content, msg.path.split('/').pop());
+        showCodeViewer(msg.content, msg.path.split('/').pop() || '');
     } else if (msg.type === 'file_with_diff') {
         if (msg.error) {
             console.error('File read error:', msg.error);
             return;
         }
 
-        const filename = msg.path.split('/').pop();
+        const filename = msg.path.split('/').pop() || '';
 
         // Always use diff view for consistency
         // hasChanges controls whether we show two line number columns or one
@@ -733,7 +826,7 @@ function handleFileMessage(msg) {
     }
 }
 
-function getWebSocketURL() {
+function getWebSocketURL(): string {
     const params = new URLSearchParams({ user: USERNAME });
 
     // Use wss:// for HTTPS pages or file:// (Android bundled assets), ws:// for HTTP
@@ -757,7 +850,7 @@ const term = new Terminal({
         foreground: '#ffffff',
         cursor: '#ffffff',
         cursorAccent: '#000000',
-        selection: 'rgba(255, 255, 255, 0.3)',
+        selectionBackground: 'rgba(255, 255, 255, 0.3)',
         black: '#000000',
         red: '#e06c75',
         green: '#98c379',
@@ -776,24 +869,26 @@ const term = new Terminal({
         brightWhite: '#ffffff'
     },
     allowTransparency: false,
-    scrollback: 100000,
-    localEcho: false
+    scrollback: 100000
 });
 
 // Fit addon for responsive terminal sizing
-const fitAddon = new FitAddon.FitAddon();
+const fitAddon = new FitAddon();
 term.loadAddon(fitAddon);
 
 // Open terminal
-term.open(document.getElementById('terminal'));
-fitAddon.fit();
+const terminalEl = document.getElementById('terminal');
+if (terminalEl) {
+    term.open(terminalEl);
+    fitAddon.fit();
+}
 
 // Shell terminal - lazy initialized when Terminal view is first opened
-let termShell = null;
-let fitAddonShell = null;
+let termShell: Terminal | null = null;
+let fitAddonShell: FitAddon | null = null;
 let shellTerminalInitialized = false;
 
-function initShellTerminal() {
+function initShellTerminal(): void {
     if (shellTerminalInitialized) return;
     shellTerminalInitialized = true;
 
@@ -808,7 +903,7 @@ function initShellTerminal() {
             foreground: '#ffffff',
             cursor: '#ffffff',
             cursorAccent: '#000000',
-            selection: 'rgba(255, 255, 255, 0.3)',
+            selectionBackground: 'rgba(255, 255, 255, 0.3)',
             black: '#000000',
             red: '#e06c75',
             green: '#98c379',
@@ -827,18 +922,20 @@ function initShellTerminal() {
             brightWhite: '#ffffff'
         },
         allowTransparency: false,
-        scrollback: 100000,
-        localEcho: false
+        scrollback: 100000
     });
 
-    fitAddonShell = new FitAddon.FitAddon();
+    fitAddonShell = new FitAddon();
     termShell.loadAddon(fitAddonShell);
 
-    termShell.open(document.getElementById('terminal-shell'));
-    fitAddonShell.fit();
+    const terminalShellEl = document.getElementById('terminal-shell');
+    if (terminalShellEl) {
+        termShell.open(terminalShellEl);
+        fitAddonShell.fit();
 
-    // Setup touch scroll for shell terminal
-    setupTouchScroll(termShell, document.getElementById('terminal-shell'));
+        // Setup touch scroll for shell terminal
+        setupTouchScroll(termShell, terminalShellEl);
+    }
 
     // Register onData handler for shell terminal
     termShell.onData((data) => {
@@ -881,27 +978,28 @@ function initShellTerminal() {
 // Debug: Log LLM terminal initialization state
 debugLog('TERMINAL', 'info', 'LLM terminal initialized', {
     llm: { rows: term.rows, cols: term.cols, hasTextarea: !!term.textarea },
-    llmViewActive: document.getElementById('view-llm').classList.contains('active')
+    llmViewActive: document.getElementById('view-llm')?.classList.contains('active')
 });
 
 // Custom touch scroll handler for mobile momentum scrolling
 // xterm.js doesn't support native momentum scrolling, so we implement it manually
-function setupTouchScroll(terminal, containerEl) {
-    const viewport = containerEl.querySelector('.xterm-viewport');
+function setupTouchScroll(terminal: Terminal, containerEl: HTMLElement): void {
+    const viewport = containerEl.querySelector('.xterm-viewport') as HTMLElement | null;
     if (!viewport) return;
 
     let touchStartY = 0;
     let lastTouchY = 0;
     let lastTouchTime = 0;
     let velocityY = 0;
-    let momentumAnimationId = null;
+    let momentumAnimationId: number | null = null;
     let accumulatedDelta = 0;
 
     // Get line height with fallback
-    function getLineHeight() {
+    function getLineHeight(): number {
         try {
-            if (terminal._core && terminal._core._renderService) {
-                return Math.ceil(terminal._core._renderService.dimensions.css.cell.height) || 17;
+            const core = (terminal as unknown as { _core?: { _renderService?: { dimensions?: { css?: { cell?: { height?: number } } } } } })._core;
+            if (core && core._renderService && core._renderService.dimensions?.css?.cell?.height) {
+                return Math.ceil(core._renderService.dimensions.css.cell.height) || 17;
             }
         } catch (e) {}
         // Fallback: estimate from font size (fontSize * ~1.2 line height)
@@ -909,7 +1007,7 @@ function setupTouchScroll(terminal, containerEl) {
     }
 
     // Cancel any ongoing momentum animation
-    function cancelMomentum() {
+    function cancelMomentum(): void {
         if (momentumAnimationId) {
             cancelAnimationFrame(momentumAnimationId);
             momentumAnimationId = null;
@@ -967,7 +1065,7 @@ function setupTouchScroll(terminal, containerEl) {
             const minPixelVelocity = 0.3;
             let momentumDelta = 0;
 
-            function momentumStep() {
+            function momentumStep(): void {
                 if (Math.abs(pixelVelocity) < minPixelVelocity) {
                     // Scroll any remaining accumulated distance
                     const finalLines = Math.round(momentumDelta / lineHeight);
@@ -996,7 +1094,10 @@ function setupTouchScroll(terminal, containerEl) {
 }
 
 // Setup touch scroll for LLM terminal (shell terminal is set up in initShellTerminal)
-setupTouchScroll(term, document.getElementById('terminal'));
+const terminalContainer = document.getElementById('terminal');
+if (terminalContainer) {
+    setupTouchScroll(term, terminalContainer);
+}
 
 // Debug: Track terminal focus events for LLM terminal
 term.textarea?.addEventListener('focus', () => {
@@ -1015,14 +1116,14 @@ document.addEventListener('focusin', (e) => {
 }, true);
 
 // Track which terminal is active
-let activeTerminal = 'llm';
+let activeTerminal: 'llm' | 'terminal' = 'llm';
 
 // WebSocket connection (declared early for use in resize handlers)
-let ws = null;
-let reconnectTimeout = null;
+let ws: WebSocket | null = null;
+let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
 // Helper function to decode base64 to Uint8Array (handles UTF-8 properly)
-function base64ToBytes(base64) {
+function base64ToBytes(base64: string): Uint8Array {
     const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
@@ -1032,7 +1133,7 @@ function base64ToBytes(base64) {
 }
 
 // Send terminal size to server
-function sendTerminalSize(terminal) {
+function sendTerminalSize(terminal: 'llm' | 'terminal'): void {
     if (ws && ws.readyState === WebSocket.OPEN) {
         const t = terminal === 'terminal' ? termShell : term;
         if (!t) return; // Shell terminal not initialized yet
@@ -1066,7 +1167,7 @@ window.addEventListener('orientationchange', () => {
 });
 
 // Handle mobile keyboard open/close using visualViewport API
-function handleViewportResize() {
+function handleViewportResize(): void {
     if (window.visualViewport) {
         const viewport = window.visualViewport;
         const statusBarHeight = 32;
@@ -1077,18 +1178,18 @@ function handleViewportResize() {
 
         // Resize all views
         document.querySelectorAll('.view').forEach(view => {
-            view.style.height = `${availableHeight}px`;
-            view.style.bottom = 'auto';
+            (view as HTMLElement).style.height = `${availableHeight}px`;
+            (view as HTMLElement).style.bottom = 'auto';
         });
 
         // Move nav bar and keyboard toolbar to stay above keyboard
         const navBar = document.getElementById('bottom-nav');
         const keyboardToolbar = document.getElementById('keyboard-toolbar');
         const offset = window.innerHeight - viewport.height;
-        navBar.style.bottom = `${offset}px`;
+        if (navBar) navBar.style.bottom = `${offset}px`;
 
         // Only move keyboard toolbar if it's visible (LLM view active)
-        if (keyboardToolbar.classList.contains('visible')) {
+        if (keyboardToolbar && keyboardToolbar.classList.contains('visible')) {
             keyboardToolbar.style.bottom = `${50 + offset}px`;
         }
 
@@ -1113,12 +1214,12 @@ if (window.visualViewport) {
 
 // Keyboard toolbar functionality
 document.querySelectorAll('.key-btn').forEach(btn => {
-    function handleKeyBtn(e) {
+    function handleKeyBtn(e: Event): void {
         e.preventDefault();
         e.stopPropagation();
 
-        const action = btn.dataset.action;
-        const key = btn.dataset.key;
+        const action = (btn as HTMLElement).dataset.action;
+        const key = (btn as HTMLElement).dataset.key;
 
         debugLog('TOOLBAR', 'info', 'Button pressed', { action, key });
 
@@ -1129,7 +1230,7 @@ document.querySelectorAll('.key-btn').forEach(btn => {
         }
 
         // Handle key buttons (send sequences to terminal)
-        const sequence = getBasicSequence(key);
+        const sequence = getBasicSequence(key || '');
         if (ws && ws.readyState === WebSocket.OPEN && sequence) {
             ws.send(JSON.stringify({
                 type: 'terminal_data',
@@ -1152,7 +1253,7 @@ document.querySelectorAll('.key-btn').forEach(btn => {
 });
 
 // Handle keyboard action buttons (pgup/pgdn/scroll)
-function handleKeyboardAction(action) {
+function handleKeyboardAction(action: string): void {
     const terminal = activeTerminal === 'terminal' ? termShell : term;
     if (!terminal) return;
 
@@ -1173,15 +1274,15 @@ function handleKeyboardAction(action) {
     // Action buttons don't need keyboard input.
     // Move focus to hidden element to prevent Android keyboard from appearing.
     // Note: blur() alone doesn't work - we need to actively focus something else.
-    const focusTrap = document.getElementById('focus-trap');
+    const focusTrap = document.getElementById('focus-trap') as HTMLElement | null;
     if (focusTrap) {
         focusTrap.focus();
     }
 }
 
 // Helper: Get basic (unmodified) escape sequence
-function getBasicSequence(key) {
-    const sequences = {
+function getBasicSequence(key: string): string {
+    const sequences: Record<string, string> = {
         'up': '\x1b[A',
         'down': '\x1b[B',
         'right': '\x1b[C',
@@ -1196,37 +1297,39 @@ function getBasicSequence(key) {
 }
 
 // Initialize keyboard toolbar visibility (LLM view is default)
-document.getElementById('keyboard-toolbar').classList.add('visible');
+document.getElementById('keyboard-toolbar')?.classList.add('visible');
 
 // Git View State
 let gitViewInitialized = false;
-let unstagedChanges = [];
-let stagedChanges = [];
-let discardConfirmState = {}; // Track which files are waiting for double-tap confirm
+let unstagedChanges: FileChange[] = [];
+let stagedChanges: FileChange[] = [];
+let discardConfirmState: Record<string, number> = {}; // Track which files are waiting for double-tap confirm
 
 // Initialize Git view when switching to it
-function initGitView() {
+function initGitView(): void {
     if (gitViewInitialized) return;
     gitViewInitialized = true;
 
     // Set up accordion toggle
     document.querySelectorAll('.git-section-header').forEach(header => {
-        header.addEventListener('click', () => toggleGitSection(header));
+        header.addEventListener('click', () => toggleGitSection(header as HTMLElement));
     });
 
     // Set up commit input auto-resize
     setupCommitInput();
 
     // Set up pull/push button handlers
-    document.getElementById('pull-btn').onclick = pullChanges;
-    document.getElementById('push-btn').onclick = pushChanges;
+    const pullBtn = document.getElementById('pull-btn');
+    const pushBtn = document.getElementById('push-btn');
+    if (pullBtn) pullBtn.onclick = pullChanges;
+    if (pushBtn) pushBtn.onclick = pushChanges;
 
     // Set up stage all / unstage all button handlers
-    document.getElementById('stage-all-btn').addEventListener('click', (e) => {
+    document.getElementById('stage-all-btn')?.addEventListener('click', (e) => {
         e.stopPropagation();
         stageAll();
     });
-    document.getElementById('unstage-all-btn').addEventListener('click', (e) => {
+    document.getElementById('unstage-all-btn')?.addEventListener('click', (e) => {
         e.stopPropagation();
         unstageAll();
     });
@@ -1236,10 +1339,11 @@ function initGitView() {
 }
 
 // Set up auto-resize behavior for commit input
-function setupCommitInput() {
-    const input = document.getElementById('commit-message');
+function setupCommitInput(): void {
+    const input = document.getElementById('commit-message') as HTMLTextAreaElement | null;
+    if (!input) return;
 
-    input.addEventListener('input', function() {
+    input.addEventListener('input', function(this: HTMLTextAreaElement) {
         // Reset height to calculate new height
         this.style.height = 'auto';
 
@@ -1250,27 +1354,28 @@ function setupCommitInput() {
 }
 
 // Toggle accordion section (mutually exclusive)
-function toggleGitSection(header) {
+function toggleGitSection(header: HTMLElement): void {
     const section = header.dataset.section;
+    if (!section) return;
     const content = document.getElementById(`${section}-content`);
     const isCollapsed = header.classList.contains('collapsed');
 
     // Collapse all sections first
     document.querySelectorAll('.git-section-header').forEach(h => {
         h.classList.add('collapsed');
-        const contentId = `${h.dataset.section}-content`;
-        document.getElementById(contentId).classList.add('collapsed');
+        const contentId = `${(h as HTMLElement).dataset.section}-content`;
+        document.getElementById(contentId)?.classList.add('collapsed');
     });
 
     // If it was collapsed, expand it. If it was expanded, leave it collapsed.
-    if (isCollapsed) {
+    if (isCollapsed && content) {
         header.classList.remove('collapsed');
         content.classList.remove('collapsed');
     }
 }
 
 // Load git status from bridge
-function loadGitStatus() {
+function loadGitStatus(): void {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
     // Send git status command via WebSocket
@@ -1278,9 +1383,9 @@ function loadGitStatus() {
 }
 
 // Parse git diff output
-function parseDiff(diffText) {
+function parseDiff(diffText: string): DiffLine[] {
     const lines = diffText.split('\n');
-    const result = [];
+    const result: DiffLine[] = [];
 
     for (const line of lines) {
         // Skip diff metadata headers
@@ -1305,24 +1410,24 @@ function parseDiff(diffText) {
 }
 
 // HTML escape utility
-function escapeHtml(text) {
+function escapeHtml(text: string): string {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
 // Split highlighted HTML by newlines while preserving span tags
-function splitHighlightedHTML(html) {
-    const lines = [];
+function splitHighlightedHTML(html: string): string[] {
+    const lines: string[] = [];
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
 
     let currentLine = '';
-    let openTags = []; // Stack of open tag class names
+    const openTags: string[] = []; // Stack of open tag class names
 
-    function walkNode(node) {
+    function walkNode(node: Node): void {
         if (node.nodeType === Node.TEXT_NODE) {
-            const text = node.textContent;
+            const text = node.textContent || '';
             const parts = text.split('\n');
 
             for (let i = 0; i < parts.length; i++) {
@@ -1335,20 +1440,21 @@ function splitHighlightedHTML(html) {
                     currentLine = '';
 
                     // Reopen tags for next line
-                    for (let className of openTags) {
+                    for (const className of openTags) {
                         currentLine += `<span class="${className}">`;
                     }
                 }
                 currentLine += escapeHtml(parts[i]);
             }
         } else if (node.nodeType === Node.ELEMENT_NODE) {
-            if (node.tagName.toLowerCase() === 'span') {
-                const className = node.className;
+            const element = node as HTMLElement;
+            if (element.tagName.toLowerCase() === 'span') {
+                const className = element.className;
                 currentLine += `<span class="${className}">`;
                 openTags.push(className);
 
                 // Process children
-                for (let child of node.childNodes) {
+                for (const child of Array.from(element.childNodes)) {
                     walkNode(child);
                 }
 
@@ -1356,7 +1462,7 @@ function splitHighlightedHTML(html) {
                 openTags.pop();
             } else {
                 // Process children of non-span elements
-                for (let child of node.childNodes) {
+                for (const child of Array.from(element.childNodes)) {
                     walkNode(child);
                 }
             }
@@ -1374,10 +1480,10 @@ function splitHighlightedHTML(html) {
 }
 
 // Apply syntax highlighting to diff lines
-function highlightDiffLines(diffLines, filePath) {
+function highlightDiffLines(diffLines: DiffLine[], filePath: string): DiffLine[] {
     // Detect language from file extension
-    const ext = filePath.split('.').pop().toLowerCase();
-    const langMap = {
+    const ext = filePath.split('.').pop()?.toLowerCase() || '';
+    const langMap: Record<string, string> = {
         'js': 'javascript', 'jsx': 'javascript', 'ts': 'typescript',
         'tsx': 'typescript', 'py': 'python', 'go': 'go', 'rs': 'rust',
         'java': 'java', 'c': 'c', 'cpp': 'cpp', 'cc': 'cpp', 'cxx': 'cpp',
@@ -1427,17 +1533,17 @@ function highlightDiffLines(diffLines, filePath) {
 }
 
 // Render file change item
-function renderFileChange(file, staged = false) {
+function renderFileChange(file: FileChange, staged = false): string {
     const diffLines = parseDiff(file.diff);
 
     // Apply syntax highlighting
     const highlightedLines = highlightDiffLines(diffLines, file.path);
 
     const diffHtml = highlightedLines.map(line => {
-        let content = line.highlightedContent;
+        let content = line.highlightedContent || '';
 
         // Determine line class and whether to add prefix
-        let lineClass;
+        let lineClass: string;
         if (file.isUntracked) {
             // Untracked files: no prefix, use 'untracked' class
             lineClass = 'untracked';
@@ -1478,14 +1584,16 @@ function renderFileChange(file, staged = false) {
 }
 
 // Update unstaged changes display
-function updateUnstagedChanges(files) {
+function updateUnstagedChanges(files: FileChange[]): void {
     unstagedChanges = files;
     const container = document.getElementById('unstaged-content');
     const count = document.getElementById('unstaged-count');
-    const stageAllBtn = document.getElementById('stage-all-btn');
+    const stageAllBtn = document.getElementById('stage-all-btn') as HTMLButtonElement | null;
 
-    count.textContent = files.length;
-    stageAllBtn.disabled = files.length === 0;
+    if (!container || !count) return;
+
+    count.textContent = String(files.length);
+    if (stageAllBtn) stageAllBtn.disabled = files.length === 0;
 
     if (files.length === 0) {
         container.innerHTML = '<div class="git-empty">No unstaged changes</div>';
@@ -1496,38 +1604,41 @@ function updateUnstagedChanges(files) {
 
     // Attach event listeners
     container.querySelectorAll('.git-action-btn.stage').forEach(btn => {
-        btn.addEventListener('click', () => stageFile(btn.dataset.file));
+        btn.addEventListener('click', () => stageFile((btn as HTMLElement).dataset.file || ''));
     });
 
     container.querySelectorAll('.git-action-btn.discard').forEach(btn => {
-        btn.addEventListener('click', () => discardFile(btn, btn.dataset.file));
+        btn.addEventListener('click', () => discardFile(btn as HTMLElement, (btn as HTMLElement).dataset.file || ''));
     });
 }
 
 // Update staged changes display
-function updateStagedChanges(files) {
+function updateStagedChanges(files: FileChange[]): void {
     stagedChanges = files;
     const container = document.getElementById('staged-content');
     const count = document.getElementById('staged-count');
-    const commitBtn = document.getElementById('commit-btn');
-    const messageInput = document.getElementById('commit-message');
-    const unstageAllBtn = document.getElementById('unstage-all-btn');
+    const commitBtn = document.getElementById('commit-btn') as HTMLButtonElement | null;
+    const messageInput = document.getElementById('commit-message') as HTMLTextAreaElement | null;
+    const unstageAllBtn = document.getElementById('unstage-all-btn') as HTMLButtonElement | null;
 
-    count.textContent = files.length;
-    unstageAllBtn.disabled = files.length === 0;
+    if (!container || !count) return;
+
+    count.textContent = String(files.length);
+    if (unstageAllBtn) unstageAllBtn.disabled = files.length === 0;
 
     // Enable/disable based on both staged files and message presence
-    const updateCommitButton = () => {
+    const updateCommitButton = (): void => {
+        if (!commitBtn || !messageInput) return;
         const hasMessage = messageInput.value.trim().length > 0;
         const hasStaged = files.length > 0;
         commitBtn.disabled = !(hasMessage && hasStaged);
     };
 
     updateCommitButton();
-    commitBtn.onclick = performCommit;
+    if (commitBtn) commitBtn.onclick = performCommit;
 
     // Listen to input changes to enable/disable button
-    messageInput.oninput = updateCommitButton;
+    if (messageInput) messageInput.oninput = updateCommitButton;
 
     if (files.length === 0) {
         container.innerHTML = '<div class="git-empty">No staged changes</div>';
@@ -1538,32 +1649,32 @@ function updateStagedChanges(files) {
 
     // Attach event listeners
     container.querySelectorAll('.git-action-btn.unstage').forEach(btn => {
-        btn.addEventListener('click', () => unstageFile(btn.dataset.file));
+        btn.addEventListener('click', () => unstageFile((btn as HTMLElement).dataset.file || ''));
     });
 }
 
 // Git actions
-function stageFile(filePath) {
+function stageFile(filePath: string): void {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: 'git_stage', file: filePath }));
 }
 
-function unstageFile(filePath) {
+function unstageFile(filePath: string): void {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: 'git_unstage', file: filePath }));
 }
 
-function stageAll() {
+function stageAll(): void {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: 'git_stage_all' }));
 }
 
-function unstageAll() {
+function unstageAll(): void {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: 'git_unstage_all' }));
 }
 
-function discardFile(btn, filePath) {
+function discardFile(btn: HTMLElement, filePath: string): void {
     // Implement double-tap confirmation
     const now = Date.now();
     const lastTap = discardConfirmState[filePath] || 0;
@@ -1591,46 +1702,66 @@ function discardFile(btn, filePath) {
     }
 }
 
-function pullChanges() {
+function pullChanges(): void {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
-    const pullBtn = document.getElementById('pull-btn');
-    pullBtn.disabled = true;
-    pullBtn.textContent = 'Pulling...';
+    const pullBtn = document.getElementById('pull-btn') as HTMLButtonElement | null;
+    if (pullBtn) {
+        pullBtn.disabled = true;
+        pullBtn.textContent = 'Pulling...';
+    }
 
     ws.send(JSON.stringify({ type: 'git_pull' }));
 }
 
-function pushChanges() {
+function pushChanges(): void {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
-    const pushBtn = document.getElementById('push-btn');
-    pushBtn.disabled = true;
-    pushBtn.textContent = 'Pushing...';
+    const pushBtn = document.getElementById('push-btn') as HTMLButtonElement | null;
+    if (pushBtn) {
+        pushBtn.disabled = true;
+        pushBtn.textContent = 'Pushing...';
+    }
 
     ws.send(JSON.stringify({ type: 'git_push' }));
 }
 
+interface GitStatusMessage {
+    type: 'git_status';
+    unstaged?: FileChange[];
+    staged?: FileChange[];
+}
+
+interface GitErrorMessage {
+    type: 'git_error';
+    error: string;
+}
+
+type GitMessage = GitStatusMessage | GitErrorMessage | { type: string };
+
 // Handle Git messages from bridge
-function handleGitMessage(msg) {
+function handleGitMessage(msg: GitMessage): void {
     if (msg.type === 'git_status') {
-        updateUnstagedChanges(msg.unstaged || []);
-        updateStagedChanges(msg.staged || []);
+        const statusMsg = msg as GitStatusMessage;
+        updateUnstagedChanges(statusMsg.unstaged || []);
+        updateStagedChanges(statusMsg.staged || []);
         // Refresh file list if we're on the code view to update unstaged highlighting
-        if (document.getElementById('view-code').classList.contains('active') && currentPath) {
+        if (document.getElementById('view-code')?.classList.contains('active') && currentPath) {
             listFiles(currentPath);
         }
     } else if (msg.type === 'git_stage_success' || msg.type === 'git_unstage_success' || msg.type === 'git_discard_success' || msg.type === 'git_stage_all_success' || msg.type === 'git_unstage_all_success') {
         // Reload git status after action
         loadGitStatus();
     } else if (msg.type === 'git_commit_success') {
-        const commitBtn = document.getElementById('commit-btn');
-        const messageInput = document.getElementById('commit-message');
+        const commitBtn = document.getElementById('commit-btn') as HTMLButtonElement | null;
+        const messageInput = document.getElementById('commit-message') as HTMLTextAreaElement | null;
 
         // Re-enable button and clear message
-        commitBtn.disabled = false;
-        commitBtn.textContent = 'Commit';
-        messageInput.value = '';
+        if (commitBtn) {
+            commitBtn.disabled = false;
+            commitBtn.textContent = 'Commit';
+        }
+        if (messageInput) messageInput.value = '';
 
         // Show success toast
         showToast('Committed successfully');
@@ -1638,9 +1769,11 @@ function handleGitMessage(msg) {
         // Refresh git status
         loadGitStatus();
     } else if (msg.type === 'git_pull_success') {
-        const pullBtn = document.getElementById('pull-btn');
-        pullBtn.disabled = false;
-        pullBtn.textContent = 'Pull';
+        const pullBtn = document.getElementById('pull-btn') as HTMLButtonElement | null;
+        if (pullBtn) {
+            pullBtn.disabled = false;
+            pullBtn.textContent = 'Pull';
+        }
 
         // Show success toast
         showToast('Pulled changes');
@@ -1648,9 +1781,11 @@ function handleGitMessage(msg) {
         // Refresh git status to show new changes
         loadGitStatus();
     } else if (msg.type === 'git_push_success') {
-        const pushBtn = document.getElementById('push-btn');
-        pushBtn.disabled = false;
-        pushBtn.textContent = 'Push';
+        const pushBtn = document.getElementById('push-btn') as HTMLButtonElement | null;
+        if (pushBtn) {
+            pushBtn.disabled = false;
+            pushBtn.textContent = 'Push';
+        }
 
         // Show success toast
         showToast('Pushed to remote');
@@ -1658,13 +1793,14 @@ function handleGitMessage(msg) {
         // Refresh git status
         loadGitStatus();
     } else if (msg.type === 'git_error') {
-        console.error('Git error:', msg.error);
-        alert('Error: ' + msg.error);
+        const errorMsg = msg as GitErrorMessage;
+        console.error('Git error:', errorMsg.error);
+        alert('Error: ' + errorMsg.error);
 
         // Re-enable all buttons
-        const commitBtn = document.getElementById('commit-btn');
-        const pullBtn = document.getElementById('pull-btn');
-        const pushBtn = document.getElementById('push-btn');
+        const commitBtn = document.getElementById('commit-btn') as HTMLButtonElement | null;
+        const pullBtn = document.getElementById('pull-btn') as HTMLButtonElement | null;
+        const pushBtn = document.getElementById('push-btn') as HTMLButtonElement | null;
 
         if (commitBtn && commitBtn.disabled) {
             commitBtn.disabled = false;
@@ -1681,15 +1817,17 @@ function handleGitMessage(msg) {
     }
 }
 
-function updateStatus(status, message) {
-    statusEl.className = status;
-    statusEl.textContent = message;
+function updateStatus(status: string, message: string): void {
+    if (statusEl) {
+        statusEl.className = status;
+        statusEl.textContent = message;
+    }
 }
 
 // Flag to prevent concurrent connection attempts
 let isConnecting = false;
 
-function connect() {
+function connect(): void {
     // Prevent concurrent connection attempts
     if (isConnecting) {
         debugLog('WS', 'info', 'Connection already in progress, skipping', {
@@ -1729,7 +1867,7 @@ function connect() {
 
         ws.onopen = () => {
             isConnecting = false;  // Connection complete
-            const connectDuration = Date.now() - connectionStartTime;
+            const connectDuration = connectionStartTime ? Date.now() - connectionStartTime : 0;
 
             // Flush queued debug logs now that WebSocket is ready
             flushDebugLogQueue();
@@ -1813,8 +1951,8 @@ function connect() {
             // Note: onerror is always followed by onclose, so don't reset isConnecting here
             // to avoid race conditions. Let onclose handle it.
             debugLog('WS', 'error', 'WebSocket error', {
-                errorType: error.type,
-                message: error.message || 'No message',
+                errorType: (error as Event).type,
+                message: (error as ErrorEvent).message || 'No message',
                 readyState: ws ? ws.readyState : null
             });
             updateStatus('disconnected', 'Connection error');
@@ -1858,8 +1996,8 @@ function connect() {
     } catch (error) {
         isConnecting = false;  // Connection attempt failed
         debugLog('WS', 'error', 'Connection exception', {
-            error: error.message,
-            stack: error.stack
+            error: (error as Error).message,
+            stack: (error as Error).stack
         });
         const delay = getReconnectDelay();
         reconnectAttempts++;
@@ -1891,34 +2029,34 @@ term.onData((data) => {
 });
 
 // View switching
-function switchView(viewName) {
+function switchView(viewName: string): void {
     // Hide all views
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
 
     // Show selected view
-    document.getElementById(`view-${viewName}`).classList.add('active');
-    document.querySelector(`[data-view="${viewName}"]`).classList.add('active');
+    document.getElementById(`view-${viewName}`)?.classList.add('active');
+    document.querySelector(`[data-view="${viewName}"]`)?.classList.add('active');
 
     // Toggle keyboard toolbar visibility and adjust terminal height
     const keyboardToolbar = document.getElementById('keyboard-toolbar');
-    const terminalContainer = document.getElementById('terminal-container');
+    const terminalContainerEl = document.getElementById('terminal-container');
     const terminalShellContainer = document.getElementById('terminal-shell-container');
 
     if (viewName === 'llm') {
         activeTerminal = 'llm';
-        keyboardToolbar.classList.add('visible');
+        keyboardToolbar?.classList.add('visible');
         handleViewportResize();  // Immediately recalculate toolbar position
-        terminalContainer.style.bottom = '94px';
+        if (terminalContainerEl) terminalContainerEl.style.bottom = '94px';
         setTimeout(() => {
             fitAddon.fit();
             sendTerminalSize('llm');
         }, 50);
     } else if (viewName === 'terminal') {
         activeTerminal = 'terminal';
-        keyboardToolbar.classList.add('visible');
+        keyboardToolbar?.classList.add('visible');
         handleViewportResize();  // Immediately recalculate toolbar position
-        terminalShellContainer.style.bottom = '94px';
+        if (terminalShellContainer) terminalShellContainer.style.bottom = '94px';
 
         // Lazy-initialize the shell terminal on first access (when view is visible)
         initShellTerminal();
@@ -1936,10 +2074,10 @@ function switchView(viewName) {
             });
         }, 50);
     } else {
-        keyboardToolbar.classList.remove('visible');
-        keyboardToolbar.style.bottom = '';  // Clear stale inline style
-        terminalContainer.style.bottom = '50px';
-        terminalShellContainer.style.bottom = '50px';
+        keyboardToolbar?.classList.remove('visible');
+        if (keyboardToolbar) keyboardToolbar.style.bottom = '';  // Clear stale inline style
+        if (terminalContainerEl) terminalContainerEl.style.bottom = '50px';
+        if (terminalShellContainer) terminalShellContainer.style.bottom = '50px';
     }
 
     // Load files when switching to Code view
@@ -1951,7 +2089,7 @@ function switchView(viewName) {
                 listFiles(PROJECT_ROOT);
             }
             // Reload current file if viewer is active
-            if (document.getElementById('code-viewer-panel').classList.contains('active') && currentFilePath) {
+            if (document.getElementById('code-viewer-panel')?.classList.contains('active') && currentFilePath) {
                 readFileWithDiff(currentFilePath);
             }
         }
@@ -1967,7 +2105,7 @@ function switchView(viewName) {
 
 // Nav button click handlers
 document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.addEventListener('click', () => switchView(btn.dataset.view));
+    btn.addEventListener('click', () => switchView((btn as HTMLElement).dataset.view || ''));
 });
 
 // Start connection
@@ -2064,3 +2202,18 @@ window.addEventListener('online', () => {
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/service-worker.js');
 }
+
+// Expose functions to window for onclick handlers in HTML
+declare global {
+    interface Window {
+        navigateToFolder: typeof navigateToFolder;
+        openFile: typeof openFile;
+        showFileExplorer: typeof showFileExplorer;
+        toggleSelectMode: typeof toggleSelectMode;
+    }
+}
+
+window.navigateToFolder = navigateToFolder;
+window.openFile = openFile;
+window.showFileExplorer = showFileExplorer;
+window.toggleSelectMode = toggleSelectMode;
