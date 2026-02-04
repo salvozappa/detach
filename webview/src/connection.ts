@@ -19,6 +19,7 @@ import {
   base64ToBytes,
   urlBase64ToUint8Array,
 } from "./utils";
+import { updateStatus } from "./ui/status";
 
 // ============================================================================
 // Connection State
@@ -167,21 +168,6 @@ export function registerTerminalSizeCallback(
   callback: (terminal: "llm" | "terminal") => void,
 ): void {
   terminalSizeCallback = callback;
-}
-
-// ============================================================================
-// Status Display
-// ============================================================================
-
-/**
- * Update the connection status display
- */
-export function updateStatus(status: string, message: string): void {
-  const statusEl = document.getElementById("status");
-  if (statusEl) {
-    statusEl.className = status;
-    statusEl.textContent = message;
-  }
 }
 
 // ============================================================================
