@@ -1,26 +1,62 @@
 /**
  * Terminal management for LLM and Shell terminals.
  * Handles xterm.js setup, keyboard toolbar, touch scrolling, and viewport resizing.
+ * Owns all terminal-related state.
  */
 
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { debugLog } from '../utils';
-import {
-    getTerm,
-    setTerm,
-    getFitAddon,
-    setFitAddon,
-    getTermShell,
-    setTermShell,
-    getFitAddonShell,
-    setFitAddonShell,
-    isShellTerminalInitialized,
-    setShellTerminalInitialized,
-    getActiveTerminal,
-    setActiveTerminal
-} from '../state';
 import { sendMessage, isConnected } from '../connection';
+
+// ============================================================================
+// Terminal State
+// ============================================================================
+
+let term: Terminal | null = null;
+let fitAddon: FitAddon | null = null;
+let termShell: Terminal | null = null;
+let fitAddonShell: FitAddon | null = null;
+let shellTerminalInitialized = false;
+let activeTerminal: 'llm' | 'terminal' = 'llm';
+
+// Internal getters/setters
+function getTerm(): Terminal | null {
+    return term;
+}
+function setTerm(t: Terminal): void {
+    term = t;
+}
+function getFitAddon(): FitAddon | null {
+    return fitAddon;
+}
+function setFitAddon(f: FitAddon): void {
+    fitAddon = f;
+}
+function getTermShell(): Terminal | null {
+    return termShell;
+}
+function setTermShell(t: Terminal): void {
+    termShell = t;
+}
+function getFitAddonShell(): FitAddon | null {
+    return fitAddonShell;
+}
+function setFitAddonShell(f: FitAddon): void {
+    fitAddonShell = f;
+}
+function isShellTerminalInitialized(): boolean {
+    return shellTerminalInitialized;
+}
+function setShellTerminalInitialized(v: boolean): void {
+    shellTerminalInitialized = v;
+}
+function getActiveTerminal(): 'llm' | 'terminal' {
+    return activeTerminal;
+}
+function setActiveTerminal(t: 'llm' | 'terminal'): void {
+    activeTerminal = t;
+}
 
 // ============================================================================
 // Terminal Theme Configuration

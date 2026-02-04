@@ -1,17 +1,34 @@
 /**
- * Utility functions: logging, formatting, and diff processing
+ * Utility functions: logging, formatting, and diff processing.
+ * Owns debug logging state.
  */
 
 import hljs from "highlight.js";
 import { DEBUG, USERNAME, DebugConfig, WsLogEntry, DiffLine } from "./types";
-import {
-  getWs,
-  getCurrentCorrelationId,
-  isDebugLogWsReady,
-  setDebugLogWsReady,
-  pushDebugLog,
-  shiftDebugLog,
-} from "./state";
+import { getWsForLogging, getCurrentCorrelationId } from "./connection";
+
+// ============================================================================
+// Debug Logging State
+// ============================================================================
+
+let debugLogQueue: WsLogEntry[] = [];
+let debugLogWsReady = false;
+
+function isDebugLogWsReady(): boolean {
+  return debugLogWsReady;
+}
+
+function setDebugLogWsReady(v: boolean): void {
+  debugLogWsReady = v;
+}
+
+function pushDebugLog(entry: WsLogEntry): void {
+  debugLogQueue.push(entry);
+}
+
+function shiftDebugLog(): WsLogEntry | undefined {
+  return debugLogQueue.shift();
+}
 
 // ============================================================================
 // Debug Logging
@@ -66,7 +83,7 @@ export function debugLog(
  * Send a debug log entry to the server
  */
 export function sendDebugLogToServer(entry: WsLogEntry): void {
-  const ws = getWs();
+  const ws = getWsForLogging();
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(entry));
   }

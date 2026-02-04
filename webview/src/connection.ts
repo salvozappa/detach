@@ -1,6 +1,7 @@
 /**
  * WebSocket connection management, health checks, and web push registration.
  * Handles connection lifecycle, reconnection with exponential backoff, and message routing.
+ * Owns all connection-related state.
  */
 
 import {
@@ -13,35 +14,110 @@ import {
   RECONNECT_MAX_DELAY,
 } from "./types";
 import {
-  getWs,
-  setWs,
-  getWsState,
-  setWsStateValue,
-  setCurrentSessionId,
-  getReconnectAttempts,
-  setReconnectAttempts,
-  incrementReconnectAttempts,
-  getReconnectTimeout,
-  setReconnectTimeout,
-  getIsConnecting,
-  setIsConnecting,
-  getLastStateChange,
-  setLastStateChange,
-  getConnectionStartTime,
-  setConnectionStartTime,
-  getLastPongTime,
-  setLastPongTime,
-  getHealthCheckInterval,
-  setHealthCheckInterval,
-  incrementConnectionAttemptId,
-  setCurrentCorrelationId,
-} from "./state";
-import {
   debugLog,
   flushDebugLogQueue,
   base64ToBytes,
   urlBase64ToUint8Array,
 } from "./utils";
+
+// ============================================================================
+// Connection State
+// ============================================================================
+
+let ws: WebSocket | null = null;
+let wsState: WsState = WS_STATES.DISCONNECTED;
+let currentSessionId: string | null = null;
+let reconnectAttempts = 0;
+let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+let isConnectingFlag = false;
+let lastStateChange = Date.now();
+let connectionStartTime: number | null = null;
+let lastPongTime = Date.now();
+let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
+let connectionAttemptId = 0;
+let currentCorrelationId: string | null = null;
+
+// Internal getters/setters
+function getWs(): WebSocket | null {
+  return ws;
+}
+function setWsValue(newWs: WebSocket | null): void {
+  ws = newWs;
+}
+function getWsStateValue(): WsState {
+  return wsState;
+}
+function setWsStateValue(state: WsState): void {
+  wsState = state;
+}
+function getReconnectAttempts(): number {
+  return reconnectAttempts;
+}
+function setReconnectAttemptsValue(n: number): void {
+  reconnectAttempts = n;
+}
+function incrementReconnectAttempts(): void {
+  reconnectAttempts++;
+}
+function getReconnectTimeout(): ReturnType<typeof setTimeout> | null {
+  return reconnectTimeout;
+}
+function setReconnectTimeoutValue(
+  t: ReturnType<typeof setTimeout> | null,
+): void {
+  reconnectTimeout = t;
+}
+function getIsConnecting(): boolean {
+  return isConnectingFlag;
+}
+function setIsConnecting(v: boolean): void {
+  isConnectingFlag = v;
+}
+function getLastStateChange(): number {
+  return lastStateChange;
+}
+function setLastStateChangeValue(t: number): void {
+  lastStateChange = t;
+}
+function getConnectionStartTime(): number | null {
+  return connectionStartTime;
+}
+function setConnectionStartTimeValue(t: number | null): void {
+  connectionStartTime = t;
+}
+function getLastPongTime(): number {
+  return lastPongTime;
+}
+function setLastPongTimeValue(t: number): void {
+  lastPongTime = t;
+}
+function getHealthCheckInterval(): ReturnType<typeof setInterval> | null {
+  return healthCheckInterval;
+}
+function setHealthCheckIntervalValue(
+  i: ReturnType<typeof setInterval> | null,
+): void {
+  healthCheckInterval = i;
+}
+function incrementConnectionAttemptId(): number {
+  return ++connectionAttemptId;
+}
+
+// Exports for external access
+export function getCurrentSessionId(): string | null {
+  return currentSessionId;
+}
+
+export function getCurrentCorrelationId(): string | null {
+  return currentCorrelationId;
+}
+
+/**
+ * Get WebSocket for debug logging (used by utils.ts)
+ */
+export function getWsForLogging(): WebSocket | null {
+  return ws;
+}
 
 // ============================================================================
 // Message Handler Registry
@@ -109,51 +185,6 @@ export function updateStatus(status: string, message: string): void {
 }
 
 // ============================================================================
-// Connection State
-// ============================================================================
-
-/**
- * Generate correlation ID for connection attempts
- */
-function generateCorrelationId(): string {
-  return `conn-${Date.now()}-${incrementConnectionAttemptId()}`;
-}
-
-/**
- * Connection state transition with logging
- */
-function setWsState(newState: WsState, reason = ""): void {
-  const prevState = getWsState();
-  const duration = Date.now() - getLastStateChange();
-  setWsStateValue(newState);
-  setLastStateChange(Date.now());
-
-  debugLog("WS", "info", "State transition", {
-    from: prevState,
-    to: newState,
-    reason: reason,
-    durationInPrevState: duration,
-  });
-}
-
-/**
- * Get WebSocket URL with authentication parameters
- */
-function getWebSocketURL(): string {
-  const params = new URLSearchParams({ user: USERNAME });
-
-  // Use wss:// for HTTPS pages or file:// (Android bundled assets), ws:// for HTTP
-  const protocol =
-    window.location.protocol === "https:" ||
-    window.location.protocol === "file:"
-      ? "wss:"
-      : "ws:";
-
-  // Use /ws path for WebSocket connections (proxied by nginx)
-  return `${protocol}//${WS_HOST}/ws?${params.toString()}`;
-}
-
-// ============================================================================
 // Health Check
 // ============================================================================
 
@@ -182,7 +213,7 @@ function startHealthCheck(): void {
   if (existingInterval) {
     clearInterval(existingInterval);
   }
-  setLastPongTime(Date.now());
+  setLastPongTimeValue(Date.now());
 
   const interval = setInterval(() => {
     const timeSinceLastPong = Date.now() - getLastPongTime();
@@ -190,7 +221,7 @@ function startHealthCheck(): void {
 
     debugLog("HEALTH", "debug", "Health check tick", {
       timeSinceLastPong: timeSinceLastPong,
-      wsState: getWsState(),
+      wsState: getWsStateValue(),
       wsReadyState: ws ? ws.readyState : null,
     });
 
@@ -204,7 +235,7 @@ function startHealthCheck(): void {
     }
   }, 10000);
 
-  setHealthCheckInterval(interval);
+  setHealthCheckIntervalValue(interval);
 }
 
 /**
@@ -215,7 +246,7 @@ function stopHealthCheck(): void {
   const interval = getHealthCheckInterval();
   if (interval) {
     clearInterval(interval);
-    setHealthCheckInterval(null);
+    setHealthCheckIntervalValue(null);
   }
 }
 
@@ -305,14 +336,14 @@ export function connect(): void {
   // Prevent concurrent connection attempts
   if (getIsConnecting()) {
     debugLog("WS", "info", "Connection already in progress, skipping", {
-      wsState: getWsState(),
+      wsState: getWsStateValue(),
     });
     return;
   }
   setIsConnecting(true);
 
-  setCurrentCorrelationId(generateCorrelationId());
-  setConnectionStartTime(Date.now());
+  currentCorrelationId = generateCorrelationId();
+  setConnectionStartTimeValue(Date.now());
 
   const existingWs = getWs();
   debugLog("WS", "info", "Starting connection", {
@@ -339,7 +370,7 @@ export function connect(): void {
     });
 
     const ws = new WebSocket(wsUrl);
-    setWs(ws);
+    setWsValue(ws);
 
     ws.onopen = () => {
       setIsConnecting(false);
@@ -363,11 +394,11 @@ export function connect(): void {
       if (reconnectTimeout) {
         debugLog("WS", "info", "Clearing stale reconnect timeout");
         clearTimeout(reconnectTimeout);
-        setReconnectTimeout(null);
+        setReconnectTimeoutValue(null);
       }
 
       // Reset reconnection backoff on successful connection
-      setReconnectAttempts(0);
+      setReconnectAttemptsValue(0);
 
       // Start health monitoring
       startHealthCheck();
@@ -391,7 +422,7 @@ export function connect(): void {
             debugLog("HEALTH", "debug", "Pong received", {
               timeSinceLastPong: timeSinceLastPong,
             });
-            setLastPongTime(Date.now());
+            setLastPongTimeValue(Date.now());
           } else if (msg.type === "terminal_data") {
             // Route terminal data to correct terminal
             const data = base64ToBytes(msg.data);
@@ -400,7 +431,7 @@ export function connect(): void {
             }
           } else if (msg.type === "session" && msg.id) {
             console.log("Session ID:", msg.id);
-            setCurrentSessionId(msg.id);
+            currentSessionId = msg.id;
             // Register for push notifications
             registerWebPush();
             // Notify session handler
@@ -493,7 +524,7 @@ export function connect(): void {
         setWsState(WS_STATES.RECONNECTING, "reconnect timeout fired");
         connect();
       }, delay);
-      setReconnectTimeout(timeout);
+      setReconnectTimeoutValue(timeout);
     };
   } catch (error) {
     setIsConnecting(false);
@@ -514,8 +545,49 @@ export function connect(): void {
       clearTimeout(existingTimeout);
     }
     const timeout = setTimeout(connect, delay);
-    setReconnectTimeout(timeout);
+    setReconnectTimeoutValue(timeout);
   }
+}
+
+/**
+ * Get WebSocket URL with authentication parameters
+ */
+function getWebSocketURL(): string {
+  const params = new URLSearchParams({ user: USERNAME });
+
+  // Use wss:// for HTTPS pages or file:// (Android bundled assets), ws:// for HTTP
+  const protocol =
+    window.location.protocol === "https:" ||
+    window.location.protocol === "file:"
+      ? "wss:"
+      : "ws:";
+
+  // Use /ws path for WebSocket connections (proxied by nginx)
+  return `${protocol}//${WS_HOST}/ws?${params.toString()}`;
+}
+
+/**
+ * Connection state transition with logging
+ */
+function setWsState(newState: WsState, reason = ""): void {
+  const prevState = getWsStateValue();
+  const duration = Date.now() - getLastStateChange();
+  setWsStateValue(newState);
+  setLastStateChangeValue(Date.now());
+
+  debugLog("WS", "info", "State transition", {
+    from: prevState,
+    to: newState,
+    reason: reason,
+    durationInPrevState: duration,
+  });
+}
+
+/**
+ * Generate correlation ID for connection attempts
+ */
+function generateCorrelationId(): string {
+  return `conn-${Date.now()}-${incrementConnectionAttemptId()}`;
 }
 
 // ============================================================================
@@ -533,7 +605,7 @@ export function handleVisibilityChange(): void {
   debugLog("VISIBILITY", "info", "Visibility changed", {
     visibilityState: visibilityState,
     hidden: hidden,
-    wsState: getWsState(),
+    wsState: getWsStateValue(),
     wsReadyState: ws ? ws.readyState : null,
     reconnectAttempts: getReconnectAttempts(),
     timeSinceLastPong: Date.now() - getLastPongTime(),
@@ -560,7 +632,7 @@ export function handleVisibilityChange(): void {
         },
       );
       // Reset backoff when user returns for quick reconnection
-      setReconnectAttempts(0);
+      setReconnectAttemptsValue(0);
       connect();
     } else if (ws.readyState === WebSocket.OPEN) {
       debugLog(
@@ -581,7 +653,7 @@ export function handleVisibilityChange(): void {
 export function handleOffline(): void {
   const ws = getWs();
   debugLog("NETWORK", "warn", "Browser went offline", {
-    wsState: getWsState(),
+    wsState: getWsStateValue(),
     wsReadyState: ws ? ws.readyState : null,
   });
 
@@ -594,7 +666,7 @@ export function handleOffline(): void {
   const reconnectTimeout = getReconnectTimeout();
   if (reconnectTimeout) {
     clearTimeout(reconnectTimeout);
-    setReconnectTimeout(null);
+    setReconnectTimeoutValue(null);
   }
 
   // Close the WebSocket
@@ -609,13 +681,13 @@ export function handleOffline(): void {
 export function handleOnline(): void {
   const ws = getWs();
   debugLog("NETWORK", "info", "Browser came online", {
-    wsState: getWsState(),
+    wsState: getWsStateValue(),
     wsReadyState: ws ? ws.readyState : null,
   });
 
   // Network is back - reconnect immediately
   updateStatus("connecting", "Network restored - reconnecting...");
-  setReconnectAttempts(0);
+  setReconnectAttemptsValue(0);
   setIsConnecting(false);
   connect();
 }

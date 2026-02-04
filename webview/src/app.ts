@@ -25,9 +25,10 @@ import {
     activateTerminalView,
     deactivateTerminalViews
 } from './ui/terminal';
+import { handleFileMessage } from './files';
+import { handleGitMessage } from './git';
+import { initToastHandlers } from './ui/toast';
 import {
-    handleFileMessage,
-    initToastHandlers,
     initCodeViewHandlers,
     activateCodeView,
     navigateToFolder,
@@ -35,10 +36,7 @@ import {
     showFileExplorer,
     toggleSelectMode
 } from './ui/code-view';
-import {
-    handleGitMessage,
-    activateGitView,
-} from './ui/git-view';
+import { activateGitView } from './ui/git-view';
 
 // ============================================================================
 // Application Initialization
