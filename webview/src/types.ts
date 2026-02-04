@@ -17,11 +17,8 @@ export interface FileChange {
   isUntracked: boolean;
 }
 
-export interface DiffLine {
-  type: "added" | "removed" | "context";
-  content: string;
-  highlightedContent?: string;
-}
+// Re-exported from utils-pure.ts for backwards compatibility
+export type { DiffLine } from "./utils-pure";
 
 export interface ToastItem {
   message: string;

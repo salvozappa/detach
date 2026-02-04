@@ -7,6 +7,9 @@ import hljs from "highlight.js";
 import { DEBUG, USERNAME, DebugConfig, WsLogEntry, DiffLine } from "./types";
 import { getWsForLogging, getCurrentCorrelationId } from "./connection";
 
+// Re-export pure functions
+export { formatFileSize, base64ToBytes, parseDiff } from "./utils-pure";
+
 // ============================================================================
 // Debug Logging State
 // ============================================================================
@@ -115,27 +118,6 @@ export function escapeHtml(text: string): string {
 }
 
 /**
- * Format file size to human-readable string
- */
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-}
-
-/**
- * Decode base64 to Uint8Array (handles UTF-8 properly)
- */
-export function base64ToBytes(base64: string): Uint8Array {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
-
-/**
  * Convert URL-safe base64 to Uint8Array (for VAPID keys)
  */
 export function urlBase64ToUint8Array(
@@ -154,37 +136,6 @@ export function urlBase64ToUint8Array(
 // ============================================================================
 // Diff Processing
 // ============================================================================
-
-/**
- * Parse git diff output into structured lines
- */
-export function parseDiff(diffText: string): DiffLine[] {
-  const lines = diffText.split("\n");
-  const result: DiffLine[] = [];
-
-  for (const line of lines) {
-    // Skip diff metadata headers
-    if (
-      line.startsWith("diff") ||
-      line.startsWith("index") ||
-      line.startsWith("---") ||
-      line.startsWith("+++") ||
-      line.startsWith("@@")
-    ) {
-      continue;
-    }
-
-    if (line.startsWith("+")) {
-      result.push({ type: "added", content: line });
-    } else if (line.startsWith("-")) {
-      result.push({ type: "removed", content: line });
-    } else {
-      result.push({ type: "context", content: line });
-    }
-  }
-
-  return result;
-}
 
 /**
  * Split highlighted HTML by newlines while preserving span tags
