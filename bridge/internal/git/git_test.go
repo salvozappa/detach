@@ -353,8 +353,10 @@ func TestService_Unstage(t *testing.T) {
 	}
 }
 
-func TestService_Discard(t *testing.T) {
+func TestService_Discard_TrackedFile(t *testing.T) {
 	mock := executor.NewMockExecutor()
+	// File is tracked (ls-files succeeds)
+	mock.AddResponse("cd /project && git ls-files --error-unmatch 'file.txt' 2>/dev/null", "file.txt", nil)
 	mock.AddResponse("cd /project && git checkout -- 'file.txt'", "", nil)
 	reader := newMockFileReader()
 
@@ -365,7 +367,28 @@ func TestService_Discard(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !mock.WasCalled("cd /project && git checkout -- 'file.txt'") {
-		t.Error("expected git checkout command to be called")
+		t.Error("expected git checkout command to be called for tracked file")
+	}
+}
+
+func TestService_Discard_UntrackedFile(t *testing.T) {
+	mock := executor.NewMockExecutor()
+	// File is untracked (ls-files fails)
+	mock.AddResponse("cd /project && git ls-files --error-unmatch 'file.txt' 2>/dev/null", "", errors.New("not tracked"))
+	mock.AddResponse("cd /project && rm 'file.txt'", "", nil)
+	reader := newMockFileReader()
+
+	svc := NewService(mock, reader, "/project")
+	err := svc.Discard("file.txt")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !mock.WasCalled("cd /project && rm 'file.txt'") {
+		t.Error("expected rm command to be called for untracked file")
+	}
+	if mock.WasCalled("cd /project && git checkout -- 'file.txt'") {
+		t.Error("git checkout should not be called for untracked file")
 	}
 }
 

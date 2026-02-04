@@ -214,7 +214,18 @@ func (s *Service) UnstageAll() error {
 
 // Discard discards changes to a file
 func (s *Service) Discard(filename string) error {
-	cmd := fmt.Sprintf("cd %s && git checkout -- '%s'", s.workingDir, filename)
+	// Check if file is tracked by git
+	trackCmd := fmt.Sprintf("cd %s && git ls-files --error-unmatch '%s' 2>/dev/null", s.workingDir, filename)
+	_, trackErr := s.exec.Run(trackCmd)
+
+	var cmd string
+	if trackErr != nil {
+		// Untracked file - delete it
+		cmd = fmt.Sprintf("cd %s && rm '%s'", s.workingDir, filename)
+	} else {
+		// Tracked file - use git checkout
+		cmd = fmt.Sprintf("cd %s && git checkout -- '%s'", s.workingDir, filename)
+	}
 	_, err := s.exec.Run(cmd)
 	return err
 }
