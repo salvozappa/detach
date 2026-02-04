@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -155,5 +156,165 @@ func TestGetEnv_EmptyValueUsesDefault(t *testing.T) {
 
 	if got != "default_value" {
 		t.Errorf("expected 'default_value' for empty env var, got %q", got)
+	}
+}
+
+func TestLoadDetachConfig_Valid(t *testing.T) {
+	content := `{
+		"repo_url": "git@github.com:test/repo.git",
+		"git_name": "Test User",
+		"git_email": "test@example.com",
+		"claude_args": ["--arg1", "--arg2"],
+		"working_dir": "~/projects/test"
+	}`
+
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "detach.json")
+	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := loadDetachConfig(tmpFile)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.RepoURL != "git@github.com:test/repo.git" {
+		t.Errorf("expected repo_url 'git@github.com:test/repo.git', got %q", cfg.RepoURL)
+	}
+	if cfg.GitName != "Test User" {
+		t.Errorf("expected git_name 'Test User', got %q", cfg.GitName)
+	}
+	if cfg.GitEmail != "test@example.com" {
+		t.Errorf("expected git_email 'test@example.com', got %q", cfg.GitEmail)
+	}
+	if len(cfg.ClaudeArgs) != 2 || cfg.ClaudeArgs[0] != "--arg1" || cfg.ClaudeArgs[1] != "--arg2" {
+		t.Errorf("unexpected claude_args: %v", cfg.ClaudeArgs)
+	}
+	if cfg.WorkingDir != "~/projects/test" {
+		t.Errorf("expected working_dir '~/projects/test', got %q", cfg.WorkingDir)
+	}
+}
+
+func TestLoadDetachConfig_MissingFile(t *testing.T) {
+	_, err := loadDetachConfig("/nonexistent/path/detach.json")
+	if err == nil {
+		t.Error("expected error for missing file")
+	}
+}
+
+func TestLoadDetachConfig_InvalidJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "detach.json")
+	if err := os.WriteFile(tmpFile, []byte("invalid json"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := loadDetachConfig(tmpFile)
+	if err == nil {
+		t.Error("expected error for invalid JSON")
+	}
+}
+
+func TestBuildClaudeArgsString(t *testing.T) {
+	cfg := &Config{
+		ClaudeArgs: []string{"--arg1", "--arg2", "--arg3"},
+	}
+
+	got := cfg.BuildClaudeArgsString()
+	expected := "--arg1 --arg2 --arg3"
+
+	if got != expected {
+		t.Errorf("expected %q, got %q", expected, got)
+	}
+}
+
+func TestBuildClaudeArgsString_SingleArg(t *testing.T) {
+	cfg := &Config{
+		ClaudeArgs: []string{"--dangerously-skip-permissions"},
+	}
+
+	got := cfg.BuildClaudeArgsString()
+	expected := "--dangerously-skip-permissions"
+
+	if got != expected {
+		t.Errorf("expected %q, got %q", expected, got)
+	}
+}
+
+func TestBuildClaudeArgsString_Empty(t *testing.T) {
+	cfg := &Config{
+		ClaudeArgs: []string{},
+	}
+
+	got := cfg.BuildClaudeArgsString()
+	expected := ""
+
+	if got != expected {
+		t.Errorf("expected %q, got %q", expected, got)
+	}
+}
+
+func TestLoad_DefaultClaudeArgs(t *testing.T) {
+	// Save and clear relevant env vars
+	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH", "WORKING_DIR", "DETACH_CONFIG_PATH"}
+	saved := make(map[string]string)
+	for _, key := range envVars {
+		saved[key] = os.Getenv(key)
+		os.Unsetenv(key)
+	}
+	defer func() {
+		for key, val := range saved {
+			if val != "" {
+				os.Setenv(key, val)
+			}
+		}
+	}()
+
+	cfg := Load()
+
+	if len(cfg.ClaudeArgs) != 1 || cfg.ClaudeArgs[0] != "--dangerously-skip-permissions" {
+		t.Errorf("expected default ClaudeArgs ['--dangerously-skip-permissions'], got %v", cfg.ClaudeArgs)
+	}
+}
+
+func TestLoad_WithDetachConfig(t *testing.T) {
+	content := `{
+		"repo_url": "git@github.com:test/repo.git",
+		"claude_args": ["--custom-arg"],
+		"working_dir": "~/projects/custom"
+	}`
+
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "detach.json")
+	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Save and set env vars
+	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH", "WORKING_DIR", "DETACH_CONFIG_PATH"}
+	saved := make(map[string]string)
+	for _, key := range envVars {
+		saved[key] = os.Getenv(key)
+		os.Unsetenv(key)
+	}
+	os.Setenv("DETACH_CONFIG_PATH", tmpFile)
+	defer func() {
+		for key, val := range saved {
+			if val != "" {
+				os.Setenv(key, val)
+			} else {
+				os.Unsetenv(key)
+			}
+		}
+	}()
+
+	cfg := Load()
+
+	if cfg.WorkingDir != "~/projects/custom" {
+		t.Errorf("expected WorkingDir '~/projects/custom', got %q", cfg.WorkingDir)
+	}
+	if len(cfg.ClaudeArgs) != 1 || cfg.ClaudeArgs[0] != "--custom-arg" {
+		t.Errorf("expected ClaudeArgs ['--custom-arg'], got %v", cfg.ClaudeArgs)
 	}
 }

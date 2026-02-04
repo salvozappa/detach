@@ -15,6 +15,7 @@ services:
       - ./keys/detach_dev:/home/detach-dev/.ssh/id_ed25519:ro
       - ./keys/detach_dev.pub:/home/detach-dev/.ssh/id_ed25519.pub:ro
       - sandbox-home:/home/detach-dev
+      - ./detach.json:/etc/detach/detach.json:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "pgrep", "sshd"]
@@ -51,6 +52,7 @@ services:
       - SANDBOX_HOST=sandbox
       - SANDBOX_PORT=22
       - SSH_KEY_PATH=/app/keys/bridge
+      - DETACH_CONFIG_PATH=/app/config/detach.json
       - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
       - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@detach.it}
@@ -58,6 +60,7 @@ services:
     volumes:
       - ./keys/bridge:/app/keys/bridge:ro
       - bridge-data:/app/data
+      - ./detach.json:/app/config/detach.json:ro
     depends_on:
       sandbox:
         condition: service_healthy

@@ -41,20 +41,50 @@ fi
 chown detach-dev:detach-dev /home/detach-dev/.ssh/known_hosts 2>/dev/null || true
 chmod 644 /home/detach-dev/.ssh/known_hosts 2>/dev/null || true
 
-# Configure git user (do this every time in case volume doesn't have it)
-sudo -u detach-dev git config --global user.email "salvatorezappala@fastmail.com"
-sudo -u detach-dev git config --global user.name "Salvatore Zappalà"
+# Configuration file path (mounted as read-only volume)
+CONFIG_FILE="/etc/detach/detach.json"
+
+# Read configuration values from detach.json
+if [ -f "$CONFIG_FILE" ]; then
+    REPO_URL=$(jq -r '.repo_url // empty' "$CONFIG_FILE")
+    GIT_NAME=$(jq -r '.git_name // empty' "$CONFIG_FILE")
+    GIT_EMAIL=$(jq -r '.git_email // empty' "$CONFIG_FILE")
+    WORKING_DIR=$(jq -r '.working_dir // empty' "$CONFIG_FILE")
+else
+    echo "WARNING: $CONFIG_FILE not found, using defaults"
+    REPO_URL=""
+    GIT_NAME=""
+    GIT_EMAIL=""
+    WORKING_DIR=""
+fi
+
+# Configure git user (only if specified in config)
+if [ -n "$GIT_EMAIL" ]; then
+    sudo -u detach-dev git config --global user.email "$GIT_EMAIL"
+fi
+if [ -n "$GIT_NAME" ]; then
+    sudo -u detach-dev git config --global user.name "$GIT_NAME"
+fi
+
+# Derive project directory from working_dir or repo URL
+if [ -n "$WORKING_DIR" ]; then
+    # Expand ~ to actual home directory
+    PROJECT_DIR=$(echo "$WORKING_DIR" | sed "s|^~|/home/detach-dev|")
+else
+    # Fallback: derive from repo URL
+    REPO_NAME=$(basename "$REPO_URL" .git)
+    PROJECT_DIR="/home/detach-dev/projects/$REPO_NAME"
+fi
 
 # Clone project repo if it doesn't exist
-PROJECT_DIR="/home/detach-dev/projects/notestash"
-if [ ! -d "$PROJECT_DIR" ]; then
-    echo "Cloning notestash repository..."
-    mkdir -p /home/detach-dev/projects
-    chown detach-dev:detach-dev /home/detach-dev/projects
+if [ -n "$REPO_URL" ] && [ ! -d "$PROJECT_DIR" ]; then
+    echo "Cloning repository $REPO_URL to $PROJECT_DIR..."
+    mkdir -p "$(dirname "$PROJECT_DIR")"
+    chown detach-dev:detach-dev "$(dirname "$PROJECT_DIR")"
 
     # Use GIT_SSH_COMMAND to specify the key with correct permissions
     sudo -u detach-dev GIT_SSH_COMMAND="ssh -i /tmp/id_ed25519_tmp -o StrictHostKeyChecking=accept-new" \
-        git clone git@github.com:salvozappa/notestash.git "$PROJECT_DIR"
+        git clone "$REPO_URL" "$PROJECT_DIR"
 fi
 
 # Ensure Claude Code hooks configuration exists in project

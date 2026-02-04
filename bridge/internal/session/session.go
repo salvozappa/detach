@@ -292,7 +292,8 @@ func Create(cfg *config.Config, user string) (*Session, error) {
 
 	// Start claude in LLM terminal
 	log.Println("Starting claude...")
-	claudeCmd := fmt.Sprintf("bash -l -c 'cd %s && exec claude --dangerously-skip-permissions'", cfg.WorkingDir)
+	claudeArgs := cfg.BuildClaudeArgsString()
+	claudeCmd := fmt.Sprintf("bash -l -c 'cd %s && exec claude %s'", cfg.WorkingDir, claudeArgs)
 	if err := sshSess.Start(claudeCmd); err != nil {
 		Clear()
 		sshSessTerminal.Close()

@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y \
     npm \
     openssh-server \
     sudo \
+    jq \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -61,10 +62,6 @@ USER detach-dev
 WORKDIR /home/detach-dev
 RUN curl -fsSL https://claude.ai/install.sh | bash
 RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/detach-dev/.bashrc
-
-# Configure git user for detach-dev
-RUN git config --global user.email "salvatorezappala@fastmail.com" && \
-    git config --global user.name "Salvatore Zappalà"
 
 # Switch back to root for remaining setup
 USER root

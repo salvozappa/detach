@@ -1,0 +1,7 @@
+{
+  "repo_url": "git@github.com:salvozappa/notestash.git",
+  "git_name": "Salvatore Zappalà",
+  "git_email": "salvatorezappala@fastmail.com",
+  "claude_args": ["--dangerously-skip-permissions"],
+  "working_dir": "~/projects/notestash"
+}
