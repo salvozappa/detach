@@ -60,9 +60,35 @@ Users can connect via browser (PWA) to interact with a remote sandbox environmen
 ## Key Files
 
 ### Frontend
+
+The frontend is written in TypeScript and built via esbuild. Source lives in `webview/src/`.
+
+**Module Structure:**
+```
+webview/src/
+├── app.ts              # Entry point, view orchestration, event wiring
+├── connection.ts       # WebSocket lifecycle, reconnection, health checks
+├── types.ts            # Type definitions, constants, configuration
+├── utils.ts            # Logging infrastructure, utility functions
+├── files.ts            # File operations (request/cache/notify)
+├── git.ts              # Git operations (request/cache/notify)
+└── ui/                 # UI layer (presentation components)
+    ├── terminal.ts     # xterm.js wrapper, keyboard toolbar
+    ├── code-view.ts    # File browser, syntax-highlighted viewer
+    ├── git-view.ts     # Git status UI, diff viewer, staging actions
+    ├── toast.ts        # Toast notifications
+    └── status.ts       # Connection status display
+```
+
+**Architecture Pattern:**
+- **UI layer (`ui/`)**: Presentation components that own DOM state and rendering
+- **Business logic layer (root)**: Connection, file ops, git ops - no direct DOM manipulation
+- **Orchestration (`app.ts`)**: Wires modules together, handles cross-cutting events
+
+**Other Frontend Files:**
 - `webview/index.html` - Main HTML structure
-- `webview/app.js` - WebSocket client, terminal UI, git rendering logic
 - `webview/styles.css` - All styling including git diff display
+- `webview/dist/bundle.js` - Built output (generated)
 
 ### Backend
 - `bridge/server.go` - Main WebSocket server
@@ -75,9 +101,17 @@ Users can connect via browser (PWA) to interact with a remote sandbox environmen
 
 ## Build
 
-The webview container loads the HTML/CSS via mounted volumes, so it doesn't
-require restarting.
-The `bridge` container does requires rebuilding for recompilation.
+### Frontend (webview)
+TypeScript source in `webview/src/` is compiled to `webview/dist/bundle.js` via esbuild:
+```bash
+cd webview && npm run build
+```
+
+The webview container loads files via mounted volumes, so after rebuilding
+the bundle, changes are live (no container restart needed).
+
+### Backend (bridge)
+The `bridge` container requires rebuilding for Go recompilation.
 
 ```bash
 # Rebuild both containers
@@ -131,9 +165,9 @@ docker-compose up -d webview
 ## Common Tasks
 
 ### Modify Git View Rendering
-1. Update `webview/app.js` → `renderFileChange()` function
+1. Update `webview/src/ui/git-view.ts` for rendering logic
 2. Update `webview/styles.css` for styling
-3. No need to rebuild
+3. Run `npm run build` in `webview/` to rebuild
 
 ### Modify Git Backend Logic
 1. Update `bridge/git.go` → `getGitStatus()` or action functions
@@ -168,8 +202,8 @@ You can ask the human in the loop for any webview frontend logs, investigation, 
 
 The codebase has comprehensive debug logging across all layers:
 
-#### Frontend Debug Logging (app.js)
-Categories controlled by `DEBUG` object at top of file:
+#### Frontend Debug Logging (utils.ts)
+Categories controlled by `DEBUG` object in `webview/src/utils.ts`:
 - **WS**: WebSocket connection events, state transitions, close codes
 - **HEALTH**: Health check ticks, pong receipts, stale detection
 - **VISIBILITY**: Page visibility changes
