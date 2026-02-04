@@ -167,3 +167,19 @@ export function handleFileMessage(msg: FileMessage): void {
         }
     }
 }
+
+// ============================================================================
+// Test Helpers
+// ============================================================================
+
+/**
+ * Reset module state for testing
+ */
+export function __test_reset(): void {
+    currentPath = PROJECT_ROOT;
+    currentFilePath = '';
+    initialized = false;
+    onFileList = null;
+    onFileContent = null;
+    onDiffContent = null;
+}

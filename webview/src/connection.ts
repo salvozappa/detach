@@ -170,6 +170,35 @@ export function registerTerminalSizeCallback(
   terminalSizeCallback = callback;
 }
 
+/**
+ * Calculate reconnection delay with exponential backoff and jitter
+ * Pure function that can be tested directly
+ */
+export function calculateReconnectDelay(
+  attempts: number,
+  baseDelay: number = RECONNECT_BASE_DELAY,
+  maxDelay: number = RECONNECT_MAX_DELAY,
+  jitter: number = Math.random() * 1000,
+): number {
+  const delay = Math.min(baseDelay * Math.pow(2, attempts), maxDelay);
+  return delay + jitter;
+}
+
+/**
+ * Build WebSocket URL from protocol, host, and username
+ * Pure function that can be tested directly
+ */
+export function buildWebSocketURL(
+  protocol: string,
+  host: string,
+  username: string,
+): string {
+  const params = new URLSearchParams({ user: username });
+  const wsProtocol =
+    protocol === "https:" || protocol === "file:" ? "wss:" : "ws:";
+  return `${wsProtocol}//${host}/ws?${params.toString()}`;
+}
+
 // ============================================================================
 // Health Check
 // ============================================================================
@@ -178,12 +207,7 @@ export function registerTerminalSizeCallback(
  * Calculate reconnection delay with exponential backoff and jitter
  */
 function getReconnectDelay(): number {
-  const delay = Math.min(
-    RECONNECT_BASE_DELAY * Math.pow(2, getReconnectAttempts()),
-    RECONNECT_MAX_DELAY,
-  );
-  // Add jitter to prevent thundering herd
-  return delay + Math.random() * 1000;
+  return calculateReconnectDelay(getReconnectAttempts());
 }
 
 /**
@@ -539,17 +563,7 @@ export function connect(): void {
  * Get WebSocket URL with authentication parameters
  */
 function getWebSocketURL(): string {
-  const params = new URLSearchParams({ user: USERNAME });
-
-  // Use wss:// for HTTPS pages or file:// (Android bundled assets), ws:// for HTTP
-  const protocol =
-    window.location.protocol === "https:" ||
-    window.location.protocol === "file:"
-      ? "wss:"
-      : "ws:";
-
-  // Use /ws path for WebSocket connections (proxied by nginx)
-  return `${protocol}//${WS_HOST}/ws?${params.toString()}`;
+  return buildWebSocketURL(window.location.protocol, WS_HOST, USERNAME);
 }
 
 /**
@@ -711,4 +725,30 @@ export function sendMessage(message: Record<string, unknown>): boolean {
 export function isConnected(): boolean {
   const ws = getWs();
   return ws !== null && ws.readyState === WebSocket.OPEN;
+}
+
+// ============================================================================
+// Test Helpers
+// ============================================================================
+
+/**
+ * Reset module state for testing
+ */
+export function __test_reset(): void {
+  ws = null;
+  wsState = WS_STATES.DISCONNECTED;
+  currentSessionId = null;
+  reconnectAttempts = 0;
+  reconnectTimeout = null;
+  isConnectingFlag = false;
+  lastStateChange = Date.now();
+  connectionStartTime = null;
+  lastPongTime = Date.now();
+  healthCheckInterval = null;
+  connectionAttemptId = 0;
+  currentCorrelationId = null;
+  messageHandlers.clear();
+  terminalDataHandler = null;
+  sessionHandler = null;
+  terminalSizeCallback = null;
 }

@@ -214,3 +214,19 @@ export function handleGitMessage(msg: GitMessage): void {
         document.dispatchEvent(new CustomEvent('gitError'));
     }
 }
+
+// ============================================================================
+// Test Helpers
+// ============================================================================
+
+/**
+ * Reset module state for testing
+ */
+export function __test_reset(): void {
+    unstagedChanges = [];
+    stagedChanges = [];
+    discardConfirmState = {};
+    onStateChange = null;
+    showToast = null;
+    refreshFileList = null;
+}
