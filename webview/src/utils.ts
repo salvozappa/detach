@@ -7,9 +7,6 @@ import hljs from "highlight.js";
 import { DEBUG, USERNAME, DebugConfig, WsLogEntry, DiffLine } from "./types";
 import { getWsForLogging, getCurrentCorrelationId } from "./connection";
 
-// Re-export pure functions
-export { formatFileSize, base64ToBytes, parseDiff } from "./utils-pure";
-
 // ============================================================================
 // Debug Logging State
 // ============================================================================
@@ -109,23 +106,33 @@ export function flushDebugLogQueue(): void {
 // ============================================================================
 
 /**
- * Escape HTML special characters
+ * Format file size to human-readable string
  */
-export function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+/**
+ * Decode base64 to Uint8Array (handles UTF-8 properly)
+ */
+export function base64ToBytes(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
 }
 
 /**
  * Convert URL-safe base64 to Uint8Array (for VAPID keys)
  */
-export function urlBase64ToUint8Array(
-  base64String: string,
-): Uint8Array<ArrayBuffer> {
+export function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
+  const rawData = atob(base64);
   const outputArray = new Uint8Array(rawData.length);
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
@@ -133,16 +140,56 @@ export function urlBase64ToUint8Array(
   return outputArray;
 }
 
+/**
+ * Escape HTML special characters
+ */
+export function escapeHtml(text: string, doc = document): string {
+  const div = doc.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 // ============================================================================
 // Diff Processing
 // ============================================================================
 
 /**
+ * Parse git diff output into structured lines
+ */
+export function parseDiff(diffText: string): DiffLine[] {
+  const lines = diffText.split("\n");
+  const result: DiffLine[] = [];
+
+  for (const line of lines) {
+    // Skip diff metadata headers
+    if (
+      line.startsWith("diff") ||
+      line.startsWith("index") ||
+      line.startsWith("---") ||
+      line.startsWith("+++") ||
+      line.startsWith("@@")
+    ) {
+      continue;
+    }
+
+    if (line.startsWith("+")) {
+      result.push({ type: "added", content: line });
+    } else if (line.startsWith("-")) {
+      result.push({ type: "removed", content: line });
+    } else {
+      result.push({ type: "context", content: line });
+    }
+  }
+
+  return result;
+}
+
+/**
  * Split highlighted HTML by newlines while preserving span tags
  */
-export function splitHighlightedHTML(html: string): string[] {
+export function splitHighlightedHTML(html: string, doc = document): string[] {
   const lines: string[] = [];
-  const tempDiv = document.createElement("div");
+  const tempDiv = doc.createElement("div");
   tempDiv.innerHTML = html;
 
   let currentLine = "";
@@ -167,7 +214,7 @@ export function splitHighlightedHTML(html: string): string[] {
             currentLine += `<span class="${className}">`;
           }
         }
-        currentLine += escapeHtml(parts[i]);
+        currentLine += escapeHtml(parts[i], doc);
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const element = node as HTMLElement;
@@ -245,6 +292,7 @@ const LANGUAGE_MAP: Record<string, string> = {
 export function highlightDiffLines(
   diffLines: DiffLine[],
   filePath: string,
+  doc = document,
 ): DiffLine[] {
   // Detect language from file extension
   const ext = filePath.split(".").pop()?.toLowerCase() || "";
@@ -261,9 +309,9 @@ export function highlightDiffLines(
   });
 
   // Apply syntax highlighting to entire code block
-  const tempDiv = document.createElement("div");
-  const pre = document.createElement("pre");
-  const code = document.createElement("code");
+  const tempDiv = doc.createElement("div");
+  const pre = doc.createElement("pre");
+  const code = doc.createElement("code");
 
   if (language) {
     code.className = `language-${language}`;
@@ -278,7 +326,7 @@ export function highlightDiffLines(
 
   // Extract highlighted HTML and split back into lines
   const highlightedHTML = code.innerHTML;
-  const highlightedLines = splitHighlightedHTML(highlightedHTML);
+  const highlightedLines = splitHighlightedHTML(highlightedHTML, doc);
 
   // Match highlighted lines back to diff lines
   return diffLines.map((line, index) => ({

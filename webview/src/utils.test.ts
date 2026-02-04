@@ -1,11 +1,45 @@
 /**
- * Unit tests for pure utility functions.
+ * Unit tests for utility functions.
  * Uses Node.js native test runner.
  */
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatFileSize, parseDiff, base64ToBytes } from "./utils-pure.js";
+import {
+  formatFileSize,
+  parseDiff,
+  base64ToBytes,
+  urlBase64ToUint8Array,
+  escapeHtml,
+} from "./utils.js";
+
+// Mock document for testing DOM-dependent functions
+const mockDoc = {
+  createElement: (tag: string) => {
+    let textContent = "";
+    let innerHTML = "";
+    return {
+      get textContent() {
+        return textContent;
+      },
+      set textContent(v: string) {
+        textContent = v;
+        // Simple HTML escaping for mock
+        innerHTML = v
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      },
+      get innerHTML() {
+        return innerHTML;
+      },
+      set innerHTML(v: string) {
+        innerHTML = v;
+      },
+    };
+  },
+} as unknown as Document;
 
 describe("formatFileSize", () => {
   it("formats 0 bytes", () => {
@@ -80,7 +114,6 @@ index abc123..def456 100644
 
 describe("base64ToBytes", () => {
   it("decodes basic ASCII", () => {
-    // "hello" in base64
     const result = base64ToBytes("aGVsbG8=");
     assert.equal(result.length, 5);
     assert.equal(String.fromCharCode(...result), "hello");
@@ -94,5 +127,42 @@ describe("base64ToBytes", () => {
   it("returns Uint8Array", () => {
     const result = base64ToBytes("dGVzdA==");
     assert.ok(result instanceof Uint8Array);
+  });
+});
+
+describe("urlBase64ToUint8Array", () => {
+  it("converts URL-safe base64", () => {
+    // Standard base64: "test" = "dGVzdA=="
+    // URL-safe would replace + with - and / with _
+    const result = urlBase64ToUint8Array("dGVzdA");
+    assert.equal(String.fromCharCode(...result), "test");
+  });
+
+  it("handles padding", () => {
+    // "a" in base64 is "YQ==" - without padding it's "YQ"
+    const result = urlBase64ToUint8Array("YQ");
+    assert.equal(String.fromCharCode(...result), "a");
+  });
+});
+
+describe("escapeHtml", () => {
+  it("escapes angle brackets", () => {
+    const result = escapeHtml("<script>", mockDoc);
+    assert.equal(result, "&lt;script&gt;");
+  });
+
+  it("escapes ampersands", () => {
+    const result = escapeHtml("a & b", mockDoc);
+    assert.equal(result, "a &amp; b");
+  });
+
+  it("escapes quotes", () => {
+    const result = escapeHtml('"quoted"', mockDoc);
+    assert.equal(result, "&quot;quoted&quot;");
+  });
+
+  it("passes through plain text", () => {
+    const result = escapeHtml("hello world", mockDoc);
+    assert.equal(result, "hello world");
   });
 });

@@ -17,8 +17,11 @@ export interface FileChange {
   isUntracked: boolean;
 }
 
-// Re-exported from utils-pure.ts for backwards compatibility
-export type { DiffLine } from "./utils-pure";
+export interface DiffLine {
+  type: "added" | "removed" | "context";
+  content: string;
+  highlightedContent?: string;
+}
 
 export interface ToastItem {
   message: string;
@@ -123,7 +126,10 @@ export const CLOSE_CODE_MEANINGS: Record<number, string> = {
 
 export const APP_VERSION = "2026-01-28-v9";
 
-export const WS_HOST = window.location.host || "nightly01.tail5fb253.ts.net";
+export const WS_HOST =
+  typeof window !== "undefined"
+    ? window.location.host || "nightly01.tail5fb253.ts.net"
+    : "nightly01.tail5fb253.ts.net";
 export const WS_PORT = "8081";
 
 export const USERNAME = "detach-dev";
