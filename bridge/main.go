@@ -12,10 +12,10 @@ import (
 	"detach.it/bridge/internal/executor"
 	"detach.it/bridge/internal/files"
 	"detach.it/bridge/internal/git"
+	"detach.it/bridge/internal/wshandler"
 	"detach.it/bridge/internal/notify"
 	"detach.it/bridge/internal/session"
 	"detach.it/bridge/internal/types"
-	"detach.it/bridge/internal/wshandler"
 )
 
 var upgrader = websocket.Upgrader{

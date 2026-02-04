@@ -21,7 +21,6 @@ A web-based interface that connects to a remote sandbox where AI agents (like Cl
 
 - Docker & Docker Compose
 - SSH key pair in `keys/bridge` and `keys/bridge.pub`
-- `make` (for development setup)
 
 ## Quick Start
 
@@ -48,16 +47,6 @@ open http://localhost:8080
 - `2222` - Sandbox SSH (for debugging)
 
 ## Development
-
-### Setup
-
-After cloning, run the following to install git hooks (pre-commit linting and tests):
-
-```bash
-make setup
-```
-
-### Rebuild and Debug
 
 ```bash
 # Rebuild after changes

@@ -55,15 +55,15 @@ type SessionInfo interface {
 
 // Deps contains all handler dependencies
 type Deps struct {
-	SessionID  string
-	Done       <-chan struct{}
-	Git        GitService
-	Files      FileService
-	Notify     NotifyService
-	Responder  Responder
-	Resizer    TerminalResizer
-	LLMStdin   io.Writer
-	ShellStdin io.Writer
+	SessionID     string
+	Done          <-chan struct{}
+	Git           GitService
+	Files         FileService
+	Notify        NotifyService
+	Responder     Responder
+	Resizer       TerminalResizer
+	LLMStdin      io.Writer
+	ShellStdin    io.Writer
 }
 
 // handleSocketError logs WebSocket errors with appropriate detail level
