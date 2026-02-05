@@ -17,11 +17,13 @@ type DetachConfig struct {
 
 // Config holds all configuration values
 type Config struct {
-	SandboxHost string
-	SandboxPort string
-	SSHKeyPath  string
-	WorkingDir  string
-	ClaudeArgs  []string
+	SandboxHost   string
+	SandboxPort   string
+	SSHKeyPath    string
+	WorkingDir    string
+	ClaudeArgs    []string
+	TokenFilePath string
+	WebviewHost   string
 }
 
 // Default path for detach.json (can be overridden via env)
@@ -30,11 +32,13 @@ const defaultDetachConfigPath = "/app/config/detach.json"
 // Load reads configuration from environment variables and detach.json
 func Load() *Config {
 	cfg := &Config{
-		SandboxHost: getEnv("SANDBOX_HOST", "77.42.17.162"),
-		SandboxPort: getEnv("SANDBOX_PORT", "22"),
-		SSHKeyPath:  getEnv("SSH_KEY_PATH", "../keys/bridge"),
-		WorkingDir:  getEnv("WORKING_DIR", "~/projects/notestash"),
-		ClaudeArgs:  []string{"--dangerously-skip-permissions"},
+		SandboxHost:   getEnv("SANDBOX_HOST", "77.42.17.162"),
+		SandboxPort:   getEnv("SANDBOX_PORT", "22"),
+		SSHKeyPath:    getEnv("SSH_KEY_PATH", "../keys/bridge"),
+		WorkingDir:    getEnv("WORKING_DIR", "~/projects/notestash"),
+		ClaudeArgs:    []string{"--dangerously-skip-permissions"},
+		TokenFilePath: getEnv("DETACH_TOKEN_FILE", "/app/data/token"),
+		WebviewHost:   getEnv("WEBVIEW_HOST", "localhost:8080"),
 	}
 
 	// Load detach.json if it exists

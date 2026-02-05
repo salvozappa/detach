@@ -8,14 +8,15 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"detach.it/bridge/internal/auth"
 	"detach.it/bridge/internal/config"
 	"detach.it/bridge/internal/executor"
 	"detach.it/bridge/internal/files"
 	"detach.it/bridge/internal/git"
-	"detach.it/bridge/internal/wshandler"
 	"detach.it/bridge/internal/notify"
 	"detach.it/bridge/internal/session"
 	"detach.it/bridge/internal/types"
+	"detach.it/bridge/internal/wshandler"
 )
 
 var upgrader = websocket.Upgrader{
@@ -28,10 +29,17 @@ var upgrader = websocket.Upgrader{
 
 var cfg *config.Config
 var notifyService *notify.Service
+var authToken *auth.Token
 
 func main() {
 	// Load configuration
 	cfg = config.Load()
+
+	// Load or generate authentication token
+	authToken = auth.LoadOrGenerateToken(cfg.TokenFilePath)
+
+	// Display pairing information
+	auth.PrintPairingInfo(cfg.WebviewHost, authToken.Value)
 
 	// Initialize notification service
 	notifyService = notify.NewService()
@@ -55,13 +63,21 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[WS] New connection attempt from %s, User-Agent: %s", remoteAddr, userAgent)
 
+	// Validate authentication token before upgrading connection
+	token := r.URL.Query().Get("token")
+	if !auth.ValidateToken(token, authToken.Value) {
+		log.Printf("[WS] Unauthorized connection attempt from %s (invalid or missing token)", remoteAddr)
+		http.Error(w, "Unauthorized: invalid or missing token", http.StatusUnauthorized)
+		return
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("[WS] Failed to upgrade connection from %s: %v", remoteAddr, err)
 		return
 	}
 
-	log.Printf("[WS] Connection upgraded successfully from %s", remoteAddr)
+	log.Printf("[WS] Connection upgraded successfully from %s (authenticated)", remoteAddr)
 
 	user := r.URL.Query().Get("user")
 	if user == "" {

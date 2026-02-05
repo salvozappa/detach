@@ -12,6 +12,7 @@ import {
   USERNAME,
   RECONNECT_BASE_DELAY,
   RECONNECT_MAX_DELAY,
+  TOKEN_STORAGE_KEY,
 } from "./types";
 import {
   debugLog,
@@ -194,6 +195,13 @@ export function buildWebSocketURL(
   username: string,
 ): string {
   const params = new URLSearchParams({ user: username });
+
+  // Include authentication token if available
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (token) {
+    params.append("token", token);
+  }
+
   const wsProtocol =
     protocol === "https:" || protocol === "file:" ? "wss:" : "ws:";
   return `${wsProtocol}//${host}/ws?${params.toString()}`;
@@ -511,6 +519,18 @@ export function connect(): void {
 
       stopHealthCheck();
       setWsState(WS_STATES.DISCONNECTED, `Close code: ${event.code}`);
+
+      // Handle authentication failure (4001 Unauthorized)
+      if (event.code === 4001) {
+        debugLog("WS", "error", "Authentication failed - token invalid or missing");
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        updateStatus(
+          "disconnected",
+          "Not paired. Scan QR code from server logs to pair this device.",
+        );
+        // Don't auto-reconnect for auth failures - user needs to re-pair
+        return;
+      }
 
       const delay = getReconnectDelay();
       incrementReconnectAttempts();

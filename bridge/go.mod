@@ -10,5 +10,8 @@ require (
 
 require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
+	github.com/mdp/qrterminal/v3 v3.2.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
+	golang.org/x/term v0.39.0 // indirect
+	rsc.io/qr v0.2.0 // indirect
 )

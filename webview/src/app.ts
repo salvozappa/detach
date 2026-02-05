@@ -3,7 +3,7 @@
  * Initializes all modules and manages view switching.
  */
 
-import { APP_VERSION} from './types';
+import { APP_VERSION, TOKEN_STORAGE_KEY } from './types';
 import {
     connect,
     registerMessageHandler,
@@ -43,6 +43,16 @@ import { activateGitView } from './ui/git-view';
 // ============================================================================
 
 console.log('[APP] Version:', APP_VERSION);
+
+// Extract and store authentication token from URL (pairing flow)
+const urlParams = new URLSearchParams(window.location.search);
+const tokenFromUrl = urlParams.get('token');
+if (tokenFromUrl) {
+    localStorage.setItem(TOKEN_STORAGE_KEY, tokenFromUrl);
+    // Remove token from URL (clean up address bar, prevent token leakage via history/referrer)
+    window.history.replaceState({}, '', window.location.pathname);
+    console.log('[APP] Stored authentication token from URL');
+}
 
 // Initialize terminals
 initLLMTerminal();

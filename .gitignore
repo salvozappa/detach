@@ -4,6 +4,15 @@
 # Environment variables (contains secrets like VAPID private key)
 .env
 
+# Generated SSH keys (created by install.sh)
+keys/bridge
+keys/bridge.pub
+keys/deploy_key
+keys/deploy_key.pub
+
+# Generated config (created by install.sh)
+detach.json
+
 # Android assets (copied from webview/ at build time)
 android/app/src/main/assets/
 

@@ -118,6 +118,7 @@ export const CLOSE_CODE_MEANINGS: Record<number, string> = {
   1010: "Mandatory extension",
   1011: "Internal server error",
   1015: "TLS handshake failure",
+  4001: "Unauthorized (invalid or missing token)",
 };
 
 // ============================================================================
@@ -125,6 +126,8 @@ export const CLOSE_CODE_MEANINGS: Record<number, string> = {
 // ============================================================================
 
 export const APP_VERSION = "2026-01-28-v9";
+
+export const TOKEN_STORAGE_KEY = "detach_token";
 
 export const WS_HOST =
   typeof window !== "undefined"
