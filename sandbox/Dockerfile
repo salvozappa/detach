@@ -61,7 +61,9 @@ COPY claude-settings.json /tmp/claude-settings-template.json
 USER detach-dev
 WORKDIR /home/detach-dev
 RUN curl -fsSL https://claude.ai/install.sh | bash
-RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/detach-dev/.bashrc
+# Add to both .bashrc (interactive shells) and .profile (login shells)
+RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/detach-dev/.bashrc && \
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/detach-dev/.profile
 
 # Switch back to root for remaining setup
 USER root
