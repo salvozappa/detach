@@ -12,6 +12,7 @@ keys/deploy_key.pub
 
 # Generated config (created by install.sh)
 detach.json
+Caddyfile
 
 # Android assets (copied from webview/ at build time)
 android/app/src/main/assets/

@@ -1,0 +1,11 @@
+${DETACH_DOMAIN} {
+    # Serve static webview files
+    root * /srv
+    file_server
+
+    # WebSocket proxy to bridge
+    reverse_proxy /ws bridge:8081
+
+    # SPA routing - serve index.html for unmatched paths
+    try_files {path} /index.html
+}

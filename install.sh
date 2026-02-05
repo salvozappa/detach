@@ -249,8 +249,48 @@ main() {
     fi
     echo ""
 
-    # 4. Generate SSH keys
-    echo "Step 4: SSH Key Generation"
+    # 4. HTTPS configuration
+    echo "Step 4: HTTPS Configuration"
+    echo "---------------------------"
+    warn "HTTPS is required for PWA features (offline mode, install to home screen)"
+    warn "HTTP mode works but is less secure and PWA features will be disabled"
+    echo ""
+
+    local use_https=false
+    local domain="localhost"
+    local compose_file="docker-compose.yml"
+
+    if prompt_yn "Set up HTTPS with automatic certificates?" "y"; then
+        domain=$(prompt "Enter your domain name (e.g., detach.example.com)" "")
+
+        if [ -z "$domain" ]; then
+            error "Domain name is required for HTTPS"
+            exit 1
+        fi
+
+        # Basic domain format validation
+        if [[ ! "$domain" =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$ ]]; then
+            error "Invalid domain format: $domain"
+            exit 1
+        fi
+
+        use_https=true
+        compose_file="docker-compose.https.yml"
+        info "HTTPS will be enabled for $domain"
+        warn "Ensure DNS is configured: $domain → this server's IP"
+
+        # Generate Caddyfile from template
+        info "Generating Caddyfile..."
+        sed "s/\${DETACH_DOMAIN}/$domain/g" "$SCRIPT_DIR/Caddyfile.template" > "$SCRIPT_DIR/Caddyfile"
+        success "Generated Caddyfile"
+    else
+        warn "Continuing without HTTPS. PWA features will NOT work."
+        warn "WebSocket connections will use unencrypted ws:// protocol."
+    fi
+    echo ""
+
+    # 5. Generate SSH keys
+    echo "Step 5: SSH Key Generation"
     echo "--------------------------"
     mkdir -p "$KEYS_DIR"
 
@@ -258,8 +298,8 @@ main() {
     generate_ssh_key "$KEYS_DIR/deploy_key" "detach-deploy-key"
     echo ""
 
-    # 5. Display deploy key and wait for user
-    echo "Step 5: Deploy Key Setup"
+    # 6. Display deploy key and wait for user
+    echo "Step 6: Deploy Key Setup"
     echo "------------------------"
     echo ""
     echo "Add this deploy key to your repository:"
@@ -297,7 +337,7 @@ main() {
     echo ""
 
     # 7. Generate auth token
-    echo "Step 6: Authentication Setup"
+    echo "Step 7: Authentication Setup"
     echo "----------------------------"
     local auth_token
     auth_token=$(generate_token)
@@ -321,23 +361,25 @@ EOF
     info "Creating .env..."
     cat > "$SCRIPT_DIR/.env" <<EOF
 DETACH_TOKEN=$auth_token
-WEBVIEW_HOST=localhost:8080
+DETACH_DOMAIN=$domain
+WEBVIEW_HOST=$domain
 EOF
     success "Created .env"
     echo ""
 
     # 10. Build and start containers
-    echo "Step 7: Starting Services"
+    echo "Step 8: Starting Services"
     echo "-------------------------"
     info "Building containers (this may take a few minutes)..."
+    info "Using compose file: $compose_file"
 
     cd "$SCRIPT_DIR"
     if docker compose version >/dev/null 2>&1; then
-        docker compose build
-        docker compose up -d
+        docker compose -f "$compose_file" build
+        docker compose -f "$compose_file" up -d
     else
-        docker-compose build
-        docker-compose up -d
+        docker-compose -f "$compose_file" build
+        docker-compose -f "$compose_file" up -d
     fi
 
     success "Services started"
@@ -350,13 +392,22 @@ EOF
     echo ""
     echo "Pair your device by opening this URL:"
     echo ""
-    local pairing_url="http://localhost:8080?token=$auth_token"
+    local pairing_url
+    if [ "$use_https" = true ]; then
+        pairing_url="https://$domain?token=$auth_token"
+    else
+        pairing_url="http://localhost:8080?token=$auth_token"
+    fi
     echo -e "${GREEN}$pairing_url${NC}"
     show_qr "$pairing_url"
     echo ""
     echo "Or view the QR code in bridge logs:"
     echo "  docker logs detach-bridge"
     echo ""
+    if [ "$use_https" = true ]; then
+        info "HTTPS is enabled. Caddy will automatically obtain certificates."
+        info "First request may take a few seconds while certificates are issued."
+    fi
     echo "Your repository ($repo_name) will be cloned on first connection."
     echo ""
 }
