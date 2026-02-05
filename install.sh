@@ -215,8 +215,25 @@ main() {
     echo "------------------------------------------"
     local git_name
     local git_email
-    git_name=$(prompt "Git user name (for commits, leave empty to skip)" "")
-    git_email=$(prompt "Git email (for commits, leave empty to skip)" "")
+
+    # Check if git config is already set globally
+    git_name=$(git config --global user.name 2>/dev/null || echo "")
+    git_email=$(git config --global user.email 2>/dev/null || echo "")
+
+    if [ -n "$git_name" ] && [ -n "$git_email" ]; then
+        success "Using existing git config: $git_name <$git_email>"
+    else
+        if [ -z "$git_name" ]; then
+            git_name=$(prompt "Git user name (for commits, leave empty to skip)" "")
+        else
+            success "Using existing git name: $git_name"
+        fi
+        if [ -z "$git_email" ]; then
+            git_email=$(prompt "Git email (for commits, leave empty to skip)" "")
+        else
+            success "Using existing git email: $git_email"
+        fi
+    fi
     echo ""
 
     # 3. Claude permissions
