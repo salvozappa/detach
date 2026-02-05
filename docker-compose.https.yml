@@ -53,7 +53,9 @@ services:
     restart: unless-stopped
 
   caddy:
-    image: caddy:2-alpine
+    build:
+      context: .
+      dockerfile: caddy/Dockerfile
     container_name: detach-caddy
     restart: unless-stopped
     ports:
@@ -61,12 +63,6 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./webview/index.html:/srv/index.html:ro
-      - ./webview/dist:/srv/dist:ro
-      - ./webview/styles.css:/srv/styles.css:ro
-      - ./webview/manifest.json:/srv/manifest.json:ro
-      - ./webview/service-worker.js:/srv/service-worker.js:ro
-      - ./webview/icons:/srv/icons:ro
       - caddy-data:/data
       - caddy-config:/config
     networks:
