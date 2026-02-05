@@ -181,12 +181,15 @@ func Clear() {
 func Create(cfg *config.Config, user string) (*Session, error) {
 	key, err := os.ReadFile(cfg.SSHKeyPath)
 	if err != nil {
-		return nil, err
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("SSH key not found at %s - run 'make setup' to generate keys", cfg.SSHKeyPath)
+		}
+		return nil, fmt.Errorf("failed to read SSH key at %s: %w", cfg.SSHKeyPath, err)
 	}
 
 	signer, err := ssh.ParsePrivateKey(key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse SSH key at %s: %w", cfg.SSHKeyPath, err)
 	}
 
 	sshConfig := &ssh.ClientConfig{
