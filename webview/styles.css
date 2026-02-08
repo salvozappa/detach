@@ -82,6 +82,21 @@ body {
     touch-action: pan-y;
 }
 
+/* Terminal link styling */
+.xterm a {
+    color: #61afef;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.xterm a:hover {
+    color: #7ec8ff;
+}
+
+.xterm a:active {
+    color: #4a90d9;
+}
+
 /* Views */
 .view {
     display: none;

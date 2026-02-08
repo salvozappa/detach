@@ -6,6 +6,7 @@
 
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { WebLinksAddon } from '@xterm/addon-web-links';
 import { debugLog } from '../utils';
 import { sendMessage, isConnected } from '../connection';
 
@@ -15,8 +16,10 @@ import { sendMessage, isConnected } from '../connection';
 
 let term: Terminal | null = null;
 let fitAddon: FitAddon | null = null;
+let webLinksAddon: WebLinksAddon | null = null;
 let termShell: Terminal | null = null;
 let fitAddonShell: FitAddon | null = null;
+let webLinksAddonShell: WebLinksAddon | null = null;
 let shellTerminalInitialized = false;
 let activeTerminal: 'llm' | 'terminal' = 'llm';
 
@@ -56,6 +59,22 @@ function getActiveTerminal(): 'llm' | 'terminal' {
 }
 function setActiveTerminal(t: 'llm' | 'terminal'): void {
     activeTerminal = t;
+}
+
+// ============================================================================
+// Link Handler
+// ============================================================================
+
+/**
+ * Handle link clicks/taps in terminal
+ * Opens URLs in a new browser tab
+ */
+function handleLinkActivation(event: MouseEvent, uri: string): void {
+    event.preventDefault();
+    debugLog('TERMINAL', 'info', 'Link activated', { uri });
+
+    // Open in new tab with security headers
+    window.open(uri, '_blank', 'noopener,noreferrer');
 }
 
 // ============================================================================
@@ -105,7 +124,10 @@ const TERMINAL_OPTIONS = {
 export function initLLMTerminal(): void {
     const term = new Terminal(TERMINAL_OPTIONS);
     const fitAddon = new FitAddon();
+    const webLinksAddon = new WebLinksAddon(handleLinkActivation);
+
     term.loadAddon(fitAddon);
+    term.loadAddon(webLinksAddon);
 
     setTerm(term);
     setFitAddon(fitAddon);
@@ -161,7 +183,10 @@ export function initShellTerminal(): void {
 
     const termShell = new Terminal(TERMINAL_OPTIONS);
     const fitAddonShell = new FitAddon();
+    const webLinksAddonShell = new WebLinksAddon(handleLinkActivation);
+
     termShell.loadAddon(fitAddonShell);
+    termShell.loadAddon(webLinksAddonShell);
 
     setTermShell(termShell);
     setFitAddonShell(fitAddonShell);
