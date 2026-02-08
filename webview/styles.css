@@ -1025,6 +1025,11 @@ span.d2h-code-line-ctn.hljs {
     background: rgba(244, 67, 54, 0.15);
 }
 
+.toast.info {
+    border-left: 4px solid #61afef; /* Blue accent (matches terminal link color) */
+    background: rgba(97, 175, 239, 0.15);
+}
+
 @keyframes toast-slide-up {
     from {
         transform: translateY(100px);

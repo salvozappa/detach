@@ -4,7 +4,7 @@
  * Owns all terminal-related state.
  */
 
-import { Terminal } from '@xterm/xterm';
+import { Terminal, ILinkProvider, ILink } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { debugLog } from '../utils';
@@ -78,6 +78,187 @@ function handleLinkActivation(event: MouseEvent, uri: string): void {
 }
 
 // ============================================================================
+// Multi-line Link Provider
+// ============================================================================
+
+/**
+ * Custom link provider that handles URLs spanning multiple lines.
+ * Looks backwards and forwards from the current line to reconstruct wrapped URLs.
+ */
+class MultiLineLinkProvider implements ILinkProvider {
+    private readonly _terminal: Terminal;
+    // Match http(s):// and common URL characters, excluding brackets and quotes
+    private readonly _urlRegex = /https?:\/\/[^\s<>"{}\[\]\\^`|]+/gi;
+
+    constructor(terminal: Terminal) {
+        this._terminal = terminal;
+    }
+
+    public provideLinks(y: number, callback: (links: ILink[] | undefined) => void): void {
+        const links: ILink[] = [];
+
+        try {
+            // Get the buffer line for this y coordinate (1-indexed)
+            const line = this._terminal.buffer.active.getLine(y - 1);
+            if (!line) {
+                callback(undefined);
+                return;
+            }
+
+            // Extract text from this line and any wrapped continuations
+            const { text, startY, lineCount } = this._getWrappedLineText(y - 1);
+
+            // Find all URLs in the merged text
+            this._urlRegex.lastIndex = 0;
+            let match: RegExpExecArray | null;
+
+            while ((match = this._urlRegex.exec(text)) !== null) {
+                const url = match[0];
+                const matchStart = match.index;
+                const matchEnd = matchStart + url.length;
+
+                // Calculate which terminal lines this URL spans
+                const linkStart = this._calculatePosition(matchStart, startY, lineCount);
+                const linkEnd = this._calculatePosition(matchEnd - 1, startY, lineCount);
+
+                if (linkStart && linkEnd) {
+                    links.push({
+                        text: url,
+                        range: {
+                            start: { x: linkStart.x + 1, y: linkStart.y + 1 }, // Convert to 1-indexed
+                            end: { x: linkEnd.x + 1, y: linkEnd.y + 1 }
+                        },
+                        activate: (event: MouseEvent, text: string) => {
+                            debugLog('TERMINAL', 'info', 'Multi-line link activated', { urlLength: text.length });
+                            handleLinkActivation(event, text);
+                        }
+                    });
+                }
+            }
+
+            callback(links.length > 0 ? links : undefined);
+        } catch (error) {
+            debugLog('TERMINAL', 'error', 'Error in MultiLineLinkProvider', { error });
+            callback(undefined);
+        }
+    }
+
+    /**
+     * Extract text from a line and any wrapped continuations
+     * Note: In xterm.js, isWrapped is only set for hard wraps (terminal forced).
+     * Soft wraps (natural text wrapping) don't set this flag.
+     * So we also check if lines look like URL continuations.
+     */
+    private _getWrappedLineText(startY: number): { text: string; startY: number; lineCount: number } {
+        const buffer = this._terminal.buffer.active;
+        let currentY = startY;
+        const lines: string[] = [];
+
+        // Look backwards to find the true start of wrapped content
+        while (currentY > 0) {
+            const prevLine = buffer.getLine(currentY - 1);
+            if (!prevLine) break;
+
+            const prevText = prevLine.translateToString(true).trimEnd();
+
+            // Stop if previous line is marked as wrapped OR looks like a URL start
+            if (prevLine.isWrapped) {
+                currentY--;
+                continue;
+            }
+
+            // Check if current line starts with URL-like continuation
+            const currentLine = buffer.getLine(currentY);
+            if (currentLine) {
+                const currentText = currentLine.translateToString(true).trimEnd();
+                // If current line looks like it could be a URL continuation (starts with URL chars)
+                if (/^[a-zA-Z0-9_\-=&%+:.\/]/.test(currentText) && /https?:\/\//.test(prevText)) {
+                    currentY--;
+                    continue;
+                }
+            }
+
+            break;
+        }
+
+        const actualStartY = currentY;
+
+        // Collect all wrapped lines forward
+        let line = buffer.getLine(currentY);
+        let mergedTextSoFar = '';
+
+        while (line) {
+            const lineText = line.translateToString(true).trimEnd();
+            lines.push(lineText);
+            mergedTextSoFar += lineText;
+
+            // Check if next line is a continuation
+            const nextLine = buffer.getLine(currentY + 1);
+            if (!nextLine) break;
+
+            const nextText = nextLine.translateToString(true).trimEnd();
+
+            // Continue if:
+            // 1. Next line is marked as wrapped, OR
+            // 2. Merged text so far contains a URL AND next line looks like URL continuation
+            const hasUrl = /https?:\/\//.test(mergedTextSoFar);
+            const looksLikeUrlContinuation = /^[a-zA-Z0-9_\-=&%+:.\/]/.test(nextText);
+
+            if (nextLine.isWrapped || (hasUrl && looksLikeUrlContinuation)) {
+                currentY++;
+                line = nextLine;
+                continue;
+            }
+
+            break;
+        }
+
+        return {
+            text: lines.join(''),
+            startY: actualStartY,
+            lineCount: lines.length
+        };
+    }
+
+    /**
+     * Calculate terminal position (x, y) from character index in merged text
+     */
+    private _calculatePosition(index: number, startY: number, lineCount: number): { x: number; y: number } | null {
+        const buffer = this._terminal.buffer.active;
+        let charCount = 0;
+
+        for (let i = 0; i < lineCount; i++) {
+            const line = buffer.getLine(startY + i);
+            if (!line) return null;
+
+            const lineText = line.translateToString(true).replace(/\s+$/, '');
+            const lineLength = lineText.length;
+
+            if (charCount + lineLength > index) {
+                // Position is in this line
+                return {
+                    x: index - charCount,
+                    y: startY + i
+                };
+            }
+
+            charCount += lineLength;
+        }
+
+        // Position is at the end of the last line
+        const lastLine = buffer.getLine(startY + lineCount - 1);
+        if (lastLine) {
+            return {
+                x: lastLine.translateToString(true).replace(/\s+$/, '').length,
+                y: startY + lineCount - 1
+            };
+        }
+
+        return null;
+    }
+}
+
+// ============================================================================
 // Terminal Theme Configuration
 // ============================================================================
 
@@ -137,6 +318,9 @@ export function initLLMTerminal(): void {
         term.open(terminalEl);
         fitAddon.fit();
 
+        // Register custom multi-line link provider for better wrapped URL detection
+        term.registerLinkProvider(new MultiLineLinkProvider(term));
+
         // Setup touch scroll for LLM terminal
         setupTouchScroll(term, terminalEl);
     }
@@ -195,6 +379,9 @@ export function initShellTerminal(): void {
     if (terminalShellEl) {
         termShell.open(terminalShellEl);
         fitAddonShell.fit();
+
+        // Register custom multi-line link provider for better wrapped URL detection
+        termShell.registerLinkProvider(new MultiLineLinkProvider(termShell));
 
         // Setup touch scroll for shell terminal
         setupTouchScroll(termShell, terminalShellEl);
@@ -573,6 +760,9 @@ export function initFocusTracking(): void {
  * Handle incoming terminal data from WebSocket
  */
 export function handleTerminalData(terminal: string, data: Uint8Array): void {
+    // Detect OAuth URLs before writing to terminal
+    detectAndOpenOAuthUrl(data);
+
     if (terminal === 'terminal') {
         const termShell = getTermShell();
         if (termShell) {
@@ -585,6 +775,90 @@ export function handleTerminalData(terminal: string, data: Uint8Array): void {
         if (term) {
             term.write(data);
         }
+    }
+}
+
+// ============================================================================
+// OAuth URL Detection
+// ============================================================================
+
+// State for OAuth URL detection
+const oauthUrlBuffer: string[] = []; // Rolling buffer of recent lines
+const MAX_BUFFER_LINES = 10;
+const openedOAuthUrls = new Map<string, number>(); // url -> timestamp
+// Match OAuth URL but stop at angle brackets (< >) which appear in prompts
+const OAUTH_URL_REGEX = /https:\/\/claude\.ai\/oauth\/authorize\?[^<>\s]+/gi;
+const OAUTH_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Strip ANSI escape sequences from terminal output
+ */
+function stripAnsi(data: Uint8Array): string {
+    const decoder = new TextDecoder();
+    const text = decoder.decode(data);
+    // Remove ANSI escape sequences: ESC [ ... m (SGR), ESC [ ... H (cursor), etc.
+    return text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+}
+
+/**
+ * Check if OAuth URL was recently opened
+ */
+function isRecentlyOpened(url: string): boolean {
+    const timestamp = openedOAuthUrls.get(url);
+    if (!timestamp) return false;
+
+    const age = Date.now() - timestamp;
+    if (age > OAUTH_EXPIRY_MS) {
+        openedOAuthUrls.delete(url);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Detect and handle OAuth URLs in terminal output
+ */
+function detectAndOpenOAuthUrl(data: Uint8Array): void {
+    // Strip ANSI codes and extract text
+    const text = stripAnsi(data);
+
+    // Add to rolling buffer (keep last 10 lines worth of text)
+    oauthUrlBuffer.push(text);
+    if (oauthUrlBuffer.length > MAX_BUFFER_LINES) {
+        oauthUrlBuffer.shift();
+    }
+
+    // Merge buffer: replace line breaks with spaces (preserves word boundaries)
+    const mergedText = oauthUrlBuffer.join('').replace(/[\r\n]+/g, ' ');
+
+    // Search for OAuth URLs
+    OAUTH_URL_REGEX.lastIndex = 0; // Reset regex state
+    const matches = mergedText.matchAll(OAUTH_URL_REGEX);
+
+    for (const match of matches) {
+        const url = match[0];
+
+        // Check if we've already opened this URL recently
+        if (isRecentlyOpened(url)) {
+            debugLog('TERMINAL', 'info', 'OAuth URL already opened recently');
+            continue;
+        }
+
+        // Mark as opened
+        openedOAuthUrls.set(url, Date.now());
+
+        debugLog('TERMINAL', 'info', 'OAuth URL detected, opening browser', { urlLength: url.length });
+
+        // Import showToast dynamically to avoid circular dependency
+        import('./toast').then(({ showToast }) => {
+            showToast('Opening browser for authentication...', 'info', 2000);
+        });
+
+        // Open browser immediately
+        window.open(url, '_blank', 'noopener,noreferrer');
+
+        // Only process first detected URL per scan
+        break;
     }
 }
 
