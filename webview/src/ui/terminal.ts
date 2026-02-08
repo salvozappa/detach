@@ -760,9 +760,6 @@ export function initFocusTracking(): void {
  * Handle incoming terminal data from WebSocket
  */
 export function handleTerminalData(terminal: string, data: Uint8Array): void {
-    // Detect OAuth URLs before writing to terminal
-    detectAndOpenOAuthUrl(data);
-
     if (terminal === 'terminal') {
         const termShell = getTermShell();
         if (termShell) {
@@ -775,90 +772,6 @@ export function handleTerminalData(terminal: string, data: Uint8Array): void {
         if (term) {
             term.write(data);
         }
-    }
-}
-
-// ============================================================================
-// OAuth URL Detection
-// ============================================================================
-
-// State for OAuth URL detection
-const oauthUrlBuffer: string[] = []; // Rolling buffer of recent lines
-const MAX_BUFFER_LINES = 10;
-const openedOAuthUrls = new Map<string, number>(); // url -> timestamp
-// Match OAuth URL but stop at angle brackets (< >) which appear in prompts
-const OAUTH_URL_REGEX = /https:\/\/claude\.ai\/oauth\/authorize\?[^<>\s]+/gi;
-const OAUTH_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
-
-/**
- * Strip ANSI escape sequences from terminal output
- */
-function stripAnsi(data: Uint8Array): string {
-    const decoder = new TextDecoder();
-    const text = decoder.decode(data);
-    // Remove ANSI escape sequences: ESC [ ... m (SGR), ESC [ ... H (cursor), etc.
-    return text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
-}
-
-/**
- * Check if OAuth URL was recently opened
- */
-function isRecentlyOpened(url: string): boolean {
-    const timestamp = openedOAuthUrls.get(url);
-    if (!timestamp) return false;
-
-    const age = Date.now() - timestamp;
-    if (age > OAUTH_EXPIRY_MS) {
-        openedOAuthUrls.delete(url);
-        return false;
-    }
-    return true;
-}
-
-/**
- * Detect and handle OAuth URLs in terminal output
- */
-function detectAndOpenOAuthUrl(data: Uint8Array): void {
-    // Strip ANSI codes and extract text
-    const text = stripAnsi(data);
-
-    // Add to rolling buffer (keep last 10 lines worth of text)
-    oauthUrlBuffer.push(text);
-    if (oauthUrlBuffer.length > MAX_BUFFER_LINES) {
-        oauthUrlBuffer.shift();
-    }
-
-    // Merge buffer: replace line breaks with spaces (preserves word boundaries)
-    const mergedText = oauthUrlBuffer.join('').replace(/[\r\n]+/g, ' ');
-
-    // Search for OAuth URLs
-    OAUTH_URL_REGEX.lastIndex = 0; // Reset regex state
-    const matches = mergedText.matchAll(OAUTH_URL_REGEX);
-
-    for (const match of matches) {
-        const url = match[0];
-
-        // Check if we've already opened this URL recently
-        if (isRecentlyOpened(url)) {
-            debugLog('TERMINAL', 'info', 'OAuth URL already opened recently');
-            continue;
-        }
-
-        // Mark as opened
-        openedOAuthUrls.set(url, Date.now());
-
-        debugLog('TERMINAL', 'info', 'OAuth URL detected, opening browser', { urlLength: url.length });
-
-        // Import showToast dynamically to avoid circular dependency
-        import('./toast').then(({ showToast }) => {
-            showToast('Opening browser for authentication...', 'info', 2000);
-        });
-
-        // Open browser immediately
-        window.open(url, '_blank', 'noopener,noreferrer');
-
-        // Only process first detected URL per scan
-        break;
     }
 }
 
