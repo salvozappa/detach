@@ -2,7 +2,7 @@
 
 ## Overview
 
-Detach.it uses token-based authentication for pairing mobile devices with a self-hosted instance. This approach is simple, secure for single-user scenarios, and avoids the complexity of account systems or OAuth.
+Detach uses token-based authentication for pairing mobile devices with a self-hosted instance. This approach is simple, secure for single-user scenarios, and avoids the complexity of account systems or OAuth.
 
 **Design goals:**
 - Zero-config for users (token auto-generated)

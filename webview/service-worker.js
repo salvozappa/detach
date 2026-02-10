@@ -82,7 +82,7 @@ self.addEventListener('push', (event) => {
     return;
   }
 
-  const title = data.title || 'Detach.it';
+  const title = data.title || 'Detach';
   const options = {
     body: data.body || '',
     icon: '/icons/icon-192.png',

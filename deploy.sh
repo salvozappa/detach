@@ -39,7 +39,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "==================================="
-echo "Detach.it Remote Deployment"
+echo "Detach Remote Deployment"
 echo "Target: $REMOTE_USER@$REMOTE_HOST"
 if [ "$DEPLOYMENT_MODE" = "rsync" ]; then
     echo "Mode: RSYNC (local files)"

@@ -33,7 +33,7 @@ The installation script sets up a detach.it instance for a specific git reposito
 ```
 $ ./install.sh git@github.com:user/my-project.git
 
-Detach.it Installation
+Detach Installation
 ======================
 
 Repository: git@github.com:user/my-project.git

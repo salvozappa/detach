@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "======================================"
-echo "  Detach.it - Access Information"
+echo "  Detach - Access Information"
 echo "======================================"
 echo ""
 

@@ -1,4 +1,4 @@
-# Detach.it - Context Reference
+# Detach - Context Reference
 
 ## Project Vision
 This is a mobile-first "asyncronous coding" app with 4 panels: LLM (terminal with CLI LLM assistant running), Code (file browser (read only)), Terminal (standard bash shell), Git (version control UI to commit / pull / push).
@@ -30,7 +30,7 @@ Users can connect via browser (PWA) to interact with a remote sandbox environmen
 
 ## Authentication
 
-Detach.it uses token-based authentication for secure device pairing. Tokens are auto-generated on first startup and validated on WebSocket connections.
+Detach uses token-based authentication for secure device pairing. Tokens are auto-generated on first startup and validated on WebSocket connections.
 
 See [docs/authentication.md](docs/authentication.md) for complete authentication specification including token generation, storage, WebSocket handshake, and security considerations.
 

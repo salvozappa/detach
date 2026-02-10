@@ -1,4 +1,4 @@
-# Detach.it - Concept
+# Detach - Concept
 
 ### Core Concept
 
