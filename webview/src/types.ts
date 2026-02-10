@@ -137,7 +137,7 @@ export const WS_PORT = "8081";
 
 export const USERNAME = "detach-dev";
 
-export const PROJECT_ROOT = "~/projects/notestash";
+export const PROJECT_ROOT = "~/project";
 
 export const RECONNECT_BASE_DELAY = 1000; // Start at 1 second
 export const RECONNECT_MAX_DELAY = 30000; // Max 30 seconds

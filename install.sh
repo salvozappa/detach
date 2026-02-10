@@ -207,7 +207,6 @@ main() {
 
     local repo_name
     repo_name=$(extract_repo_name "$repo_url")
-    local working_dir="~/projects/$repo_name"
     echo ""
 
     # 2. Get git user configuration (optional)
@@ -351,8 +350,7 @@ main() {
   "repo_url": "$repo_url",
   "git_name": "$git_name",
   "git_email": "$git_email",
-  "claude_args": $claude_args,
-  "working_dir": "$working_dir"
+  "claude_args": $claude_args
 }
 EOF
     success "Created detach.json"

@@ -8,7 +8,7 @@ import (
 
 func TestLoad_Defaults(t *testing.T) {
 	// Save and clear relevant env vars
-	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH", "WORKING_DIR"}
+	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH"}
 	saved := make(map[string]string)
 	for _, key := range envVars {
 		saved[key] = os.Getenv(key)
@@ -33,14 +33,14 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.SSHKeyPath != "../keys/bridge" {
 		t.Errorf("expected default SSHKeyPath '../keys/bridge', got %q", cfg.SSHKeyPath)
 	}
-	if cfg.WorkingDir != "~/projects/notestash" {
-		t.Errorf("expected default WorkingDir '~/projects/notestash', got %q", cfg.WorkingDir)
+	if cfg.WorkingDir != "~/project" {
+		t.Errorf("expected hardcoded WorkingDir '~/project', got %q", cfg.WorkingDir)
 	}
 }
 
 func TestLoad_OverrideFromEnv(t *testing.T) {
 	// Save current values
-	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH", "WORKING_DIR"}
+	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH"}
 	saved := make(map[string]string)
 	for _, key := range envVars {
 		saved[key] = os.Getenv(key)
@@ -59,7 +59,6 @@ func TestLoad_OverrideFromEnv(t *testing.T) {
 	os.Setenv("SANDBOX_HOST", "custom.host")
 	os.Setenv("SANDBOX_PORT", "2222")
 	os.Setenv("SSH_KEY_PATH", "/custom/key/path")
-	os.Setenv("WORKING_DIR", "/custom/working/dir")
 
 	cfg := Load()
 
@@ -72,14 +71,14 @@ func TestLoad_OverrideFromEnv(t *testing.T) {
 	if cfg.SSHKeyPath != "/custom/key/path" {
 		t.Errorf("expected SSHKeyPath '/custom/key/path', got %q", cfg.SSHKeyPath)
 	}
-	if cfg.WorkingDir != "/custom/working/dir" {
-		t.Errorf("expected WorkingDir '/custom/working/dir', got %q", cfg.WorkingDir)
+	if cfg.WorkingDir != "~/project" {
+		t.Errorf("expected hardcoded WorkingDir '~/project', got %q", cfg.WorkingDir)
 	}
 }
 
 func TestLoad_PartialOverride(t *testing.T) {
 	// Save current values
-	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH", "WORKING_DIR"}
+	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH"}
 	saved := make(map[string]string)
 	for _, key := range envVars {
 		saved[key] = os.Getenv(key)
@@ -98,7 +97,6 @@ func TestLoad_PartialOverride(t *testing.T) {
 	os.Setenv("SANDBOX_HOST", "partial.host")
 	os.Unsetenv("SANDBOX_PORT")
 	os.Unsetenv("SSH_KEY_PATH")
-	os.Unsetenv("WORKING_DIR")
 
 	cfg := Load()
 
@@ -164,8 +162,7 @@ func TestLoadDetachConfig_Valid(t *testing.T) {
 		"repo_url": "git@github.com:test/repo.git",
 		"git_name": "Test User",
 		"git_email": "test@example.com",
-		"claude_args": ["--arg1", "--arg2"],
-		"working_dir": "~/projects/test"
+		"claude_args": ["--arg1", "--arg2"]
 	}`
 
 	tmpDir := t.TempDir()
@@ -190,9 +187,6 @@ func TestLoadDetachConfig_Valid(t *testing.T) {
 	}
 	if len(cfg.ClaudeArgs) != 2 || cfg.ClaudeArgs[0] != "--arg1" || cfg.ClaudeArgs[1] != "--arg2" {
 		t.Errorf("unexpected claude_args: %v", cfg.ClaudeArgs)
-	}
-	if cfg.WorkingDir != "~/projects/test" {
-		t.Errorf("expected working_dir '~/projects/test', got %q", cfg.WorkingDir)
 	}
 }
 
@@ -257,7 +251,7 @@ func TestBuildClaudeArgsString_Empty(t *testing.T) {
 
 func TestLoad_DefaultClaudeArgs(t *testing.T) {
 	// Save and clear relevant env vars
-	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH", "WORKING_DIR", "DETACH_CONFIG_PATH"}
+	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH", "DETACH_CONFIG_PATH"}
 	saved := make(map[string]string)
 	for _, key := range envVars {
 		saved[key] = os.Getenv(key)
@@ -281,8 +275,7 @@ func TestLoad_DefaultClaudeArgs(t *testing.T) {
 func TestLoad_WithDetachConfig(t *testing.T) {
 	content := `{
 		"repo_url": "git@github.com:test/repo.git",
-		"claude_args": ["--custom-arg"],
-		"working_dir": "~/projects/custom"
+		"claude_args": ["--custom-arg"]
 	}`
 
 	tmpDir := t.TempDir()
@@ -292,7 +285,7 @@ func TestLoad_WithDetachConfig(t *testing.T) {
 	}
 
 	// Save and set env vars
-	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH", "WORKING_DIR", "DETACH_CONFIG_PATH"}
+	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH", "DETACH_CONFIG_PATH"}
 	saved := make(map[string]string)
 	for _, key := range envVars {
 		saved[key] = os.Getenv(key)
@@ -311,8 +304,8 @@ func TestLoad_WithDetachConfig(t *testing.T) {
 
 	cfg := Load()
 
-	if cfg.WorkingDir != "~/projects/custom" {
-		t.Errorf("expected WorkingDir '~/projects/custom', got %q", cfg.WorkingDir)
+	if cfg.WorkingDir != "~/project" {
+		t.Errorf("expected hardcoded WorkingDir '~/project', got %q", cfg.WorkingDir)
 	}
 	if len(cfg.ClaudeArgs) != 1 || cfg.ClaudeArgs[0] != "--custom-arg" {
 		t.Errorf("expected ClaudeArgs ['--custom-arg'], got %v", cfg.ClaudeArgs)

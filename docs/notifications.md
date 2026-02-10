@@ -87,7 +87,7 @@ bridge:
 
 Claude Code hooks are configured in the **project directory** (not globally), so they travel with your code.
 
-The hooks configuration is automatically provisioned at `~/projects/notestash/.claude/settings.json`:
+The hooks configuration is automatically provisioned at `~/project/.claude/settings.json`:
 
 ```json
 {
@@ -262,7 +262,7 @@ WV:WS: Registering Web Push subscription via WebSocket
    - Ensure HTTPS is being used (required for service workers)
 
 5. **Hook not triggering:**
-   - Verify `~/projects/notestash/.claude/settings.json` exists in the sandbox
+   - Verify `~/project/.claude/settings.json` exists in the sandbox
    - Check that `/home/detach-dev/scripts/notify-hook.sh` is executable
    - Test the hook script manually:
      ```bash

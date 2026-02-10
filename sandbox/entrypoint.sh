@@ -49,13 +49,11 @@ if [ -f "$CONFIG_FILE" ]; then
     REPO_URL=$(jq -r '.repo_url // empty' "$CONFIG_FILE")
     GIT_NAME=$(jq -r '.git_name // empty' "$CONFIG_FILE")
     GIT_EMAIL=$(jq -r '.git_email // empty' "$CONFIG_FILE")
-    WORKING_DIR=$(jq -r '.working_dir // empty' "$CONFIG_FILE")
 else
     echo "WARNING: $CONFIG_FILE not found, using defaults"
     REPO_URL=""
     GIT_NAME=""
     GIT_EMAIL=""
-    WORKING_DIR=""
 fi
 
 # Configure git user (only if specified in config)
@@ -66,15 +64,8 @@ if [ -n "$GIT_NAME" ]; then
     sudo -u detach-dev git config --global user.name "$GIT_NAME"
 fi
 
-# Derive project directory from working_dir or repo URL
-if [ -n "$WORKING_DIR" ]; then
-    # Expand ~ to actual home directory
-    PROJECT_DIR=$(echo "$WORKING_DIR" | sed "s|^~|/home/detach-dev|")
-else
-    # Fallback: derive from repo URL
-    REPO_NAME=$(basename "$REPO_URL" .git)
-    PROJECT_DIR="/home/detach-dev/projects/$REPO_NAME"
-fi
+# Hardcoded project directory (single-repo app)
+PROJECT_DIR="/home/detach-dev/project"
 
 # Clone project repo if it doesn't exist
 if [ -n "$REPO_URL" ] && [ ! -d "$PROJECT_DIR" ]; then

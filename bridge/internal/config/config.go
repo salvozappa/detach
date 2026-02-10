@@ -12,7 +12,6 @@ type DetachConfig struct {
 	GitName    string   `json:"git_name,omitempty"`
 	GitEmail   string   `json:"git_email,omitempty"`
 	ClaudeArgs []string `json:"claude_args"`
-	WorkingDir string   `json:"working_dir"`
 }
 
 // Config holds all configuration values
@@ -36,7 +35,7 @@ func Load() *Config {
 		SandboxHost:        getEnv("SANDBOX_HOST", "77.42.17.162"),
 		SandboxPort:        getEnv("SANDBOX_PORT", "22"),
 		SSHKeyPath:         getEnv("SSH_KEY_PATH", "../keys/bridge"),
-		WorkingDir:         getEnv("WORKING_DIR", "~/projects/notestash"),
+		WorkingDir:         "~/project", // Hardcoded: single-repo app
 		ClaudeArgs:         []string{"--dangerously-skip-permissions"},
 		TokenFilePath:      getEnv("DETACH_TOKEN_FILE", "/app/data/token"),
 		WebviewHost:        getEnv("WEBVIEW_HOST", "localhost:8080"),
@@ -46,9 +45,6 @@ func Load() *Config {
 	// Load detach.json if it exists
 	configPath := getEnv("DETACH_CONFIG_PATH", defaultDetachConfigPath)
 	if detachCfg, err := loadDetachConfig(configPath); err == nil {
-		if detachCfg.WorkingDir != "" {
-			cfg.WorkingDir = detachCfg.WorkingDir
-		}
 		if len(detachCfg.ClaudeArgs) > 0 {
 			cfg.ClaudeArgs = detachCfg.ClaudeArgs
 		}
