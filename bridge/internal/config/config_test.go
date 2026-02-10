@@ -318,3 +318,119 @@ func TestLoad_WithDetachConfig(t *testing.T) {
 		t.Errorf("expected ClaudeArgs ['--custom-arg'], got %v", cfg.ClaudeArgs)
 	}
 }
+
+func TestLoad_SkipAuthentication_Default(t *testing.T) {
+	// Save and clear env vars
+	saved := os.Getenv("SKIP_AUTHENTICATION")
+	os.Unsetenv("SKIP_AUTHENTICATION")
+	defer func() {
+		if saved != "" {
+			os.Setenv("SKIP_AUTHENTICATION", saved)
+		}
+	}()
+
+	cfg := Load()
+
+	if cfg.SkipAuthentication {
+		t.Error("expected SkipAuthentication to be false by default")
+	}
+}
+
+func TestLoad_SkipAuthentication_Enabled(t *testing.T) {
+	// Save and set env var
+	saved := os.Getenv("SKIP_AUTHENTICATION")
+	os.Setenv("SKIP_AUTHENTICATION", "1")
+	defer func() {
+		if saved != "" {
+			os.Setenv("SKIP_AUTHENTICATION", saved)
+		} else {
+			os.Unsetenv("SKIP_AUTHENTICATION")
+		}
+	}()
+
+	cfg := Load()
+
+	if !cfg.SkipAuthentication {
+		t.Error("expected SkipAuthentication to be true when SKIP_AUTHENTICATION is set")
+	}
+}
+
+func TestLoad_SkipAuthentication_TruthyValues(t *testing.T) {
+	// Test that truthy values enable skip authentication
+	testCases := []string{"1", "true", "True", "TRUE", "yes", "Yes", "YES"}
+
+	for _, value := range testCases {
+		t.Run(value, func(t *testing.T) {
+			saved := os.Getenv("SKIP_AUTHENTICATION")
+			os.Setenv("SKIP_AUTHENTICATION", value)
+			defer func() {
+				if saved != "" {
+					os.Setenv("SKIP_AUTHENTICATION", saved)
+				} else {
+					os.Unsetenv("SKIP_AUTHENTICATION")
+				}
+			}()
+
+			cfg := Load()
+
+			if !cfg.SkipAuthentication {
+				t.Errorf("expected SkipAuthentication to be true when SKIP_AUTHENTICATION=%q", value)
+			}
+		})
+	}
+}
+
+func TestLoad_SkipAuthentication_FalsyValues(t *testing.T) {
+	// Test that falsy values do NOT enable skip authentication
+	testCases := []string{"0", "false", "False", "FALSE", "no", "No", "NO", "invalid", "anything", ""}
+
+	for _, value := range testCases {
+		t.Run(value, func(t *testing.T) {
+			saved := os.Getenv("SKIP_AUTHENTICATION")
+			if value == "" {
+				os.Unsetenv("SKIP_AUTHENTICATION")
+			} else {
+				os.Setenv("SKIP_AUTHENTICATION", value)
+			}
+			defer func() {
+				if saved != "" {
+					os.Setenv("SKIP_AUTHENTICATION", saved)
+				} else {
+					os.Unsetenv("SKIP_AUTHENTICATION")
+				}
+			}()
+
+			cfg := Load()
+
+			if cfg.SkipAuthentication {
+				t.Errorf("expected SkipAuthentication to be false when SKIP_AUTHENTICATION=%q", value)
+			}
+		})
+	}
+}
+
+func TestParseBool_TruthyValues(t *testing.T) {
+	testCases := []string{"1", "true", "True", "TRUE", "yes", "Yes", "YES", " 1 ", " true ", " YES "}
+
+	for _, value := range testCases {
+		t.Run(value, func(t *testing.T) {
+			result := parseBool(value)
+			if !result {
+				t.Errorf("expected parseBool(%q) to return true", value)
+			}
+		})
+	}
+}
+
+func TestParseBool_FalsyValues(t *testing.T) {
+	testCases := []string{"0", "false", "False", "FALSE", "no", "No", "NO", "", "invalid", "2", "anything"}
+
+	for _, value := range testCases {
+		t.Run(value, func(t *testing.T) {
+			result := parseBool(value)
+			if result {
+				t.Errorf("expected parseBool(%q) to return false", value)
+			}
+		})
+	}
+}

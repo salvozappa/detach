@@ -131,6 +131,23 @@ environment:
 
 If set, this takes precedence over the token file.
 
+### Skip authentication (development only)
+
+For local development, authentication can be disabled entirely:
+
+```yaml
+# docker-compose.yml
+environment:
+  SKIP_AUTHENTICATION: "1"
+```
+
+When enabled, the bridge will:
+- Skip token validation on WebSocket connections
+- Not generate or load authentication tokens
+- Display a warning that authentication is disabled
+
+⚠️ **WARNING:** This is insecure and should **only** be used for local development. Never use this in production or internet-exposed instances.
+
 ---
 
 ## Frontend Implementation

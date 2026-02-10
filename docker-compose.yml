@@ -42,6 +42,7 @@ services:
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
       - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@detach.it}
       - WEB_PUSH_SUBSCRIPTIONS_FILE=/app/data/web-push-subscriptions.json
+      - SKIP_AUTHENTICATION=${SKIP_AUTHENTICATION:-}
     volumes:
       - ./keys/bridge:/app/keys/bridge:ro
       - bridge-data:/app/data

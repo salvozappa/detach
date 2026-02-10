@@ -35,11 +35,16 @@ func main() {
 	// Load configuration
 	cfg = config.Load()
 
-	// Load or generate authentication token
-	authToken = auth.LoadOrGenerateToken(cfg.TokenFilePath)
-
-	// Display pairing information
-	auth.PrintPairingInfo(cfg.WebviewHost, authToken.Value)
+	// Load or generate authentication token (unless skipped)
+	if cfg.SkipAuthentication {
+		log.Println("[AUTH] Authentication is DISABLED (SKIP_AUTHENTICATION is set)")
+		log.Println("[AUTH] ⚠️  WARNING: This is insecure and should only be used for local development!")
+		authToken = &auth.Token{Value: "", FilePath: ""}
+	} else {
+		authToken = auth.LoadOrGenerateToken(cfg.TokenFilePath)
+		// Display pairing information
+		auth.PrintPairingInfo(cfg.WebviewHost, authToken.Value)
+	}
 
 	// Initialize notification service
 	notifyService = notify.NewService()
@@ -63,12 +68,17 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[WS] New connection attempt from %s, User-Agent: %s", remoteAddr, userAgent)
 
-	// Validate authentication token before upgrading connection
-	token := r.URL.Query().Get("token")
-	if !auth.ValidateToken(token, authToken.Value) {
-		log.Printf("[WS] Unauthorized connection attempt from %s (invalid or missing token)", remoteAddr)
-		http.Error(w, "Unauthorized: invalid or missing token", http.StatusUnauthorized)
-		return
+	// Validate authentication token before upgrading connection (unless skipped)
+	if !cfg.SkipAuthentication {
+		token := r.URL.Query().Get("token")
+		if !auth.ValidateToken(token, authToken.Value) {
+			log.Printf("[WS] Unauthorized connection attempt from %s (invalid or missing token)", remoteAddr)
+			http.Error(w, "Unauthorized: invalid or missing token", http.StatusUnauthorized)
+			return
+		}
+		log.Printf("[WS] Connection authenticated from %s", remoteAddr)
+	} else {
+		log.Printf("[WS] Authentication skipped (SKIP_AUTHENTICATION is set)")
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)

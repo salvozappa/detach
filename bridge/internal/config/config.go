@@ -17,13 +17,14 @@ type DetachConfig struct {
 
 // Config holds all configuration values
 type Config struct {
-	SandboxHost   string
-	SandboxPort   string
-	SSHKeyPath    string
-	WorkingDir    string
-	ClaudeArgs    []string
-	TokenFilePath string
-	WebviewHost   string
+	SandboxHost        string
+	SandboxPort        string
+	SSHKeyPath         string
+	WorkingDir         string
+	ClaudeArgs         []string
+	TokenFilePath      string
+	WebviewHost        string
+	SkipAuthentication bool
 }
 
 // Default path for detach.json (can be overridden via env)
@@ -32,13 +33,14 @@ const defaultDetachConfigPath = "/app/config/detach.json"
 // Load reads configuration from environment variables and detach.json
 func Load() *Config {
 	cfg := &Config{
-		SandboxHost:   getEnv("SANDBOX_HOST", "77.42.17.162"),
-		SandboxPort:   getEnv("SANDBOX_PORT", "22"),
-		SSHKeyPath:    getEnv("SSH_KEY_PATH", "../keys/bridge"),
-		WorkingDir:    getEnv("WORKING_DIR", "~/projects/notestash"),
-		ClaudeArgs:    []string{"--dangerously-skip-permissions"},
-		TokenFilePath: getEnv("DETACH_TOKEN_FILE", "/app/data/token"),
-		WebviewHost:   getEnv("WEBVIEW_HOST", "localhost:8080"),
+		SandboxHost:        getEnv("SANDBOX_HOST", "77.42.17.162"),
+		SandboxPort:        getEnv("SANDBOX_PORT", "22"),
+		SSHKeyPath:         getEnv("SSH_KEY_PATH", "../keys/bridge"),
+		WorkingDir:         getEnv("WORKING_DIR", "~/projects/notestash"),
+		ClaudeArgs:         []string{"--dangerously-skip-permissions"},
+		TokenFilePath:      getEnv("DETACH_TOKEN_FILE", "/app/data/token"),
+		WebviewHost:        getEnv("WEBVIEW_HOST", "localhost:8080"),
+		SkipAuthentication: parseBool(getEnv("SKIP_AUTHENTICATION", "")),
 	}
 
 	// Load detach.json if it exists
@@ -86,4 +88,16 @@ func getEnv(key, defaultValue string) string {
 		return defaultValue
 	}
 	return value
+}
+
+// parseBool converts a string to boolean
+// Returns true for: "1", "true", "True", "TRUE", "yes", "Yes", "YES"
+// Returns false for everything else (including "0", "false", "no", empty string)
+func parseBool(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "yes":
+		return true
+	default:
+		return false
+	}
 }
