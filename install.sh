@@ -60,6 +60,14 @@ convert_https_to_ssh() {
     echo "$url" | sed -E 's|https://([^/]+)/(.+)|git@\1:\2|'
 }
 
+# Convert SSH URL to HTTPS URL
+convert_ssh_to_https() {
+    local url="$1"
+    # git@github.com:user/repo.git -> https://github.com/user/repo.git
+    # git@gitlab.com:user/repo.git -> https://gitlab.com/user/repo.git
+    echo "$url" | sed -E 's|git@([^:]+):(.+)|https://\1/\2|'
+}
+
 # Extract repository name from URL
 extract_repo_name() {
     local url="$1"
@@ -209,21 +217,33 @@ main() {
         exit 1
     fi
 
-    # Check if repository is public
+    # Check if repository is public by testing HTTPS access
     local is_public=false
-    local original_url="$repo_url"
+    local https_url=""
 
+    # Convert to HTTPS URL for testing public access
     if [[ "$repo_url" == https://* ]]; then
+        https_url="$repo_url"
+    elif [[ "$repo_url" == git@* ]]; then
+        https_url=$(convert_ssh_to_https "$repo_url")
+    fi
+
+    if [ -n "$https_url" ]; then
         info "Checking if repository is publicly accessible..."
-        if is_repo_public "$repo_url"; then
+        if is_repo_public "$https_url"; then
             success "Repository is public - deploy key not required"
             is_public=true
+            # Use HTTPS URL for public repos (no authentication needed)
+            repo_url="$https_url"
         else
             info "Repository is private - will need deploy key"
-            local ssh_url
-            ssh_url=$(convert_https_to_ssh "$repo_url")
-            info "Converting to SSH URL: $ssh_url"
-            repo_url="$ssh_url"
+            # Convert to SSH URL for private repos (deploy key required)
+            if [[ "$repo_url" == https://* ]]; then
+                local ssh_url
+                ssh_url=$(convert_https_to_ssh "$repo_url")
+                info "Converting to SSH URL: $ssh_url"
+                repo_url="$ssh_url"
+            fi
         fi
     fi
 
