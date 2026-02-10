@@ -28,6 +28,12 @@ Users can connect via browser (PWA) to interact with a remote sandbox environmen
 - **Backend (bridge/)**: Go WebSocket server that bridges browser ↔ SSH sandbox
 - **Sandbox**: Ubuntu container with SSH, dev tools, git
 
+## Authentication
+
+Detach.it uses token-based authentication for secure device pairing. Tokens are auto-generated on first startup and validated on WebSocket connections.
+
+See [docs/authentication.md](docs/authentication.md) for complete authentication specification including token generation, storage, WebSocket handshake, and security considerations.
+
 ## UI Features by Panel
 
 ### LLM Panel
