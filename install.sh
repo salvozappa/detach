@@ -97,6 +97,18 @@ generate_token() {
     openssl rand -base64 32 | tr -d '/+=' | head -c 43
 }
 
+# Check if repository is publicly accessible
+is_repo_public() {
+    local repo_url="$1"
+
+    # Try to access without authentication
+    if git ls-remote "$repo_url" HEAD >/dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Verify repository access with deploy key
 verify_repo_access() {
     local repo_url="$1"
@@ -197,12 +209,22 @@ main() {
         exit 1
     fi
 
-    # Convert HTTPS to SSH if needed
+    # Check if repository is public
+    local is_public=false
+    local original_url="$repo_url"
+
     if [[ "$repo_url" == https://* ]]; then
-        local ssh_url
-        ssh_url=$(convert_https_to_ssh "$repo_url")
-        info "Converting to SSH URL: $ssh_url"
-        repo_url="$ssh_url"
+        info "Checking if repository is publicly accessible..."
+        if is_repo_public "$repo_url"; then
+            success "Repository is public - deploy key not required"
+            is_public=true
+        else
+            info "Repository is private - will need deploy key"
+            local ssh_url
+            ssh_url=$(convert_https_to_ssh "$repo_url")
+            info "Converting to SSH URL: $ssh_url"
+            repo_url="$ssh_url"
+        fi
     fi
 
     local repo_name
@@ -294,44 +316,50 @@ main() {
     mkdir -p "$KEYS_DIR"
 
     generate_ssh_key "$KEYS_DIR/bridge" "detach-bridge"
-    generate_ssh_key "$KEYS_DIR/deploy_key" "detach-deploy-key"
-    echo ""
 
-    # 6. Display deploy key and wait for user
-    echo "Step 6: Deploy Key Setup"
-    echo "------------------------"
-    echo ""
-    echo "Add this deploy key to your repository:"
-    echo ""
-    echo -e "${YELLOW}$(cat "$KEYS_DIR/deploy_key.pub")${NC}"
-    echo ""
+    # Only generate and configure deploy key for private repositories
+    if [ "$is_public" = false ]; then
+        generate_ssh_key "$KEYS_DIR/deploy_key" "detach-deploy-key"
+        echo ""
 
-    local git_host
-    git_host=$(extract_host_from_ssh "$repo_url")
-    case "$git_host" in
-        github.com)
-            echo "GitHub: Go to your repo → Settings → Deploy keys → Add deploy key"
-            echo "        Enable 'Allow write access' if you need to push"
-            ;;
-        gitlab.com)
-            echo "GitLab: Go to your repo → Settings → Repository → Deploy keys"
-            ;;
-        *)
-            echo "Add this public key as a deploy key in your git hosting provider"
-            ;;
-    esac
-    echo ""
+        # 6. Display deploy key and wait for user
+        echo "Step 6: Deploy Key Setup"
+        echo "------------------------"
+        echo ""
+        echo "Add this deploy key to your repository:"
+        echo ""
+        echo -e "${YELLOW}$(cat "$KEYS_DIR/deploy_key.pub")${NC}"
+        echo ""
 
-    read -rp "Press Enter once you've added the deploy key..."
-    echo ""
+        local git_host
+        git_host=$(extract_host_from_ssh "$repo_url")
+        case "$git_host" in
+            github.com)
+                echo "GitHub: Go to your repo → Settings → Deploy keys → Add deploy key"
+                echo "        Enable 'Allow write access' if you need to push"
+                ;;
+            gitlab.com)
+                echo "GitLab: Go to your repo → Settings → Repository → Deploy keys"
+                ;;
+            *)
+                echo "Add this public key as a deploy key in your git hosting provider"
+                ;;
+        esac
+        echo ""
 
-    # 6. Verify repository access
-    if ! verify_repo_access "$repo_url" "$KEYS_DIR/deploy_key"; then
-        error "Could not access repository. Please check:"
-        echo "  1. The deploy key was added correctly"
-        echo "  2. The repository URL is correct"
-        echo "  3. You have network access to $git_host"
-        exit 1
+        read -rp "Press Enter once you've added the deploy key..."
+        echo ""
+
+        # Verify repository access with deploy key
+        if ! verify_repo_access "$repo_url" "$KEYS_DIR/deploy_key"; then
+            error "Could not access repository. Please check:"
+            echo "  1. The deploy key was added correctly"
+            echo "  2. The repository URL is correct"
+            echo "  3. You have network access to $git_host"
+            exit 1
+        fi
+    else
+        info "Skipping deploy key setup for public repository"
     fi
     echo ""
 
