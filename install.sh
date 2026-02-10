@@ -330,6 +330,59 @@ main() {
     fi
     echo ""
 
+    # 4b. VAPID keys for push notifications
+    echo "Step 4b: Push Notification Setup"
+    echo "---------------------------------"
+    local vapid_public_key=""
+    local vapid_private_key=""
+    local vapid_subject="mailto:admin@$domain"
+
+    if [ "$use_https" = true ]; then
+        info "Push notifications require VAPID keys"
+
+        # Check if npx is available
+        if ! command -v npx >/dev/null 2>&1; then
+            warn "npx not found - skipping VAPID key generation"
+            warn "Install Node.js to enable push notifications"
+        else
+            info "Generating VAPID keys..."
+
+            # Generate VAPID keys using web-push
+            local vapid_output
+            vapid_output=$(npx --yes web-push generate-vapid-keys 2>/dev/null)
+
+            if [ $? -eq 0 ]; then
+                # Parse output to extract keys
+                vapid_public_key=$(echo "$vapid_output" | grep "Public Key:" | cut -d':' -f2 | xargs)
+                vapid_private_key=$(echo "$vapid_output" | grep "Private Key:" | cut -d':' -f2 | xargs)
+
+                if [ -n "$vapid_public_key" ] && [ -n "$vapid_private_key" ]; then
+                    success "Generated VAPID keys"
+
+                    # Update webview/index.html with the public key
+                    if [ -f "$SCRIPT_DIR/webview/index.html" ]; then
+                        info "Updating webview/index.html with VAPID public key..."
+                        # Use sed to replace the vapid-public-key meta tag content
+                        if sed -i.bak "s|<meta name=\"vapid-public-key\" content=\"[^\"]*\">|<meta name=\"vapid-public-key\" content=\"$vapid_public_key\">|" "$SCRIPT_DIR/webview/index.html"; then
+                            rm -f "$SCRIPT_DIR/webview/index.html.bak"
+                            success "Updated webview/index.html"
+                        else
+                            warn "Could not update webview/index.html automatically"
+                            echo "Please manually update the vapid-public-key meta tag with: $vapid_public_key"
+                        fi
+                    fi
+                else
+                    warn "Could not parse VAPID keys from output"
+                fi
+            else
+                warn "Failed to generate VAPID keys"
+            fi
+        fi
+    else
+        warn "Push notifications require HTTPS - skipping VAPID key generation"
+    fi
+    echo ""
+
     # 5. Generate SSH keys
     echo "Step 5: SSH Key Generation"
     echo "--------------------------"
@@ -409,6 +462,9 @@ EOF
 DETACH_TOKEN=$auth_token
 DETACH_DOMAIN=$domain
 WEBVIEW_HOST=$domain
+VAPID_PUBLIC_KEY=$vapid_public_key
+VAPID_PRIVATE_KEY=$vapid_private_key
+VAPID_SUBJECT=$vapid_subject
 EOF
     success "Created .env"
     echo ""
