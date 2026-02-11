@@ -44,6 +44,17 @@ import { activateGitView } from './ui/git-view';
 
 console.log('[APP] Version:', APP_VERSION);
 
+// Register service worker for PWA and push notifications
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+        .then(registration => {
+            console.log('[APP] Service Worker registered:', registration.scope);
+        })
+        .catch(error => {
+            console.error('[APP] Service Worker registration failed:', error);
+        });
+}
+
 // Extract and store authentication token from URL (pairing flow)
 const urlParams = new URLSearchParams(window.location.search);
 const tokenFromUrl = urlParams.get('token');
