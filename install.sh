@@ -342,8 +342,22 @@ main() {
 
         # Check if npx is available
         if ! command -v npx >/dev/null 2>&1; then
-            warn "npx not found - skipping VAPID key generation"
-            warn "Install Node.js to enable push notifications"
+            warn "npx not found - cannot generate VAPID keys for push notifications"
+            warn "Push notifications will NOT work without Node.js"
+            echo ""
+            echo "To enable push notifications, you need to install Node.js first:"
+            echo "  Ubuntu/Debian: sudo apt install -y nodejs npm"
+            echo "  macOS:         brew install node"
+            echo ""
+
+            if prompt_yn "Continue installation without push notifications?" "n"; then
+                info "Continuing without push notifications..."
+            else
+                echo ""
+                info "Installation cancelled."
+                echo "Please install Node.js and run this script again to enable push notifications."
+                exit 0
+            fi
         else
             info "Generating VAPID keys..."
 
