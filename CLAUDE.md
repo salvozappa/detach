@@ -292,8 +292,12 @@ ssh nightly01.tail5fb253.ts.net "docker logs -f detach-bridge 2>&1 | grep '\[CLI
 Frontend generates `conn-{timestamp}-{counter}` correlation IDs for each connection attempt. These appear in the `corrId` field of JSON log entries and can be used to track a single connection attempt across logs.
 
 ## Development workflow
+
 Don't worry about git. All git commands will be executed by the human in the loop.
 No need to say or think about how to test the changes or which parts of the app need rebuilding.
 
+Do not try to fix the issue in the production environment unless asked to do so. Always try to fix locally and assume that a new deployment will be done.
+
 ### Dependencies
+
 Always use exact versions in package.json (no `^` or `~` prefixes).
