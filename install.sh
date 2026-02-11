@@ -109,8 +109,8 @@ generate_token() {
 is_repo_public() {
     local repo_url="$1"
 
-    # Try to access without authentication
-    if git ls-remote "$repo_url" HEAD >/dev/null 2>&1; then
+    # Try to access without authentication (disable credential prompts)
+    if GIT_TERMINAL_PROMPT=0 git ls-remote "$repo_url" HEAD >/dev/null 2>&1; then
         return 0
     else
         return 1
