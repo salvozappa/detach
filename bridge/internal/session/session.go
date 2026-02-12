@@ -408,9 +408,9 @@ func Create(cfg *config.Config, user string) (*Session, error) {
 }
 
 // HandleReconnect handles reconnection to an existing session
-func HandleReconnect(conn *websocket.Conn, session *Session, connectionHandler func(*websocket.Conn, *Session)) {
-	// Send session ID confirmation
-	sessionMsg := types.SessionMessage{Type: "session", ID: session.ID}
+func HandleReconnect(conn *websocket.Conn, session *Session, vapidPublicKey string, connectionHandler func(*websocket.Conn, *Session)) {
+	// Send session ID confirmation (with VAPID key for push registration)
+	sessionMsg := types.SessionMessage{Type: "session", ID: session.ID, VAPIDPublicKey: vapidPublicKey}
 	msgBytes, _ := json.Marshal(sessionMsg)
 	conn.SetWriteDeadline(time.Now().Add(WriteWait))
 	conn.WriteMessage(websocket.TextMessage, msgBytes)

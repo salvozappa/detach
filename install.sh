@@ -372,19 +372,6 @@ main() {
 
                 if [ -n "$vapid_public_key" ] && [ -n "$vapid_private_key" ]; then
                     success "Generated VAPID keys"
-
-                    # Update webview/index.html with the public key
-                    if [ -f "$SCRIPT_DIR/webview/index.html" ]; then
-                        info "Updating webview/index.html with VAPID public key..."
-                        # Use sed to replace the vapid-public-key meta tag content
-                        if sed -i.bak "s|<meta name=\"vapid-public-key\" content=\"[^\"]*\">|<meta name=\"vapid-public-key\" content=\"$vapid_public_key\">|" "$SCRIPT_DIR/webview/index.html"; then
-                            rm -f "$SCRIPT_DIR/webview/index.html.bak"
-                            success "Updated webview/index.html"
-                        else
-                            warn "Could not update webview/index.html automatically"
-                            echo "Please manually update the vapid-public-key meta tag with: $vapid_public_key"
-                        fi
-                    fi
                 else
                     warn "Could not parse VAPID keys from output"
                 fi

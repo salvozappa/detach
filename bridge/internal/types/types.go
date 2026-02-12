@@ -53,8 +53,9 @@ type ResizeMessage struct {
 }
 
 type SessionMessage struct {
-	Type string `json:"type"`
-	ID   string `json:"id"`
+	Type           string `json:"type"`
+	ID             string `json:"id"`
+	VAPIDPublicKey string `json:"vapidPublicKey,omitempty"`
 }
 
 type TerminalDataMessage struct {

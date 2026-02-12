@@ -81,15 +81,21 @@ fi
 # Ensure Claude Code hooks configuration exists in project
 # TODO: Merge existing settings with template instead of overwriting, to preserve
 # any user customizations while ensuring required hooks are present
-CLAUDE_SETTINGS="$PROJECT_DIR/.claude/settings.json"
-echo "Updating Claude Code hooks configuration..."
-mkdir -p "$PROJECT_DIR/.claude"
-cp /tmp/claude-settings-template.json "$CLAUDE_SETTINGS"
-chown -R detach-dev:detach-dev "$PROJECT_DIR/.claude"
+if [ -d "$PROJECT_DIR" ]; then
+    CLAUDE_SETTINGS="$PROJECT_DIR/.claude/settings.json"
+    echo "Updating Claude Code hooks configuration..."
+    mkdir -p "$PROJECT_DIR/.claude"
+    cp /tmp/claude-settings-template.json "$CLAUDE_SETTINGS"
+    chown -R detach-dev:detach-dev "$PROJECT_DIR/.claude"
 
-# Add .claude/ to local git exclude (doesn't affect remote .gitignore)
-if ! grep -q "^\.claude/$" "$PROJECT_DIR/.git/info/exclude" 2>/dev/null; then
-    echo ".claude/" >> "$PROJECT_DIR/.git/info/exclude"
+    # Add .claude/ to local git exclude (doesn't affect remote .gitignore)
+    if [ -d "$PROJECT_DIR/.git/info" ]; then
+        if ! grep -q "^\.claude/$" "$PROJECT_DIR/.git/info/exclude" 2>/dev/null; then
+            echo ".claude/" >> "$PROJECT_DIR/.git/info/exclude"
+        fi
+    fi
+else
+    echo "WARNING: Project directory not found, skipping hooks provisioning"
 fi
 
 # Start sshd

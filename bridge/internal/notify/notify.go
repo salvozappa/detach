@@ -41,6 +41,11 @@ func NewService() *Service {
 	}
 }
 
+// GetVAPIDPublicKey returns the VAPID public key for client-side push registration
+func (s *Service) GetVAPIDPublicKey() string {
+	return s.vapidPublicKey
+}
+
 // Init loads existing web push subscriptions from file
 func (s *Service) Init() {
 	if s.vapidPublicKey == "" || s.vapidPrivateKey == "" {

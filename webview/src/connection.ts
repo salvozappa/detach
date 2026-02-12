@@ -275,7 +275,7 @@ function stopHealthCheck(): void {
 /**
  * Register Web Push subscription for PWA push notifications
  */
-async function registerWebPush(): Promise<void> {
+async function registerWebPush(vapidPublicKey: string): Promise<void> {
   debugLog("WS", "info", "registerWebPush called");
 
   // Check if service worker and push are supported
@@ -283,16 +283,6 @@ async function registerWebPush(): Promise<void> {
     debugLog("WS", "info", "Web Push not supported in this browser");
     return;
   }
-
-  // Get VAPID public key from meta tag
-  const vapidMeta = document.querySelector(
-    'meta[name="vapid-public-key"]',
-  ) as HTMLMetaElement | null;
-  if (!vapidMeta || !vapidMeta.content) {
-    debugLog("WS", "info", "VAPID public key not configured");
-    return;
-  }
-  const vapidPublicKey = vapidMeta.content;
 
   const ws = getWs();
   if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -450,8 +440,10 @@ export function connect(): void {
           } else if (msg.type === "session" && msg.id) {
             console.log("Session ID:", msg.id);
             currentSessionId = msg.id;
-            // Register for push notifications
-            registerWebPush();
+            // Register for push notifications if VAPID key provided
+            if (msg.vapidPublicKey) {
+              registerWebPush(msg.vapidPublicKey);
+            }
             // Notify session handler
             if (sessionHandler) {
               sessionHandler(msg.id);

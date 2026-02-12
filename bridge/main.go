@@ -101,7 +101,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Check for existing session (device takeover)
 	if sess := session.Get(); sess != nil {
 		log.Printf("[WS] Taking over session %s from %s", sess.ID, remoteAddr)
-		session.HandleReconnect(conn, sess, func(c *websocket.Conn, s *session.Session) {
+		session.HandleReconnect(conn, sess, notifyService.GetVAPIDPublicKey(), func(c *websocket.Conn, s *session.Session) {
 			runConnectionHandler(c, s)
 		})
 		return
@@ -117,8 +117,8 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[WS] Created new session %s for user %s from %s", sess.ID, user, remoteAddr)
 
-	// Send session ID to client
-	sessionMsg := types.SessionMessage{Type: "session", ID: sess.ID}
+	// Send session ID and VAPID public key to client
+	sessionMsg := types.SessionMessage{Type: "session", ID: sess.ID, VAPIDPublicKey: notifyService.GetVAPIDPublicKey()}
 	msgBytes, _ := json.Marshal(sessionMsg)
 	conn.SetWriteDeadline(time.Now().Add(session.WriteWait))
 	conn.WriteMessage(websocket.TextMessage, msgBytes)
