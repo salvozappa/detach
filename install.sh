@@ -364,8 +364,16 @@ main() {
             # Generate VAPID keys using web-push
             local vapid_output
             vapid_output=$(npx --yes web-push generate-vapid-keys 2>/dev/null)
+            local vapid_exit_code=$?
 
-            if [ $? -eq 0 ]; then
+            echo ""
+            echo "VAPID generation output:"
+            echo "$vapid_output"
+            echo "Exit code: $vapid_exit_code"
+            echo ""
+            read -rp "Press Enter to continue..."
+
+            if [ $vapid_exit_code -eq 0 ]; then
                 # Parse output to extract keys
                 vapid_public_key=$(echo "$vapid_output" | grep "Public Key:" | cut -d':' -f2 | xargs)
                 vapid_private_key=$(echo "$vapid_output" | grep "Private Key:" | cut -d':' -f2 | xargs)
