@@ -113,11 +113,8 @@ TypeScript source in `webview/src/` is compiled to `webview/dist/bundle.js` via 
 cd webview && npm run build
 ```
 
-The webview container loads files via mounted volumes, so after rebuilding
-the bundle, changes are live (no container restart needed).
-
 ### Backend (bridge)
-The `bridge` container requires rebuilding for Go recompilation.
+Both the webview and bridge containers require rebuilding after code changes.
 
 ```bash
 # Rebuild both containers
