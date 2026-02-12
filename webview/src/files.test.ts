@@ -10,7 +10,6 @@ import {
   getCurrentFilePath,
   isInitialized,
   onFileListChange,
-  onFileContentChange,
   onDiffContentChange,
   handleFileMessage,
   __test_reset,
@@ -18,7 +17,6 @@ import {
 import {
   PROJECT_ROOT,
   FileListMessage,
-  FileContentMessage,
   FileWithDiffMessage,
   FileInfo,
 } from "./types.js";
@@ -65,29 +63,6 @@ describe("files module", () => {
       assert.equal(receivedFiles.length, 1);
       assert.equal(receivedFiles[0].name, "test.ts");
       assert.equal(receivedPath, "/test/path");
-    });
-
-    it("onFileContentChange stores callback and it gets called", () => {
-      let called = false;
-      let receivedContent = "";
-      let receivedFilename = "";
-
-      onFileContentChange((content, filename) => {
-        called = true;
-        receivedContent = content;
-        receivedFilename = filename;
-      });
-
-      const msg: FileContentMessage = {
-        type: "file_content",
-        content: "file contents here",
-        path: "/some/path/file.ts",
-      };
-      handleFileMessage(msg);
-
-      assert.equal(called, true);
-      assert.equal(receivedContent, "file contents here");
-      assert.equal(receivedFilename, "file.ts");
     });
 
     it("onDiffContentChange stores callback and it gets called", () => {
@@ -186,60 +161,6 @@ describe("files module", () => {
 
       // Just verify no error thrown and path is updated
       assert.equal(getCurrentPath(), "/test");
-    });
-  });
-
-  describe("handleFileMessage - file_content", () => {
-    it("extracts filename from path correctly", () => {
-      let receivedFilename = "";
-
-      onFileContentChange((_, filename) => {
-        receivedFilename = filename;
-      });
-
-      const msg: FileContentMessage = {
-        type: "file_content",
-        content: "content",
-        path: "/deep/nested/path/file.tsx",
-      };
-      handleFileMessage(msg);
-
-      assert.equal(receivedFilename, "file.tsx");
-    });
-
-    it("handles path with no slashes", () => {
-      let receivedFilename = "";
-
-      onFileContentChange((_, filename) => {
-        receivedFilename = filename;
-      });
-
-      const msg: FileContentMessage = {
-        type: "file_content",
-        content: "content",
-        path: "singlefile.ts",
-      };
-      handleFileMessage(msg);
-
-      assert.equal(receivedFilename, "singlefile.ts");
-    });
-
-    it("does not invoke callback when error present", () => {
-      let called = false;
-
-      onFileContentChange(() => {
-        called = true;
-      });
-
-      const msg: FileContentMessage = {
-        type: "file_content",
-        content: "content",
-        path: "/path/file.ts",
-        error: "File not found",
-      };
-      handleFileMessage(msg);
-
-      assert.equal(called, false);
     });
   });
 

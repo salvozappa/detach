@@ -52,12 +52,8 @@
                 <span class="code-header-title" id="code-filename">filename.js</span>
                 <button class="code-select-toggle" id="code-select-toggle" onclick="toggleSelectMode()">Select</button>
             </div>
-            <!-- Normal code view (syntax highlighted) -->
-            <div class="code-content" id="code-content-normal">
-                <pre><code id="code-content" class="hljs"></code></pre>
-            </div>
             <!-- Diff view (diff2html) -->
-            <div class="code-content" id="code-content-diff" style="display: none;"></div>
+            <div class="code-content" id="code-content-diff"></div>
             <!-- Floating button for sending selection to LLM -->
             <button id="send-to-llm-btn" class="send-to-llm-btn">Reference to LLM</button>
         </div>

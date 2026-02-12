@@ -35,11 +35,9 @@ export function isInitialized(): boolean {
 // ============================================================================
 
 type FileListCallback = (files: FileInfo[], path: string) => void;
-type FileContentCallback = (content: string, filename: string) => void;
 type DiffContentCallback = (diff: string, filename: string, hasDiff: boolean) => void;
 
 let onFileList: FileListCallback | null = null;
-let onFileContent: FileContentCallback | null = null;
 let onDiffContent: DiffContentCallback | null = null;
 
 /**
@@ -47,13 +45,6 @@ let onDiffContent: DiffContentCallback | null = null;
  */
 export function onFileListChange(callback: FileListCallback): void {
     onFileList = callback;
-}
-
-/**
- * Register callback for file content
- */
-export function onFileContentChange(callback: FileContentCallback): void {
-    onFileContent = callback;
 }
 
 /**
@@ -72,13 +63,6 @@ export function onDiffContentChange(callback: DiffContentCallback): void {
  */
 export function listFiles(path: string): void {
     sendMessage({ type: 'list_files', path });
-}
-
-/**
- * Request file content from server
- */
-export function readFile(path: string): void {
-    sendMessage({ type: 'read_file', path });
 }
 
 /**
@@ -147,15 +131,6 @@ export function handleFileMessage(msg: FileMessage): void {
         if (onFileList) {
             onFileList(msg.files || [], msg.path);
         }
-    } else if (msg.type === 'file_content') {
-        if (msg.error) {
-            console.error('File read error:', msg.error);
-            return;
-        }
-        const filename = msg.path.split('/').pop() || '';
-        if (onFileContent) {
-            onFileContent(msg.content, filename);
-        }
     } else if (msg.type === 'file_with_diff') {
         if (msg.error) {
             console.error('File read error:', msg.error);
@@ -180,6 +155,5 @@ export function __test_reset(): void {
     currentFilePath = '';
     initialized = false;
     onFileList = null;
-    onFileContent = null;
     onDiffContent = null;
 }

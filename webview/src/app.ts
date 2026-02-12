@@ -26,8 +26,8 @@ import {
     deactivateTerminalViews
 } from './ui/terminal';
 import { handleFileMessage } from './files';
-import { handleGitMessage } from './git';
-import { initToastHandlers } from './ui/toast';
+import { handleGitMessage, setToastFn } from './git';
+import { initToastHandlers, showToast } from './ui/toast';
 import {
     initCodeViewHandlers,
     activateCodeView,
@@ -71,6 +71,7 @@ initLLMTerminal();
 
 // Initialize UI handlers
 initToastHandlers();
+setToastFn(showToast);
 initCodeViewHandlers();
 initKeyboardToolbar();
 initViewportListeners();
@@ -78,7 +79,6 @@ initFocusTracking();
 
 // Register message handlers
 registerMessageHandler('file_list', handleFileMessage);
-registerMessageHandler('file_content', handleFileMessage);
 registerMessageHandler('file_with_diff', handleFileMessage);
 registerMessageHandler('git_', handleGitMessage);
 

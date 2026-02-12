@@ -395,21 +395,6 @@ body {
     position: relative;
 }
 
-.code-content pre {
-    margin: 0;
-    padding: 16px;
-    font-size: 13px;
-    line-height: 1.5;
-    background: transparent !important;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-.code-content code {
-    background: transparent !important;
-}
-
 /* Code line selection */
 #code-content-diff.select-mode .d2h-code-line-ctn {
     cursor: pointer;

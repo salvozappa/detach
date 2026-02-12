@@ -58,13 +58,6 @@ export interface FileListMessage {
   error?: string;
 }
 
-export interface FileContentMessage {
-  type: "file_content";
-  content: string;
-  path: string;
-  error?: string;
-}
-
 export interface FileWithDiffMessage {
   type: "file_with_diff";
   diff: string;
@@ -75,7 +68,6 @@ export interface FileWithDiffMessage {
 
 export type FileMessage =
   | FileListMessage
-  | FileContentMessage
   | FileWithDiffMessage;
 
 export interface GitStatusMessage {

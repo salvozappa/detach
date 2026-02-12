@@ -3,7 +3,6 @@
  * Imports business logic from files.ts and git.ts.
  */
 
-import hljs from 'highlight.js';
 import { Diff2HtmlUI } from 'diff2html/lib/ui/js/diff2html-ui-slim';
 import { ColorSchemeType } from 'diff2html/lib/types';
 import { FileInfo, PROJECT_ROOT } from '../types';
@@ -31,7 +30,6 @@ let selectionPhase: 'none' | 'first' | 'range' = 'none';
 export function initCodeViewHandlers(): void {
     // Register render callbacks with files module
     files.onFileListChange(renderFileList);
-    files.onFileContentChange(showCodeViewer);
     files.onDiffContentChange(showDiffViewer);
 
     // Click handler for code lines using event delegation
@@ -162,27 +160,6 @@ function renderFileList(fileList: FileInfo[], path: string): void {
 // Code Viewer
 // ============================================================================
 
-/**
- * Show code viewer with syntax highlighting
- */
-function showCodeViewer(content: string, filename: string): void {
-    const codeEl = document.getElementById('code-content');
-    const normalContainer = document.getElementById('code-content-normal');
-    const diffContainer = document.getElementById('code-content-diff');
-
-    if (!codeEl || !normalContainer || !diffContainer) return;
-
-    normalContainer.style.display = 'block';
-    diffContainer.style.display = 'none';
-
-    codeEl.textContent = content;
-    delete (codeEl as HTMLElement & { dataset: { highlighted?: string } }).dataset.highlighted;
-    hljs.highlightElement(codeEl);
-
-    document.getElementById('file-explorer-panel')?.classList.remove('active');
-    document.getElementById('code-viewer-panel')?.classList.add('active');
-}
-
 // diff2html configuration
 const diff2htmlConfig = {
     drawFileList: false,
@@ -200,13 +177,9 @@ const diff2htmlConfig = {
  * Show diff viewer with syntax highlighting
  */
 function showDiffViewer(diff: string, filename: string, hasChanges: boolean): void {
-    const normalContainer = document.getElementById('code-content-normal');
     const diffContainer = document.getElementById('code-content-diff');
 
-    if (!normalContainer || !diffContainer) return;
-
-    normalContainer.style.display = 'none';
-    diffContainer.style.display = 'block';
+    if (!diffContainer) return;
 
     if (hasChanges) {
         diffContainer.classList.remove('no-changes');
