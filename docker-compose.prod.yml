@@ -91,8 +91,6 @@ services:
     networks:
       - detach-network
     ports:
-      # Bind to localhost only - not accessible from public IP
-      # Tailscale serve proxies to localhost:8080
       - "127.0.0.1:8080:80"
     # NO BIND MOUNTS - files are copied during build
     # This makes deployment self-contained

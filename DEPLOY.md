@@ -7,23 +7,14 @@ For automated VPS provisioning and deployment, see:
 - **infrastructure/vps-config-init.yaml** - Cloud-init configuration
 - **infrastructure/deploy-to-vps.sh** - Automated deployment script
 
-The infrastructure directory provides one-command deployment with Tailscale, Docker, and security hardening pre-configured.
+The infrastructure directory provides one-command deployment with Docker and security hardening pre-configured.
 
 ## Manual Deploy (Nightly Testing)
 
 ### Prerequisites
 - VPS with Docker and Docker Compose installed
-- Tailscale installed on VPS and your device
 
-### 1. Install Tailscale on VPS
-```bash
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up
-```
-
-Note the VPS IP (e.g., `100.64.1.5`)
-
-### 2. Deploy Application
+### 1. Deploy Application
 ```bash
 # Clone repo
 git clone <your-repo> detach.it
@@ -43,13 +34,10 @@ docker logs detach-webview
 docker logs detach-sandbox
 ```
 
-### 3. Access from Phone/Device
-1. Install Tailscale app on your device
-2. Sign in with same account
-3. Open browser to `http://<vps-tailscale-ip>:8080`
-   - Example: `http://100.64.1.5:8080`
+### 2. Access from Device
+Open browser to `http://<vps-ip>:8080`
 
-### 4. Updates
+### 3. Updates
 ```bash
 cd detach.it
 git pull
@@ -76,26 +64,15 @@ Adjust in `docker-compose.prod.yml` if needed.
 - Keeps last 3 files per container
 - Prevents disk filling up
 
-## Security via Tailscale
+## Security
 
 ### Firewall Configuration (UFW)
 ```bash
-# Block all incoming except SSH and Tailscale
+# Block all incoming except SSH
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow 22/tcp
-sudo ufw allow in on tailscale0
 sudo ufw enable
-```
-
-### Verify Ports Not Exposed
-```bash
-# These should timeout from public internet:
-curl http://<public-vps-ip>:8080  # Should fail
-curl http://<public-vps-ip>:8081  # Should fail
-
-# But work from Tailscale network:
-curl http://<tailscale-vps-ip>:8080  # Works
 ```
 
 ## Troubleshooting

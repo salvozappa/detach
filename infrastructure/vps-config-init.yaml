@@ -75,16 +75,9 @@ runcmd:
   - usermod -aG docker sal
   - usermod -aG docker detach-dev
 
-  # Install Tailscale
-  - curl -fsSL https://tailscale.com/install.sh | sh
-
   # Firewall Setup
   # Allow SSH from anywhere (needed for initial setup)
   - ufw allow OpenSSH
-
-  # Allow all traffic on Tailscale interface
-  # This allows access to services via Tailscale VPN
-  - ufw allow in on tailscale0
 
   # Default deny all other incoming traffic
   # Application ports (8080, 8081, 2222) are bound to localhost only

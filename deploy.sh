@@ -304,18 +304,7 @@ show_logs() {
 get_access_urls() {
     echo ""
     echo "Access URLs:"
-
-    # Try to get Tailscale info
-    TAILSCALE_HOSTNAME=$(ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "tailscale status --json 2>/dev/null | grep -o '\"DNSName\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4 | sed 's/\.$//'")
-    TAILSCALE_IP=$(ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "tailscale ip -4 2>/dev/null")
-
-    if [ -n "$TAILSCALE_HOSTNAME" ]; then
-        echo "  HTTPS: https://$TAILSCALE_HOSTNAME"
-    fi
-
-    if [ -n "$TAILSCALE_IP" ]; then
-        echo "  HTTP:  http://$TAILSCALE_IP:8080"
-    fi
+    echo "  HTTP:  http://$REMOTE_HOST:8080"
 
     echo ""
     echo "Useful commands:"

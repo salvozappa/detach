@@ -13,10 +13,9 @@ For provisioning a brand new VPS:
 
 1. **Provision VPS** with `vps-config-init.yaml` as cloud-init
 2. **Wait 2-3 minutes** for cloud-init to complete
-3. **Connect and configure Tailscale**: `ssh sal@<vps-ip>` → `sudo tailscale up`
-4. **Setup GitHub deploy key** (one-time, see below)
-5. **Run deploy script** from your local machine: `./deploy.sh`
-6. **Done!** Access via Tailscale HTTPS URL
+3. **Setup GitHub deploy key** (one-time, see below)
+4. **Run deploy script** from your local machine: `./deploy.sh`
+5. **Done!** Access via VPS IP
 
 See detailed steps below for first-time setup.
 
@@ -31,8 +30,7 @@ Use `vps-config-init.yaml` as your cloud-init user data when creating a VPS inst
 **What it sets up:**
 - Two users: `sal` and `detach-dev` with SSH key authentication
 - Docker and Docker Compose
-- Tailscale (installed but not configured)
-- Firewall (UFW) allowing SSH and Tailscale
+- Firewall (UFW) allowing SSH
 - Security: fail2ban, auto-updates, hardened SSH
 - Development directories
 
@@ -42,19 +40,13 @@ Use `vps-config-init.yaml` as your cloud-init user data when creating a VPS inst
 - AWS EC2 (use as User Data)
 - Most Ubuntu-based cloud providers
 
-### 2. Connect to VPS via Tailscale
+### 2. Connect to VPS
 
 After VPS boots up (wait ~2-3 minutes):
 
 ```bash
 # SSH into VPS
 ssh sal@<vps-public-ip>
-
-# Start Tailscale
-sudo tailscale up
-
-# Note the Tailscale IP (usually 100.x.x.x)
-tailscale ip -4
 ```
 
 ### 2.5. Setup GitHub Deploy Key (One-time)
@@ -74,22 +66,13 @@ The deploy script will automatically:
 - Copy the key to `~/.ssh/github_deploy_key` on the VPS
 - Configure SSH to use it for GitHub
 
-### 3. Enable HTTPS in Tailscale (Optional but Recommended for PWA)
-
-For Progressive Web App features, enable HTTPS before deploying:
-
-1. Go to https://login.tailscale.com/admin/dns
-2. Enable "HTTPS Certificates" in DNS settings
-
-This allows the deployment script to automatically configure HTTPS.
-
-### 4. Deploy Application
+### 3. Deploy Application
 
 **For a new VPS:** First, update the server hostname in the deploy script:
 
 ```bash
 # Edit deploy.sh in repository root
-# Change REMOTE_HOST to your new VPS Tailscale hostname (e.g., "hostname.tail5fb253.ts.net")
+# Change REMOTE_HOST to your VPS IP or hostname
 ```
 
 Then run the deploy script from your local machine:
@@ -114,13 +97,9 @@ The script will:
 
 **First-time deployment:** The script will automatically detect if the git repo isn't set up yet and guide you through configuring the GitHub deploy key if needed.
 
-### 5. Access from Phone/Device
+### 4. Access from Device
 
-1. Install Tailscale app on your device
-2. Sign in with same account
-3. Open browser to:
-   - **HTTPS (recommended)**: `https://<vps-hostname>.tail-scale.ts.net`
-   - HTTP (fallback): `http://<vps-tailscale-ip>:8080`
+Open browser to: `http://<vps-ip>:8080`
 
 ## Manual Commands (Advanced)
 
@@ -174,12 +153,6 @@ sudo systemctl status docker
 docker ps
 ```
 
-### Check Tailscale status
-```bash
-tailscale status
-tailscale ip
-```
-
 ### View application logs
 ```bash
 cd ~/detach.it
@@ -226,29 +199,13 @@ docker-compose -f docker-compose.prod.yml restart sandbox bridge
 
 ## Security Notes
 
-### Network Isolation
-
-The VPS is configured to **only accept connections via Tailscale VPN**:
-
-**Port Binding:**
-- All application ports (8080, 8081, 2222) are bound to `127.0.0.1` (localhost only)
-- Services are **not accessible** from the public IP address
-- Tailscale serve proxies `localhost:8080` to provide HTTPS access via the VPN
+### Network Security
 
 **Firewall (UFW):**
 - SSH (port 22): Allowed from anywhere (for initial setup and management)
-- Tailscale interface: All traffic allowed (VPN access)
 - All other incoming traffic: **Denied by default**
 
-**Testing Security:**
-```bash
-# From public internet - these should fail:
-curl http://<public-vps-ip>:8080  # Connection refused
-curl http://<public-vps-ip>:8081  # Connection refused
-
-# From Tailscale network - works:
-curl https://<hostname>.tail-scale.ts.net  # Success!
-```
+Consider restricting access to specific IPs or using a VPN for additional security.
 
 ### Additional Security Measures
 
@@ -266,17 +223,14 @@ curl https://<hostname>.tail-scale.ts.net  # Success!
 - 20GB SSD
 - ~$12-24/month (DigitalOcean, Hetzner, etc.)
 
-**Tailscale:**
-- Free tier: 3 users, 100 devices, unlimited networks
-
 ## Architecture
 
 ```
-[Your Phone/Device]
+[Your Device]
         |
-   (Tailscale VPN)
+   (HTTP/HTTPS)
         |
-    [VPS: 100.x.x.x]
+    [VPS]
         |
     [Docker Compose]
         ├── webview (nginx) :8080
