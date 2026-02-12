@@ -41,20 +41,8 @@ fi
 chown detach-dev:detach-dev /home/detach-dev/.ssh/known_hosts 2>/dev/null || true
 chmod 644 /home/detach-dev/.ssh/known_hosts 2>/dev/null || true
 
-# Configuration file path (mounted as read-only volume)
-CONFIG_FILE="/etc/detach/detach.json"
-
-# Read configuration values from detach.json
-if [ -f "$CONFIG_FILE" ]; then
-    REPO_URL=$(jq -r '.repo_url // empty' "$CONFIG_FILE")
-    GIT_NAME=$(jq -r '.git_name // empty' "$CONFIG_FILE")
-    GIT_EMAIL=$(jq -r '.git_email // empty' "$CONFIG_FILE")
-else
-    echo "WARNING: $CONFIG_FILE not found, using defaults"
-    REPO_URL=""
-    GIT_NAME=""
-    GIT_EMAIL=""
-fi
+# Configuration from environment variables
+# REPO_URL, GIT_NAME, GIT_EMAIL are passed via docker-compose
 
 # Configure git user (only if specified in config)
 if [ -n "$GIT_EMAIL" ]; then

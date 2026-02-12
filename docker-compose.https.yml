@@ -11,12 +11,15 @@ services:
     hostname: sandbox
     networks:
       - detach-network
+    environment:
+      - REPO_URL=${REPO_URL:-}
+      - GIT_NAME=${GIT_NAME:-}
+      - GIT_EMAIL=${GIT_EMAIL:-}
     volumes:
       - ./keys/bridge.pub:/tmp/authorized_keys:ro
       - ./keys/deploy_key:/home/detach-dev/.ssh/id_ed25519:ro
       - ./keys/deploy_key.pub:/home/detach-dev/.ssh/id_ed25519.pub:ro
       - sandbox-home:/home/detach-dev
-      - ./detach.json:/etc/detach/detach.json:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "pgrep", "sshd"]
@@ -36,7 +39,7 @@ services:
       - SANDBOX_HOST=sandbox
       - SANDBOX_PORT=22
       - SSH_KEY_PATH=/app/keys/bridge
-      - DETACH_CONFIG_PATH=/app/config/detach.json
+      - CLAUDE_ARGS=${CLAUDE_ARGS:---dangerously-skip-permissions}
       - DETACH_TOKEN=${DETACH_TOKEN:-}
       - WEBVIEW_HOST=${DETACH_DOMAIN:-localhost}
       - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
@@ -46,7 +49,6 @@ services:
     volumes:
       - ./keys/bridge:/app/keys/bridge:ro
       - bridge-data:/app/data
-      - ./detach.json:/app/config/detach.json:ro
     depends_on:
       sandbox:
         condition: service_healthy

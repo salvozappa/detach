@@ -280,12 +280,12 @@ main() {
     # 3. Claude permissions
     echo "Step 3: Claude Configuration"
     echo "----------------------------"
-    local claude_args='["--dangerously-skip-permissions"]'
+    local claude_args='--dangerously-skip-permissions'
     if prompt_yn "Skip Claude permission prompts? (recommended for automation)" "y"; then
-        claude_args='["--dangerously-skip-permissions"]'
+        claude_args='--dangerously-skip-permissions'
         info "Claude will run with --dangerously-skip-permissions"
     else
-        claude_args='[]'
+        claude_args=''
         info "Claude will prompt for permissions"
     fi
     echo ""
@@ -444,24 +444,25 @@ main() {
     success "Generated authentication token"
     echo ""
 
-    # 8. Create detach.json
-    info "Creating detach.json..."
-    cat > "$SCRIPT_DIR/detach.json" <<EOF
-{
-  "repo_url": "$repo_url",
-  "git_name": "$git_name",
-  "git_email": "$git_email",
-  "claude_args": $claude_args
-}
-EOF
-    success "Created detach.json"
-
-    # 9. Create .env file
+    # 8. Create .env file
     info "Creating .env..."
     cat > "$SCRIPT_DIR/.env" <<EOF
+# Repository configuration
+REPO_URL=$repo_url
+GIT_NAME=$git_name
+GIT_EMAIL=$git_email
+
+# Claude Code configuration
+CLAUDE_ARGS=$claude_args
+
+# Authentication
 DETACH_TOKEN=$auth_token
+
+# Domain configuration
 DETACH_DOMAIN=$domain
 WEBVIEW_HOST=$domain
+
+# Web push notifications
 VAPID_PUBLIC_KEY=$vapid_public_key
 VAPID_PRIVATE_KEY=$vapid_private_key
 VAPID_SUBJECT=$vapid_subject

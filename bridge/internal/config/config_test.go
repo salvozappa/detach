@@ -2,7 +2,6 @@ package config
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -157,56 +156,34 @@ func TestGetEnv_EmptyValueUsesDefault(t *testing.T) {
 	}
 }
 
-func TestLoadDetachConfig_Valid(t *testing.T) {
-	content := `{
-		"repo_url": "git@github.com:test/repo.git",
-		"git_name": "Test User",
-		"git_email": "test@example.com",
-		"claude_args": ["--arg1", "--arg2"]
-	}`
-
-	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "detach.json")
-	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
-		t.Fatal(err)
+func TestParseClaudeArgs_MultipleArgs(t *testing.T) {
+	args := parseClaudeArgs("--arg1 --arg2 --arg3")
+	if len(args) != 3 {
+		t.Errorf("expected 3 args, got %d", len(args))
 	}
-
-	cfg, err := loadDetachConfig(tmpFile)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if cfg.RepoURL != "git@github.com:test/repo.git" {
-		t.Errorf("expected repo_url 'git@github.com:test/repo.git', got %q", cfg.RepoURL)
-	}
-	if cfg.GitName != "Test User" {
-		t.Errorf("expected git_name 'Test User', got %q", cfg.GitName)
-	}
-	if cfg.GitEmail != "test@example.com" {
-		t.Errorf("expected git_email 'test@example.com', got %q", cfg.GitEmail)
-	}
-	if len(cfg.ClaudeArgs) != 2 || cfg.ClaudeArgs[0] != "--arg1" || cfg.ClaudeArgs[1] != "--arg2" {
-		t.Errorf("unexpected claude_args: %v", cfg.ClaudeArgs)
+	if args[0] != "--arg1" || args[1] != "--arg2" || args[2] != "--arg3" {
+		t.Errorf("unexpected args: %v", args)
 	}
 }
 
-func TestLoadDetachConfig_MissingFile(t *testing.T) {
-	_, err := loadDetachConfig("/nonexistent/path/detach.json")
-	if err == nil {
-		t.Error("expected error for missing file")
+func TestParseClaudeArgs_SingleArg(t *testing.T) {
+	args := parseClaudeArgs("--dangerously-skip-permissions")
+	if len(args) != 1 || args[0] != "--dangerously-skip-permissions" {
+		t.Errorf("expected ['--dangerously-skip-permissions'], got %v", args)
 	}
 }
 
-func TestLoadDetachConfig_InvalidJSON(t *testing.T) {
-	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "detach.json")
-	if err := os.WriteFile(tmpFile, []byte("invalid json"), 0644); err != nil {
-		t.Fatal(err)
+func TestParseClaudeArgs_Empty(t *testing.T) {
+	args := parseClaudeArgs("")
+	if len(args) != 0 {
+		t.Errorf("expected empty slice, got %v", args)
 	}
+}
 
-	_, err := loadDetachConfig(tmpFile)
-	if err == nil {
-		t.Error("expected error for invalid JSON")
+func TestParseClaudeArgs_Whitespace(t *testing.T) {
+	args := parseClaudeArgs("  --arg1   --arg2  ")
+	if len(args) != 2 || args[0] != "--arg1" || args[1] != "--arg2" {
+		t.Errorf("expected ['--arg1', '--arg2'], got %v", args)
 	}
 }
 
@@ -251,7 +228,7 @@ func TestBuildClaudeArgsString_Empty(t *testing.T) {
 
 func TestLoad_DefaultClaudeArgs(t *testing.T) {
 	// Save and clear relevant env vars
-	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH", "DETACH_CONFIG_PATH"}
+	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH", "CLAUDE_ARGS"}
 	saved := make(map[string]string)
 	for _, key := range envVars {
 		saved[key] = os.Getenv(key)
@@ -272,26 +249,15 @@ func TestLoad_DefaultClaudeArgs(t *testing.T) {
 	}
 }
 
-func TestLoad_WithDetachConfig(t *testing.T) {
-	content := `{
-		"repo_url": "git@github.com:test/repo.git",
-		"claude_args": ["--custom-arg"]
-	}`
-
-	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "detach.json")
-	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
-		t.Fatal(err)
-	}
-
+func TestLoad_WithClaudeArgsEnv(t *testing.T) {
 	// Save and set env vars
-	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH", "DETACH_CONFIG_PATH"}
+	envVars := []string{"SANDBOX_HOST", "SANDBOX_PORT", "SSH_KEY_PATH", "CLAUDE_ARGS"}
 	saved := make(map[string]string)
 	for _, key := range envVars {
 		saved[key] = os.Getenv(key)
 		os.Unsetenv(key)
 	}
-	os.Setenv("DETACH_CONFIG_PATH", tmpFile)
+	os.Setenv("CLAUDE_ARGS", "--custom-arg --another-arg")
 	defer func() {
 		for key, val := range saved {
 			if val != "" {
@@ -307,8 +273,8 @@ func TestLoad_WithDetachConfig(t *testing.T) {
 	if cfg.WorkingDir != "~/project" {
 		t.Errorf("expected hardcoded WorkingDir '~/project', got %q", cfg.WorkingDir)
 	}
-	if len(cfg.ClaudeArgs) != 1 || cfg.ClaudeArgs[0] != "--custom-arg" {
-		t.Errorf("expected ClaudeArgs ['--custom-arg'], got %v", cfg.ClaudeArgs)
+	if len(cfg.ClaudeArgs) != 2 || cfg.ClaudeArgs[0] != "--custom-arg" || cfg.ClaudeArgs[1] != "--another-arg" {
+		t.Errorf("expected ClaudeArgs ['--custom-arg', '--another-arg'], got %v", cfg.ClaudeArgs)
 	}
 }
 
