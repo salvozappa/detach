@@ -261,6 +261,20 @@ body {
     text-overflow: ellipsis;
 }
 
+.code-refresh-btn {
+    background: #333;
+    border: none;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.code-refresh-btn:active {
+    background: #444;
+}
+
 .code-back-btn {
     background: #333;
     border: none;

@@ -381,6 +381,14 @@ function sendSelectionToLLM(): void {
 // ============================================================================
 
 /**
+ * Refresh the current file list
+ */
+export function refreshFileList(): void {
+    git.loadStatus();
+    files.refresh();
+}
+
+/**
  * Navigate to a folder
  */
 export function navigateToFolder(path: string): void {

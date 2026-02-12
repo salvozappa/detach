@@ -34,7 +34,8 @@ import {
     navigateToFolder,
     openFile,
     showFileExplorer,
-    toggleSelectMode
+    toggleSelectMode,
+    refreshFileList
 } from './ui/code-view';
 import { activateGitView } from './ui/git-view';
 
@@ -158,6 +159,7 @@ declare global {
         openFile: typeof openFile;
         showFileExplorer: typeof showFileExplorer;
         toggleSelectMode: typeof toggleSelectMode;
+        refreshFileList: typeof refreshFileList;
         switchView: typeof switchView;
     }
 }
@@ -166,6 +168,7 @@ window.navigateToFolder = navigateToFolder;
 window.openFile = openFile;
 window.showFileExplorer = showFileExplorer;
 window.toggleSelectMode = toggleSelectMode;
+window.refreshFileList = refreshFileList;
 window.switchView = switchView;
 
 // ============================================================================
