@@ -374,9 +374,9 @@ main() {
             read -rp "Press Enter to continue..."
 
             if [ $vapid_exit_code -eq 0 ]; then
-                # Parse output to extract keys
-                vapid_public_key=$(echo "$vapid_output" | grep "Public Key:" | cut -d':' -f2 | xargs)
-                vapid_private_key=$(echo "$vapid_output" | grep "Private Key:" | cut -d':' -f2 | xargs)
+                # Parse output: keys are on the line AFTER the label
+                vapid_public_key=$(echo "$vapid_output" | grep -A1 "Public Key:" | tail -1 | xargs)
+                vapid_private_key=$(echo "$vapid_output" | grep -A1 "Private Key:" | tail -1 | xargs)
 
                 if [ -n "$vapid_public_key" ] && [ -n "$vapid_private_key" ]; then
                     success "Generated VAPID keys"
