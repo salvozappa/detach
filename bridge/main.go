@@ -68,23 +68,24 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[WS] New connection attempt from %s, User-Agent: %s", remoteAddr, userAgent)
 
-	// Validate authentication token before upgrading connection (unless skipped)
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("[WS] Failed to upgrade connection from %s: %v", remoteAddr, err)
+		return
+	}
+
+	// Validate authentication token after upgrading (unless skipped)
+	// We upgrade first so the browser receives a proper WebSocket close code (4001)
+	// instead of an HTTP 401 that manifests as an opaque close code 1006.
 	if !cfg.SkipAuthentication {
 		token := r.URL.Query().Get("token")
 		if !auth.ValidateToken(token, authToken.Value) {
-			log.Printf("[WS] Unauthorized connection attempt from %s (invalid or missing token)", remoteAddr)
-			http.Error(w, "Unauthorized: invalid or missing token", http.StatusUnauthorized)
+			auth.RejectUnauthorized(conn, remoteAddr)
 			return
 		}
 		log.Printf("[WS] Connection authenticated from %s", remoteAddr)
 	} else {
 		log.Printf("[WS] Authentication skipped (SKIP_AUTHENTICATION is set)")
-	}
-
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Printf("[WS] Failed to upgrade connection from %s: %v", remoteAddr, err)
-		return
 	}
 
 	log.Printf("[WS] Connection upgraded successfully from %s (authenticated)", remoteAddr)

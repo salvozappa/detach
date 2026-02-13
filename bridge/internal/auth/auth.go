@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gorilla/websocket"
 	"github.com/mdp/qrterminal/v3"
 )
 
@@ -17,6 +18,11 @@ const (
 	TokenLength = 32
 	// DefaultTokenFilePath is where the token is stored if not using env var
 	DefaultTokenFilePath = "/app/data/token"
+	// CloseCodeUnauthorized is the WebSocket close code for failed authentication.
+	// Application-level code (4001) so the browser can distinguish it from protocol errors.
+	CloseCodeUnauthorized = 4001
+	// CloseReasonUnauthorized is the human-readable reason sent with the close frame.
+	CloseReasonUnauthorized = "Unauthorized: invalid or missing token"
 )
 
 // Token holds the authentication token and related state
@@ -69,6 +75,15 @@ func ValidateToken(provided, expected string) bool {
 		return false
 	}
 	return subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) == 1
+}
+
+// RejectUnauthorized sends a WebSocket close frame with code 4001 and closes the connection.
+// This must be used instead of HTTP 401 so the browser receives a proper close code.
+func RejectUnauthorized(conn *websocket.Conn, remoteAddr string) {
+	log.Printf("[WS] Unauthorized connection attempt from %s (invalid or missing token)", remoteAddr)
+	conn.WriteMessage(websocket.CloseMessage,
+		websocket.FormatCloseMessage(CloseCodeUnauthorized, CloseReasonUnauthorized))
+	conn.Close()
 }
 
 // PrintPairingInfo displays the pairing URL and QR code

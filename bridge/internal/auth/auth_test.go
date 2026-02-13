@@ -2,10 +2,14 @@ package auth
 
 import (
 	"encoding/base64"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/websocket"
 )
 
 func TestValidateToken_ValidMatch(t *testing.T) {
@@ -360,5 +364,76 @@ func TestLoadOrGenerateToken_IgnoresWhitespaceOnlyFile(t *testing.T) {
 	// Trimmed whitespace should result in empty, triggering generation
 	if _, err := base64.RawURLEncoding.DecodeString(token.Value); err != nil {
 		t.Errorf("expected generated base64 token, got %q", token.Value)
+	}
+}
+
+// wsEcho sets up a test WebSocket server that upgrades the connection and calls handler.
+// Returns a client connection and a cleanup function.
+func wsEcho(t *testing.T, handler func(conn *websocket.Conn)) (*websocket.Conn, func()) {
+	t.Helper()
+	upgrader := websocket.Upgrader{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Fatalf("server upgrade failed: %v", err)
+		}
+		handler(conn)
+	}))
+
+	url := "ws" + strings.TrimPrefix(srv.URL, "http")
+	client, _, err := websocket.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		srv.Close()
+		t.Fatalf("client dial failed: %v", err)
+	}
+	return client, func() {
+		client.Close()
+		srv.Close()
+	}
+}
+
+func TestRejectUnauthorized_SendsClose4001(t *testing.T) {
+	client, cleanup := wsEcho(t, func(serverConn *websocket.Conn) {
+		RejectUnauthorized(serverConn, "127.0.0.1:9999")
+	})
+	defer cleanup()
+
+	// Client should receive a close frame with code 4001
+	_, _, err := client.ReadMessage()
+	if err == nil {
+		t.Fatal("expected close error, got nil")
+	}
+	closeErr, ok := err.(*websocket.CloseError)
+	if !ok {
+		t.Fatalf("expected *websocket.CloseError, got %T: %v", err, err)
+	}
+	if closeErr.Code != CloseCodeUnauthorized {
+		t.Errorf("expected close code %d, got %d", CloseCodeUnauthorized, closeErr.Code)
+	}
+	if closeErr.Text != CloseReasonUnauthorized {
+		t.Errorf("expected close reason %q, got %q", CloseReasonUnauthorized, closeErr.Text)
+	}
+}
+
+func TestRejectUnauthorized_ClosesConnection(t *testing.T) {
+	client, cleanup := wsEcho(t, func(serverConn *websocket.Conn) {
+		RejectUnauthorized(serverConn, "10.0.0.1:1234")
+	})
+	defer cleanup()
+
+	// Drain the close frame
+	client.ReadMessage()
+
+	// Subsequent writes should fail because the connection is closed
+	err := client.WriteMessage(websocket.TextMessage, []byte("hello"))
+	if err == nil {
+		t.Error("expected write to closed connection to fail")
+	}
+}
+
+func TestCloseCodeUnauthorized_IsInApplicationRange(t *testing.T) {
+	// WebSocket application close codes must be in range 4000-4999
+	if CloseCodeUnauthorized < 4000 || CloseCodeUnauthorized > 4999 {
+		t.Errorf("close code %d is outside the application range 4000-4999", CloseCodeUnauthorized)
 	}
 }
