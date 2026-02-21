@@ -295,6 +295,8 @@ main() {
     echo "---------------------------"
     warn "HTTPS is required for PWA features (offline mode, install to home screen)"
     warn "HTTP mode works but is less secure and PWA features will be disabled"
+    info "Note: HTTPS requires a domain name with DNS already pointing to this server's IP."
+    info "If you don't have a domain set up yet, choose 'n' to use HTTP for now."
     echo ""
 
     local use_https=false
