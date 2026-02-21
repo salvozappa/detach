@@ -512,6 +512,9 @@ export function connect(): void {
       stopHealthCheck();
       setWsState(WS_STATES.DISCONNECTED, `Close code: ${event.code}`);
 
+      // Notify UI components so they can reset in-progress states
+      document.dispatchEvent(new CustomEvent('wsDisconnected'));
+
       // Handle authentication failure (4001 Unauthorized)
       if (event.code === 4001) {
         debugLog("WS", "error", "Authentication failed - token invalid or missing");

@@ -56,6 +56,7 @@ export function initGitView(): void {
     document.addEventListener('gitPullSuccess', onPullSuccess);
     document.addEventListener('gitPushSuccess', onPushSuccess);
     document.addEventListener('gitError', onGitError);
+    document.addEventListener('wsDisconnected', resetGitButtons);
 }
 
 /**
@@ -350,9 +351,10 @@ function onPushSuccess(): void {
 }
 
 /**
- * Handle git error event
+ * Reset all git action buttons to their default state.
+ * Called on git errors and WebSocket disconnections.
  */
-function onGitError(): void {
+function resetGitButtons(): void {
     const commitBtn = document.getElementById('commit-btn') as HTMLButtonElement | null;
     const pullBtn = document.getElementById('pull-btn') as HTMLButtonElement | null;
     const pushBtn = document.getElementById('push-btn') as HTMLButtonElement | null;
@@ -369,6 +371,13 @@ function onGitError(): void {
         pushBtn.disabled = false;
         pushBtn.textContent = 'Push';
     }
+}
+
+/**
+ * Handle git error event
+ */
+function onGitError(): void {
+    resetGitButtons();
 }
 
 // ============================================================================
