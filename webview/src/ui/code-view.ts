@@ -10,7 +10,7 @@ import { formatFileSize } from '../utils';
 import { isConnected } from '../connection';
 import * as files from '../files';
 import * as git from '../git';
-import { focusLLMTerminal, sendToLLMTerminal } from './terminal';
+import { focusAgentTerminal, sendToAgentTerminal } from './terminal';
 
 // ============================================================================
 // State (UI-only state for selection mode)
@@ -43,12 +43,12 @@ export function initCodeViewHandlers(): void {
     // Update button position on scroll
     document.getElementById('code-content-diff')?.addEventListener('scroll', () => {
         if (selectModeActive && selectedLines.size > 0) {
-            updateSendToLLMButton();
+            updateSendToAgentButton();
         }
     });
 
-    // Send to LLM button click handler
-    document.getElementById('send-to-llm-btn')?.addEventListener('click', sendSelectionToLLM);
+    // Send to Agent button click handler
+    document.getElementById('send-to-llm-btn')?.addEventListener('click', sendSelectionToAgent);
 }
 
 // ============================================================================
@@ -252,7 +252,7 @@ function clearSelection(): void {
         el.classList.remove('selected');
     });
     selectionPhase = 'none';
-    updateSendToLLMButton();
+    updateSendToAgentButton();
 }
 
 /**
@@ -267,9 +267,9 @@ function selectLine(lineNumber: number): void {
 }
 
 /**
- * Update the position of the "Send to LLM" button
+ * Update the position of the "Send to Agent" button
  */
-function updateSendToLLMButton(): void {
+function updateSendToAgentButton(): void {
     const btn = document.getElementById('send-to-llm-btn') as HTMLElement | null;
     if (!btn) return;
 
@@ -303,7 +303,7 @@ function handleLineClick(lineNumber: number): void {
     } else if (selectionPhase === 'none') {
         selectLine(lineNumber);
         selectionPhase = 'first';
-        updateSendToLLMButton();
+        updateSendToAgentButton();
     } else if (selectionPhase === 'first') {
         const firstLine = Array.from(selectedLines)[0];
         const start = Math.min(firstLine, lineNumber);
@@ -314,14 +314,14 @@ function handleLineClick(lineNumber: number): void {
             selectLine(i);
         }
         selectionPhase = 'range';
-        updateSendToLLMButton();
+        updateSendToAgentButton();
     }
 }
 
 /**
- * Send selected lines to LLM terminal
+ * Send selected lines to Agent terminal
  */
-function sendSelectionToLLM(): void {
+function sendSelectionToAgent(): void {
     const currentFilePath = files.getCurrentFilePath();
     if (selectedLines.size === 0 || !currentFilePath) return;
 
@@ -336,12 +336,12 @@ function sendSelectionToLLM(): void {
         reference = `${currentFilePath}:${startLine}-${endLine} `;
     }
 
-    // Switch to LLM view
-    const switchViewEvent = new CustomEvent('switchView', { detail: 'llm' });
+    // Switch to Agent view
+    const switchViewEvent = new CustomEvent('switchView', { detail: 'agent' });
     document.dispatchEvent(switchViewEvent);
 
-    focusLLMTerminal();
-    sendToLLMTerminal(reference);
+    focusAgentTerminal();
+    sendToAgentTerminal(reference);
 
     selectModeActive = false;
     document.getElementById('code-select-toggle')?.classList.remove('active');

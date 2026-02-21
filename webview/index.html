@@ -25,8 +25,8 @@
 
     <div id="status" class="connecting">Connecting...</div>
 
-    <!-- LLM View (Terminal) -->
-    <div id="view-llm" class="view active">
+    <!-- Agent View (Terminal) -->
+    <div id="view-agent" class="view active">
         <div id="terminal-container">
             <div id="terminal"></div>
         </div>
@@ -54,8 +54,8 @@
             </div>
             <!-- Diff view (diff2html) -->
             <div class="code-content" id="code-content-diff"></div>
-            <!-- Floating button for sending selection to LLM -->
-            <button id="send-to-llm-btn" class="send-to-llm-btn">Reference to LLM</button>
+            <!-- Floating button for sending selection to Agent -->
+            <button id="send-to-llm-btn" class="send-to-llm-btn">Reference to Agent</button>
         </div>
     </div>
 
@@ -141,7 +141,7 @@
 
     <!-- Bottom Navigation -->
     <nav id="bottom-nav">
-        <button class="nav-btn active" data-view="llm">LLM</button>
+        <button class="nav-btn active" data-view="agent">Agent</button>
         <button class="nav-btn" data-view="code">Code</button>
         <button class="nav-btn" data-view="terminal">Terminal</button>
         <button class="nav-btn" data-view="git">Git</button>

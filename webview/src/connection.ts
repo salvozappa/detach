@@ -133,7 +133,7 @@ type SessionHandler = (sessionId: string) => void;
 const messageHandlers: Map<string, MessageHandler> = new Map();
 let terminalDataHandler: TerminalDataHandler | null = null;
 let sessionHandler: SessionHandler | null = null;
-let terminalSizeCallback: ((terminal: "llm" | "terminal") => void) | null =
+let terminalSizeCallback: ((terminal: "agent" | "terminal") => void) | null =
   null;
 
 /**
@@ -166,7 +166,7 @@ export function registerSessionHandler(handler: SessionHandler): void {
  * Register callback to send terminal size after connection
  */
 export function registerTerminalSizeCallback(
-  callback: (terminal: "llm" | "terminal") => void,
+  callback: (terminal: "agent" | "terminal") => void,
 ): void {
   terminalSizeCallback = callback;
 }
@@ -413,7 +413,7 @@ export function connect(): void {
 
       // Send initial terminal sizes
       if (terminalSizeCallback) {
-        terminalSizeCallback("llm");
+        terminalSizeCallback("agent");
         terminalSizeCallback("terminal");
       }
     };
@@ -435,7 +435,7 @@ export function connect(): void {
             // Route terminal data to correct terminal
             const data = base64ToBytes(msg.data);
             if (terminalDataHandler) {
-              terminalDataHandler(msg.terminal || "llm", data);
+              terminalDataHandler(msg.terminal || "agent", data);
             }
           } else if (msg.type === "session" && msg.id) {
             console.log("Session ID:", msg.id);
@@ -468,18 +468,18 @@ export function connect(): void {
           // Not JSON, treat as text terminal output
           if (terminalDataHandler) {
             const encoder = new TextEncoder();
-            terminalDataHandler("llm", encoder.encode(event.data));
+            terminalDataHandler("agent", encoder.encode(event.data));
           }
         }
       } else if (event.data instanceof ArrayBuffer) {
         const data = new Uint8Array(event.data);
         if (terminalDataHandler) {
-          terminalDataHandler("llm", data);
+          terminalDataHandler("agent", data);
         }
       } else if (event.data instanceof Blob) {
         event.data.arrayBuffer().then((buf) => {
           if (terminalDataHandler) {
-            terminalDataHandler("llm", new Uint8Array(buf));
+            terminalDataHandler("agent", new Uint8Array(buf));
           }
         });
       }

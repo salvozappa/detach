@@ -47,7 +47,7 @@ func (m *WSMessage) UnmarshalJSON(data []byte) error {
 
 type ResizeMessage struct {
 	Type     string `json:"type"`
-	Terminal string `json:"terminal"` // "llm" or "terminal"
+	Terminal string `json:"terminal"` // "agent" or "terminal"
 	Rows     int    `json:"rows"`
 	Cols     int    `json:"cols"`
 }
@@ -60,7 +60,7 @@ type SessionMessage struct {
 
 type TerminalDataMessage struct {
 	Type     string `json:"type"`     // "terminal_data"
-	Terminal string `json:"terminal"` // "llm" or "terminal"
+	Terminal string `json:"terminal"` // "agent" or "terminal"
 	Data     string `json:"data"`     // base64 encoded
 }
 

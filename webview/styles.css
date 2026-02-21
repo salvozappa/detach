@@ -408,7 +408,7 @@ body {
     background: rgba(74, 144, 217, 0.3) !important;
 }
 
-/* Send to LLM floating button */
+/* Send to Agent floating button */
 .send-to-llm-btn {
     display: none;
     position: fixed;

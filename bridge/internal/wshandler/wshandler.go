@@ -62,7 +62,7 @@ type Deps struct {
 	Notify        NotifyService
 	Responder     Responder
 	Resizer       TerminalResizer
-	LLMStdin      io.Writer
+	AgentStdin      io.Writer
 	ShellStdin    io.Writer
 }
 
@@ -101,8 +101,8 @@ func HandleTerminalData(deps *Deps, payload []byte) bool {
 			return false
 		}
 	} else {
-		if _, err := deps.LLMStdin.Write(data); err != nil {
-			log.Printf("Session %s LLM stdin write error: %v", deps.SessionID, err)
+		if _, err := deps.AgentStdin.Write(data); err != nil {
+			log.Printf("Session %s Agent stdin write error: %v", deps.SessionID, err)
 			return false
 		}
 	}
@@ -387,7 +387,7 @@ func HandleConnection(conn *websocket.Conn, deps *Deps, sessWS SessionWebSocket,
 		var msg types.WSMessage
 		if err := json.Unmarshal(p, &msg); err != nil {
 			// Not valid JSON, treat as raw terminal input
-			if _, err := deps.LLMStdin.Write(p); err != nil {
+			if _, err := deps.AgentStdin.Write(p); err != nil {
 				log.Printf("Session %s stdin write error: %v", deps.SessionID, err)
 				return
 			}
@@ -448,7 +448,7 @@ func HandleConnection(conn *websocket.Conn, deps *Deps, sessWS SessionWebSocket,
 
 		default:
 			// Unknown message type, treat as terminal input
-			if _, err := deps.LLMStdin.Write(p); err != nil {
+			if _, err := deps.AgentStdin.Write(p); err != nil {
 				log.Printf("Session %s stdin write error: %v", deps.SessionID, err)
 				return
 			}

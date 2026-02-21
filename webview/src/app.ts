@@ -15,13 +15,13 @@ import {
     handleBeforeUnload
 } from './connection';
 import {
-    initLLMTerminal,
+    initAgentTerminal,
     initKeyboardToolbar,
     initViewportListeners,
     initFocusTracking,
     handleTerminalData,
     sendTerminalSize,
-    activateLLMView,
+    activateAgentView,
     activateTerminalView,
     deactivateTerminalViews
 } from './ui/terminal';
@@ -67,7 +67,7 @@ if (tokenFromUrl) {
 }
 
 // Initialize terminals
-initLLMTerminal();
+initAgentTerminal();
 
 // Initialize UI handlers
 initToastHandlers();
@@ -105,8 +105,8 @@ function switchView(viewName: string): void {
     document.querySelector(`[data-view="${viewName}"]`)?.classList.add('active');
 
     // Handle view-specific activation
-    if (viewName === 'llm') {
-        activateLLMView();
+    if (viewName === 'agent') {
+        activateAgentView();
     } else if (viewName === 'terminal') {
         activateTerminalView();
     } else {
@@ -175,7 +175,7 @@ window.switchView = switchView;
 // Start Application
 // ============================================================================
 
-// Initialize keyboard toolbar visibility (LLM view is default)
+// Initialize keyboard toolbar visibility (Agent view is default)
 document.getElementById('keyboard-toolbar')?.classList.add('visible');
 
 // Start connection

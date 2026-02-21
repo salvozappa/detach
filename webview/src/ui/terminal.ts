@@ -1,5 +1,5 @@
 /**
- * Terminal management for LLM and Shell terminals.
+ * Terminal management for Agent and Shell terminals.
  * Handles xterm.js setup, keyboard toolbar, touch scrolling, and viewport resizing.
  * Owns all terminal-related state.
  */
@@ -21,7 +21,7 @@ let termShell: Terminal | null = null;
 let fitAddonShell: FitAddon | null = null;
 let webLinksAddonShell: WebLinksAddon | null = null;
 let shellTerminalInitialized = false;
-let activeTerminal: 'llm' | 'terminal' = 'llm';
+let activeTerminal: 'agent' | 'terminal' = 'agent';
 
 // Internal getters/setters
 function getTerm(): Terminal | null {
@@ -54,10 +54,10 @@ function isShellTerminalInitialized(): boolean {
 function setShellTerminalInitialized(v: boolean): void {
     shellTerminalInitialized = v;
 }
-function getActiveTerminal(): 'llm' | 'terminal' {
+function getActiveTerminal(): 'agent' | 'terminal' {
     return activeTerminal;
 }
-function setActiveTerminal(t: 'llm' | 'terminal'): void {
+function setActiveTerminal(t: 'agent' | 'terminal'): void {
     activeTerminal = t;
 }
 
@@ -300,9 +300,9 @@ const TERMINAL_OPTIONS = {
 // ============================================================================
 
 /**
- * Initialize the LLM terminal
+ * Initialize the Agent terminal
  */
-export function initLLMTerminal(): void {
+export function initAgentTerminal(): void {
     const term = new Terminal(TERMINAL_OPTIONS);
     const fitAddon = new FitAddon();
     const webLinksAddon = new WebLinksAddon(handleLinkActivation);
@@ -321,28 +321,28 @@ export function initLLMTerminal(): void {
         // Register custom multi-line link provider for better wrapped URL detection
         term.registerLinkProvider(new MultiLineLinkProvider(term));
 
-        // Setup touch scroll for LLM terminal
+        // Setup touch scroll for Agent terminal
         setupTouchScroll(term, terminalEl);
     }
 
     // Debug: Track terminal focus events
     term.textarea?.addEventListener('focus', () => {
-        debugLog('TERMINAL', 'info', 'LLM terminal textarea focused');
+        debugLog('TERMINAL', 'info', 'Agent terminal textarea focused');
     });
     term.textarea?.addEventListener('blur', () => {
-        debugLog('TERMINAL', 'info', 'LLM terminal textarea blurred');
+        debugLog('TERMINAL', 'info', 'Agent terminal textarea blurred');
     });
 
-    debugLog('TERMINAL', 'info', 'LLM terminal initialized', {
+    debugLog('TERMINAL', 'info', 'Agent terminal initialized', {
         rows: term.rows,
         cols: term.cols,
         hasTextarea: !!term.textarea,
-        llmViewActive: document.getElementById('view-llm')?.classList.contains('active')
+        agentViewActive: document.getElementById('view-agent')?.classList.contains('active')
     });
 
-    // Register onData handler for LLM terminal
+    // Register onData handler for Agent terminal
     term.onData((data) => {
-        debugLog('TERMINAL', 'info', 'term.onData (LLM) called', {
+        debugLog('TERMINAL', 'info', 'term.onData (Agent) called', {
             dataLength: data.length,
             dataHex: Array.from(data).map(c => c.charCodeAt(0).toString(16)).join(' '),
             wsOpen: isConnected(),
@@ -350,7 +350,7 @@ export function initLLMTerminal(): void {
         });
         sendMessage({
             type: 'terminal_data',
-            terminal: 'llm',
+            terminal: 'agent',
             data: btoa(data)
         });
     });
@@ -432,7 +432,7 @@ export function initShellTerminal(): void {
 /**
  * Send terminal size to server
  */
-export function sendTerminalSize(terminal: 'llm' | 'terminal'): void {
+export function sendTerminalSize(terminal: 'agent' | 'terminal'): void {
     const t = terminal === 'terminal' ? getTermShell() : getTerm();
     if (!t) return; // Terminal not initialized yet
 
@@ -453,7 +453,7 @@ export function handleWindowResize(): void {
 
     if (fitAddon) fitAddon.fit();
     if (fitAddonShell) fitAddonShell.fit();
-    sendTerminalSize('llm');
+    sendTerminalSize('agent');
     sendTerminalSize('terminal');
 }
 
@@ -498,10 +498,10 @@ export function handleViewportResize(): void {
 
     // Re-fit terminal to new dimensions
     const activeTerminal = getActiveTerminal();
-    if (activeTerminal === 'llm') {
+    if (activeTerminal === 'agent') {
         const fitAddon = getFitAddon();
         if (fitAddon) fitAddon.fit();
-        sendTerminalSize('llm');
+        sendTerminalSize('agent');
     } else if (activeTerminal === 'terminal') {
         const fitAddonShell = getFitAddonShell();
         if (fitAddonShell) fitAddonShell.fit();
@@ -780,10 +780,10 @@ export function handleTerminalData(terminal: string, data: Uint8Array): void {
 // ============================================================================
 
 /**
- * Update terminal view when switching to LLM view
+ * Update terminal view when switching to Agent view
  */
-export function activateLLMView(): void {
-    setActiveTerminal('llm');
+export function activateAgentView(): void {
+    setActiveTerminal('agent');
     const keyboardToolbar = document.getElementById('keyboard-toolbar');
     const terminalContainerEl = document.getElementById('terminal-container');
 
@@ -794,7 +794,7 @@ export function activateLLMView(): void {
     setTimeout(() => {
         const fitAddon = getFitAddon();
         if (fitAddon) fitAddon.fit();
-        sendTerminalSize('llm');
+        sendTerminalSize('agent');
     }, 50);
 }
 
@@ -842,20 +842,20 @@ export function deactivateTerminalViews(): void {
 }
 
 /**
- * Focus the LLM terminal
+ * Focus the Agent terminal
  */
-export function focusLLMTerminal(): void {
+export function focusAgentTerminal(): void {
     const term = getTerm();
     if (term) term.focus();
 }
 
 /**
- * Send text to the LLM terminal
+ * Send text to the Agent terminal
  */
-export function sendToLLMTerminal(text: string): void {
+export function sendToAgentTerminal(text: string): void {
     sendMessage({
         type: 'terminal_data',
-        terminal: 'llm',
+        terminal: 'agent',
         data: btoa(text)
     });
 }

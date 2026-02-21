@@ -6,7 +6,7 @@ import (
 )
 
 func TestWSMessage_UnmarshalJSON_ValidMessage(t *testing.T) {
-	input := `{"type":"terminal_data","terminal":"llm","data":"SGVsbG8="}`
+	input := `{"type":"terminal_data","terminal":"agent","data":"SGVsbG8="}`
 	var msg WSMessage
 	err := json.Unmarshal([]byte(input), &msg)
 
@@ -19,7 +19,7 @@ func TestWSMessage_UnmarshalJSON_ValidMessage(t *testing.T) {
 }
 
 func TestWSMessage_UnmarshalJSON_PreservesPayload(t *testing.T) {
-	input := `{"type":"resize","terminal":"llm","rows":24,"cols":80}`
+	input := `{"type":"resize","terminal":"agent","rows":24,"cols":80}`
 	var msg WSMessage
 	err := json.Unmarshal([]byte(input), &msg)
 
@@ -94,8 +94,57 @@ func TestWSMessage_UnmarshalJSON_AllMessageTypes(t *testing.T) {
 	}
 }
 
+func TestTerminalDataMessage_RoundTrip(t *testing.T) {
+	// Verify TerminalDataMessage serializes/deserializes with "agent" terminal value
+	original := TerminalDataMessage{
+		Type:     "terminal_data",
+		Terminal: "agent",
+		Data:     "SGVsbG8=",
+	}
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("marshal error: %v", err)
+	}
+
+	var decoded TerminalDataMessage
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if decoded.Terminal != "agent" {
+		t.Errorf("expected terminal 'agent', got %q", decoded.Terminal)
+	}
+	if decoded.Type != "terminal_data" {
+		t.Errorf("expected type 'terminal_data', got %q", decoded.Type)
+	}
+	if decoded.Data != "SGVsbG8=" {
+		t.Errorf("expected data 'SGVsbG8=', got %q", decoded.Data)
+	}
+}
+
+func TestResizeMessage_BothTerminalValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		terminal string
+	}{
+		{"agent", "agent"},
+		{"terminal", "terminal"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := `{"type":"resize","terminal":"` + tt.terminal + `","rows":24,"cols":80}`
+			var msg ResizeMessage
+			if err := json.Unmarshal([]byte(input), &msg); err != nil {
+				t.Fatalf("unmarshal error: %v", err)
+			}
+			if msg.Terminal != tt.terminal {
+				t.Errorf("expected terminal %q, got %q", tt.terminal, msg.Terminal)
+			}
+		})
+	}
+}
+
 func TestWSMessage_CanParsePayloadAfterUnmarshal(t *testing.T) {
-	input := `{"type":"resize","terminal":"llm","rows":24,"cols":80}`
+	input := `{"type":"resize","terminal":"agent","rows":24,"cols":80}`
 	var msg WSMessage
 	err := json.Unmarshal([]byte(input), &msg)
 	if err != nil {
@@ -109,8 +158,8 @@ func TestWSMessage_CanParsePayloadAfterUnmarshal(t *testing.T) {
 		t.Fatalf("failed to parse payload: %v", err)
 	}
 
-	if resize.Terminal != "llm" {
-		t.Errorf("expected terminal 'llm', got %q", resize.Terminal)
+	if resize.Terminal != "agent" {
+		t.Errorf("expected terminal 'agent', got %q", resize.Terminal)
 	}
 	if resize.Rows != 24 {
 		t.Errorf("expected rows 24, got %d", resize.Rows)

@@ -145,7 +145,7 @@ func runConnectionHandler(conn *websocket.Conn, sess *session.Session) {
 		Notify:     notifyService,
 		Responder:  sess,
 		Resizer:    sess,
-		LLMStdin:   sess.Stdin,
+		AgentStdin: sess.Stdin,
 		ShellStdin: sess.StdinTerminal,
 	}
 

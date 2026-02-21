@@ -139,26 +139,26 @@ func newTestDeps() *Deps {
 		Notify:     &mockNotifyService{},
 		Responder:  &mockResponder{},
 		Resizer:    &mockResizer{},
-		LLMStdin:   &mockWriter{},
+		AgentStdin:   &mockWriter{},
 		ShellStdin: &mockWriter{},
 	}
 }
 
 // Terminal Data Tests
 
-func TestHandleTerminalData_LLMTerminal(t *testing.T) {
+func TestHandleTerminalData_AgentTerminal(t *testing.T) {
 	deps := newTestDeps()
 	data := base64.StdEncoding.EncodeToString([]byte("hello"))
-	payload := []byte(`{"type":"terminal_data","terminal":"llm","data":"` + data + `"}`)
+	payload := []byte(`{"type":"terminal_data","terminal":"agent","data":"` + data + `"}`)
 
 	result := HandleTerminalData(deps, payload)
 
 	if !result {
 		t.Error("expected true return value")
 	}
-	llmWriter := deps.LLMStdin.(*mockWriter)
-	if string(llmWriter.Written) != "hello" {
-		t.Errorf("expected 'hello' written to LLM, got %q", llmWriter.Written)
+	agentWriter := deps.AgentStdin.(*mockWriter)
+	if string(agentWriter.Written) != "hello" {
+		t.Errorf("expected 'hello' written to agent, got %q", agentWriter.Written)
 	}
 	shellWriter := deps.ShellStdin.(*mockWriter)
 	if len(shellWriter.Written) != 0 {
@@ -180,15 +180,72 @@ func TestHandleTerminalData_ShellTerminal(t *testing.T) {
 	if string(shellWriter.Written) != "ls -la" {
 		t.Errorf("expected 'ls -la' written to shell, got %q", shellWriter.Written)
 	}
-	llmWriter := deps.LLMStdin.(*mockWriter)
-	if len(llmWriter.Written) != 0 {
-		t.Error("expected nothing written to LLM stdin")
+	agentWriter := deps.AgentStdin.(*mockWriter)
+	if len(agentWriter.Written) != 0 {
+		t.Error("expected nothing written to agent stdin")
+	}
+}
+
+func TestHandleTerminalData_UnknownTerminalRoutesToAgent(t *testing.T) {
+	deps := newTestDeps()
+	data := base64.StdEncoding.EncodeToString([]byte("hello"))
+	// Any terminal value other than "terminal" should route to AgentStdin
+	payload := []byte(`{"type":"terminal_data","terminal":"unknown","data":"` + data + `"}`)
+
+	result := HandleTerminalData(deps, payload)
+
+	if !result {
+		t.Error("expected true return value")
+	}
+	agentWriter := deps.AgentStdin.(*mockWriter)
+	if string(agentWriter.Written) != "hello" {
+		t.Errorf("expected 'hello' written to agent, got %q", agentWriter.Written)
+	}
+	shellWriter := deps.ShellStdin.(*mockWriter)
+	if len(shellWriter.Written) != 0 {
+		t.Error("expected nothing written to shell stdin")
+	}
+}
+
+func TestHandleTerminalData_EmptyTerminalRoutesToAgent(t *testing.T) {
+	deps := newTestDeps()
+	data := base64.StdEncoding.EncodeToString([]byte("hello"))
+	// Missing terminal field should default to agent
+	payload := []byte(`{"type":"terminal_data","data":"` + data + `"}`)
+
+	result := HandleTerminalData(deps, payload)
+
+	if !result {
+		t.Error("expected true return value")
+	}
+	agentWriter := deps.AgentStdin.(*mockWriter)
+	if string(agentWriter.Written) != "hello" {
+		t.Errorf("expected 'hello' written to agent, got %q", agentWriter.Written)
+	}
+}
+
+func TestHandleTerminalData_OldLLMValueRoutesToAgent(t *testing.T) {
+	// Guard against accidentally reintroducing "llm" as a special case.
+	// The old wire value "llm" is no longer used; it should fall through
+	// to the agent branch (the else clause) just like any non-"terminal" value.
+	deps := newTestDeps()
+	data := base64.StdEncoding.EncodeToString([]byte("hello"))
+	payload := []byte(`{"type":"terminal_data","terminal":"llm","data":"` + data + `"}`)
+
+	result := HandleTerminalData(deps, payload)
+
+	if !result {
+		t.Error("expected true return value")
+	}
+	agentWriter := deps.AgentStdin.(*mockWriter)
+	if string(agentWriter.Written) != "hello" {
+		t.Errorf("expected 'hello' written to agent, got %q", agentWriter.Written)
 	}
 }
 
 func TestHandleTerminalData_InvalidBase64(t *testing.T) {
 	deps := newTestDeps()
-	payload := []byte(`{"type":"terminal_data","terminal":"llm","data":"not-valid-base64!!!"}`)
+	payload := []byte(`{"type":"terminal_data","terminal":"agent","data":"not-valid-base64!!!"}`)
 
 	result := HandleTerminalData(deps, payload)
 
@@ -200,10 +257,10 @@ func TestHandleTerminalData_InvalidBase64(t *testing.T) {
 
 func TestHandleTerminalData_WriteError(t *testing.T) {
 	deps := newTestDeps()
-	llmWriter := &mockWriter{Err: errors.New("write error")}
-	deps.LLMStdin = llmWriter
+	agentWriter := &mockWriter{Err: errors.New("write error")}
+	deps.AgentStdin = agentWriter
 	data := base64.StdEncoding.EncodeToString([]byte("hello"))
-	payload := []byte(`{"type":"terminal_data","terminal":"llm","data":"` + data + `"}`)
+	payload := []byte(`{"type":"terminal_data","terminal":"agent","data":"` + data + `"}`)
 
 	result := HandleTerminalData(deps, payload)
 
@@ -229,7 +286,7 @@ func TestHandleTerminalData_InvalidJSON(t *testing.T) {
 
 func TestHandleResize_Success(t *testing.T) {
 	deps := newTestDeps()
-	payload := []byte(`{"type":"resize","terminal":"llm","rows":24,"cols":80}`)
+	payload := []byte(`{"type":"resize","terminal":"agent","rows":24,"cols":80}`)
 
 	HandleResize(deps, payload)
 
@@ -237,14 +294,35 @@ func TestHandleResize_Success(t *testing.T) {
 	if len(resizer.Calls) != 1 {
 		t.Fatalf("expected 1 resize call, got %d", len(resizer.Calls))
 	}
-	if resizer.Calls[0].Terminal != "llm" {
-		t.Errorf("expected terminal 'llm', got %q", resizer.Calls[0].Terminal)
+	if resizer.Calls[0].Terminal != "agent" {
+		t.Errorf("expected terminal 'agent', got %q", resizer.Calls[0].Terminal)
 	}
 	if resizer.Calls[0].Rows != 24 {
 		t.Errorf("expected rows 24, got %d", resizer.Calls[0].Rows)
 	}
 	if resizer.Calls[0].Cols != 80 {
 		t.Errorf("expected cols 80, got %d", resizer.Calls[0].Cols)
+	}
+}
+
+func TestHandleResize_ShellTerminal(t *testing.T) {
+	deps := newTestDeps()
+	payload := []byte(`{"type":"resize","terminal":"terminal","rows":30,"cols":120}`)
+
+	HandleResize(deps, payload)
+
+	resizer := deps.Resizer.(*mockResizer)
+	if len(resizer.Calls) != 1 {
+		t.Fatalf("expected 1 resize call, got %d", len(resizer.Calls))
+	}
+	if resizer.Calls[0].Terminal != "terminal" {
+		t.Errorf("expected terminal 'terminal', got %q", resizer.Calls[0].Terminal)
+	}
+	if resizer.Calls[0].Rows != 30 {
+		t.Errorf("expected rows 30, got %d", resizer.Calls[0].Rows)
+	}
+	if resizer.Calls[0].Cols != 120 {
+		t.Errorf("expected cols 120, got %d", resizer.Calls[0].Cols)
 	}
 }
 

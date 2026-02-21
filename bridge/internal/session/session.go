@@ -31,7 +31,7 @@ const (
 type Session struct {
 	ID      string
 	SSHConn *ssh.Client
-	SSHSess *ssh.Session // LLM terminal (Claude)
+	SSHSess *ssh.Session // Agent terminal (Claude)
 	Stdin   io.WriteCloser
 	Buffer  *buffer.RingBuffer
 	Done    chan struct{}
@@ -293,7 +293,7 @@ func Create(cfg *config.Config, user string) (*Session, error) {
 
 	Set(session)
 
-	// Start claude in LLM terminal
+	// Start claude in Agent terminal
 	log.Println("Starting claude...")
 	claudeArgs := cfg.BuildClaudeArgsString()
 	claudeCmd := fmt.Sprintf("bash -l -c 'cd %s && exec claude %s'", cfg.WorkingDir, claudeArgs)
@@ -318,36 +318,36 @@ func Create(cfg *config.Config, user string) (*Session, error) {
 	}
 	log.Println("Shell terminal started successfully")
 
-	// Goroutine to forward LLM terminal stdout
+	// Goroutine to forward Agent terminal stdout
 	go func() {
 		buf := make([]byte, 1024)
 		for {
 			n, err := stdout.Read(buf)
 			if err != nil {
-				log.Printf("Session %s LLM stdout ended: %v", session.ID, err)
+				log.Printf("Session %s Agent stdout ended: %v", session.ID, err)
 				return
 			}
 			data := buf[:n]
 			session.Buffer.Write(data)
-			if err := session.WriteToWebSocketWithTerminal(data, "llm"); err != nil {
-				log.Printf("Session %s WebSocket write error (LLM stdout): %v", session.ID, err)
+			if err := session.WriteToWebSocketWithTerminal(data, "agent"); err != nil {
+				log.Printf("Session %s WebSocket write error (Agent stdout): %v", session.ID, err)
 			}
 		}
 	}()
 
-	// Goroutine to forward LLM terminal stderr
+	// Goroutine to forward Agent terminal stderr
 	go func() {
 		buf := make([]byte, 1024)
 		for {
 			n, err := stderr.Read(buf)
 			if err != nil {
-				log.Printf("Session %s LLM stderr ended: %v", session.ID, err)
+				log.Printf("Session %s Agent stderr ended: %v", session.ID, err)
 				return
 			}
 			data := buf[:n]
 			session.Buffer.Write(data)
-			if err := session.WriteToWebSocketWithTerminal(data, "llm"); err != nil {
-				log.Printf("Session %s WebSocket write error (LLM stderr): %v", session.ID, err)
+			if err := session.WriteToWebSocketWithTerminal(data, "agent"); err != nil {
+				log.Printf("Session %s WebSocket write error (Agent stderr): %v", session.ID, err)
 			}
 		}
 	}()
@@ -386,10 +386,10 @@ func Create(cfg *config.Config, user string) (*Session, error) {
 		}
 	}()
 
-	// Goroutine to wait for LLM session end and cleanup
+	// Goroutine to wait for Agent session end and cleanup
 	go func() {
 		sshSess.Wait()
-		log.Printf("Session %s LLM terminal ended", session.ID)
+		log.Printf("Session %s Agent terminal ended", session.ID)
 		close(session.Done)
 		Clear()
 		sshSess.Close()
@@ -415,17 +415,17 @@ func HandleReconnect(conn *websocket.Conn, session *Session, vapidPublicKey stri
 	conn.SetWriteDeadline(time.Now().Add(WriteWait))
 	conn.WriteMessage(websocket.TextMessage, msgBytes)
 
-	// Replay LLM terminal buffer
+	// Replay Agent terminal buffer
 	bufferedData := session.Buffer.GetAll()
 	if len(bufferedData) > 0 {
-		log.Printf("Replaying %d bytes of LLM buffer for session %s", len(bufferedData), session.ID)
-		llmMsg := types.TerminalDataMessage{
+		log.Printf("Replaying %d bytes of Agent buffer for session %s", len(bufferedData), session.ID)
+		agentMsg := types.TerminalDataMessage{
 			Type:     "terminal_data",
-			Terminal: "llm",
+			Terminal: "agent",
 			Data:     base64.StdEncoding.EncodeToString(bufferedData),
 		}
 		conn.SetWriteDeadline(time.Now().Add(WriteWait))
-		conn.WriteJSON(llmMsg)
+		conn.WriteJSON(agentMsg)
 	}
 
 	// Replay shell terminal buffer
