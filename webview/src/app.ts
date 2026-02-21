@@ -113,8 +113,8 @@ function switchView(viewName: string): void {
         deactivateTerminalViews();
     }
 
-    // Load files when switching to Code view
-    if (viewName === 'code') {
+    // Load files when switching to Explore view
+    if (viewName === 'explore') {
         activateCodeView();
     }
 

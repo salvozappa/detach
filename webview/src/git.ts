@@ -176,8 +176,8 @@ export function handleGitMessage(msg: GitMessage): void {
         stagedChanges = statusMsg.staged || [];
         notifyStateChange();
 
-        // Refresh file list if we're on the code view
-        if (document.getElementById('view-code')?.classList.contains('active')) {
+        // Refresh file list if we're on the explore view
+        if (document.getElementById('view-explore')?.classList.contains('active')) {
             if (refreshFileList) {
                 refreshFileList();
             }
