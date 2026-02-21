@@ -16,3 +16,5 @@ android/app/src/main/assets/
 # Webview build artifacts
 webview/dist/
 webview/node_modules/
+
+detach.json
