@@ -1,1 +1,0 @@
-Perhaps we could use docker exec instead of ssh to connect to the sandbox. Pros/cons?
