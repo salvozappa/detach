@@ -54,7 +54,7 @@ Detach uses token-based authentication for pairing mobile devices with a self-ho
 
 ### Storage (server-side)
 
-- **Location:** `~/.detach/token` or configurable via `DETACH_TOKEN_FILE` env var
+- **Location:** `/app/data/token` (inside the bridge container), configurable via `DETACH_TOKEN_FILE` env var
 - **Permissions:** `0600` (owner read/write only)
 - **Format:** Plain text, single line, no whitespace
 - **Persistence:** Token survives container restarts via volume mount
@@ -98,26 +98,14 @@ Bridge validates on every WebSocket upgrade request:
 
 ### Regenerate token
 
-For security (e.g., token leaked), users can regenerate:
+For security (e.g., token leaked), delete the token file and restart the bridge container. A new token will be generated automatically:
 
 ```bash
-# Via docker exec
-docker exec detach-bridge /app/bridge --regenerate-token
-
-# Output
-New token generated. Pair your devices again:
-https://your-host:8080?token=<new-token>
+docker exec detach-bridge rm /app/data/token
+docker-compose restart bridge
 ```
 
-This invalidates all previously paired devices.
-
-### Display pairing info
-
-Re-display the pairing URL and QR code:
-
-```bash
-docker exec detach-bridge /app/bridge --show-pairing
-```
+This invalidates all previously paired devices. The new pairing URL and QR code will be shown in the bridge logs.
 
 ### Environment override
 

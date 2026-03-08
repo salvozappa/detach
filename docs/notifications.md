@@ -1,6 +1,6 @@
 # Push Notifications
 
-This document describes how push notifications work in detach.it.
+This document describes how push notifications work in Detach.
 
 ## Overview
 
@@ -25,7 +25,7 @@ When Claude Code emits certain events (Stop, PermissionRequest), a hook script i
     |
     | (HTTP POST to /api/hook)
     v
-[Bridge: notifications.go]
+[Bridge: notify.go]
     |
     └─> [Web Push] VAPID Protocol ──> [PWA Service Worker]
 ```
@@ -53,10 +53,7 @@ Web Push uses VAPID (Voluntary Application Server Identification) keys for authe
    VAPID_SUBJECT=mailto:admin@detach.it
    ```
 
-3. **Add public key to `webview/index.html`**:
-   ```html
-   <meta name="vapid-public-key" content="BG5FQWU0HWKoUaChlDNI2uWFf5C_...">
-   ```
+3. The VAPID public key is delivered to the frontend automatically via the WebSocket `session` message on connection.
 
 4. Subscriptions are persisted to `/app/data/web-push-subscriptions.json` (via Docker volume)
 
@@ -245,7 +242,6 @@ WV:WS: Registering Web Push subscription via WebSocket
 
 1. **VAPID keys not configured:**
    - Check `.env` file has `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`
-   - Check `webview/index.html` has the public key in meta tag
    - Check bridge logs for "[WebPush] VAPID keys not configured"
 
 2. **Permission denied:**
