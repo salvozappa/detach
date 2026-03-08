@@ -97,7 +97,7 @@ Sandbox (Ubuntu + dev tools)
 For deploying to a VPS for nightly testing or production:
 
 ### Provision infrastructure
-1. **Provision VPS** with `infrastructure/vps-config-init.yaml` as cloud-init
+1. **Provision VPS** with `infrastructure/vps-config.yaml` as cloud-init
 2. **Setup GitHub Deploy Key**: See [infrastructure/README.md](infrastructure/README.md)
 
 ### Configure and deploy

@@ -1,44 +1,30 @@
 #cloud-config
-hostname: sandbox
+hostname: detach
 timezone: UTC
 
 users:
-  - name: deploy
-    groups: [sudo, admin, users]
+  - name: detach
+    groups: [sudo, docker]
     shell: /bin/bash
     lock_passwd: true
     ssh_authorized_keys:
       - YOUR_SSH_PUBLIC_KEY_HERE
     sudo: ALL=(ALL) NOPASSWD:ALL
 
-  - name: detach-dev
-    groups: [sudo, admin, users]
-    shell: /bin/bash
-    lock_passwd: true
-    ssh_authorized_keys:
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICaMfmeopNm2BiCXU5kg+bVzqmogOTZpiyNm9BM+lH3I throaway_dev_key
-    sudo: ALL=(ALL) NOPASSWD:ALL
-
 package_update: true
 package_upgrade: true
 packages:
-  - build-essential
   - git
   - curl
-  - wget
   - vim
   - htop
   - tmux
   - ufw
   - fail2ban
   - unattended-upgrades
-  - python3-pip
-  - python3-venv
-  - python3-dev
   - docker.io
   - docker-compose
   - ca-certificates
-  - apt-transport-https
 
 write_files:
   - path: /etc/apt/apt.conf.d/20auto-upgrades
@@ -72,8 +58,6 @@ runcmd:
   # Docker Setup
   - systemctl enable docker
   - systemctl start docker
-  - usermod -aG docker deploy
-  - usermod -aG docker detach-dev
 
   # Firewall Setup
   # Allow SSH from anywhere (needed for initial setup)
@@ -86,22 +70,13 @@ runcmd:
   - ufw default allow outgoing
   - ufw --force enable
 
-  # Development Directory Setup
-  - mkdir -p /home/deploy/projects
-  - chown -R deploy:deploy /home/deploy/projects
-  - chmod -R 755 /home/deploy/projects
-
-  - mkdir -p /home/detach-dev/projects
-  - chown -R detach-dev:detach-dev /home/detach-dev/projects
-  - chmod -R 755 /home/detach-dev/projects
-
-  # Setup detach.it deployment directory
-  - mkdir -p /home/deploy/detach/keys
-  - chown -R deploy:deploy /home/deploy/detach
-  - chmod -R 755 /home/deploy/detach
+  # Deployment directory
+  - mkdir -p /home/detach/app/keys
+  - chown -R detach:detach /home/detach/app
+  - chmod -R 755 /home/detach/app
 
   # Add GitHub to known_hosts
-  - sudo -u deploy ssh-keyscan github.com >> /home/deploy/.ssh/known_hosts 2>/dev/null
+  - sudo -u detach ssh-keyscan github.com >> /home/detach/.ssh/known_hosts 2>/dev/null
 
   # Fail2ban Setup
   - systemctl enable fail2ban

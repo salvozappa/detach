@@ -4,14 +4,14 @@ This directory contains configuration and deployment scripts for running Detach 
 
 ## Files
 
-- **vps-config-init.yaml** - Cloud-init configuration for VPS provisioning
+- **vps-config.yaml** - Cloud-init configuration for VPS provisioning (tested on Hetzner)
 - **../deploy.sh** - Automated deployment script (in repository root)
 
 ## Quick Start (New VPS)
 
 For provisioning a brand new VPS:
 
-1. **Provision VPS** with `vps-config-init.yaml` as cloud-init
+1. **Provision VPS** with `vps-config.yaml` as cloud-init
 2. **Wait 2-3 minutes** for cloud-init to complete
 3. **Setup GitHub deploy key** (one-time, see below)
 4. **Run deploy script** from your local machine: `./deploy.sh`
@@ -25,10 +25,10 @@ See detailed steps below for first-time setup.
 
 ### 1. Provision VPS
 
-Use `vps-config-init.yaml` as your cloud-init user data when creating a VPS instance.
+Use `vps-config.yaml` as your cloud-init user data when creating a VPS instance.
 
 **What it sets up:**
-- Two users: `deploy` and `detach-dev` with SSH key authentication
+- User `detach` with SSH key authentication
 - Docker and Docker Compose
 - Firewall (UFW) allowing SSH
 - Security: fail2ban, auto-updates, hardened SSH
@@ -46,7 +46,7 @@ After VPS boots up (wait ~2-3 minutes):
 
 ```bash
 # SSH into VPS
-ssh deploy@<vps-public-ip>
+ssh detach@<vps-public-ip>
 ```
 
 ### 2.5. Setup GitHub Deploy Key (One-time)
@@ -72,8 +72,8 @@ The deploy script will automatically:
 
 ```bash
 export DETACH_REMOTE_HOST=<your-vps-ip-or-hostname>
-export DETACH_REMOTE_USER=deploy    # optional, defaults to current user
-export DETACH_DEPLOY_DIR=/home/deploy/detach  # optional
+export DETACH_REMOTE_USER=detach    # optional, defaults to current user
+export DETACH_DEPLOY_DIR=/home/detach/app  # optional
 ```
 
 Then run the deploy script from your local machine:
@@ -107,7 +107,7 @@ If you need to run commands directly on the VPS:
 
 ```bash
 # SSH into VPS
-ssh deploy@<vps-ip-or-hostname>
+ssh detach@<vps-ip-or-hostname>
 
 # Navigate to project
 cd ~/detach
