@@ -1,4 +1,4 @@
-.PHONY: setup dev check-setup rebuild-webview rebuild-bridge rebuild
+.PHONY: setup
 
 setup:
 	@mkdir -p keys
@@ -8,31 +8,5 @@ setup:
 	@echo ""
 	@echo "Setup complete. Next steps:"
 	@echo "1. Add keys/deploy_key.pub to your GitHub repo as a deploy key (for private repos)"
-	@echo "2. Run: make dev (or docker compose up --build)"
+	@echo "2. Run: docker compose up --build"
 	@echo "3. Open: http://localhost:8080?token=$$(grep DETACH_TOKEN .env | cut -d= -f2)"
-
-dev: check-setup
-	docker compose up --build
-
-check-setup:
-	@missing=""; \
-	test -f keys/bridge || missing="$$missing keys/bridge"; \
-	test -f keys/bridge.pub || missing="$$missing keys/bridge.pub"; \
-	test -f keys/deploy_key || missing="$$missing keys/deploy_key"; \
-	test -f keys/deploy_key.pub || missing="$$missing keys/deploy_key.pub"; \
-	test -f .env || missing="$$missing .env"; \
-	if [ -n "$$missing" ]; then \
-		echo "Error: Missing required files:$$missing"; \
-		echo ""; \
-		echo "Run 'make setup' to generate them."; \
-		exit 1; \
-	fi
-
-rebuild-webview:
-	docker compose build webview && docker compose up -d webview
-
-rebuild-bridge:
-	docker compose build bridge && docker compose up -d bridge
-
-rebuild:
-	docker compose build && docker compose up -d
