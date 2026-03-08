@@ -191,9 +191,9 @@ docker-compose up -d webview
 - **Local environment**: Defined in `docker-compose.yml`
 - **Remote instance environment**:
   - Defined in `docker-compose.prod.yml`
-  - Running in a VPS. Provisioning defined in `infrastructure/vps-config.yaml`
-  - Deploy from local machine: `./deploy.sh` (git mode) or `./deploy.sh --rsync` (rsync uncommitted changes)
-  - More information in `infrastructure/README.md`
+  - Running in a VPS. Provisioning defined in `vps-config.yaml`
+  - Setup via `./install.sh` on the VPS
+  - Update: `git pull && docker-compose -f docker-compose.prod.yml build && docker-compose -f docker-compose.prod.yml up -d`
 
 ## Debugging
 
