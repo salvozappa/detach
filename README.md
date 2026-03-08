@@ -23,7 +23,7 @@ After each task finishes, a notification is received and it's possible to review
 
 ## Quick Start
 
-**Local development:**
+This section explains how to set up a local development environment. For remote installation, see [VPS Hosting](#vps-hosting).
 
 Copy `.env.example` to `.env` and customize values, then:
 
