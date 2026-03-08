@@ -1,10 +1,10 @@
 # Detach - Context Reference
 
 ## Project Vision
-This is a mobile-first "asyncronous coding" app with 4 panels: LLM (terminal with CLI LLM assistant running), Code (file browser (read only)), Terminal (standard bash shell), Git (version control UI to commit / pull / push).
+This is a mobile-first "asynchronous coding" app with 4 panels: Agent (terminal with CLI AI assistant running), Explore (file browser (read only)), Terminal (standard bash shell), Git (version control UI to commit / pull / push).
 
 **Core workflow:**
-1. Queue up coding tasks from your phone, in the LLM view
+1. Queue up coding tasks from your phone, in the Agent view
 2. AI agent executes in cloud sandbox
 3. Get push notification when complete
 4. Review changes in mobile-optimized UI
@@ -16,8 +16,8 @@ See `docs/concept.md` for full vision and business model.
 Web-based terminal + Git UI prototype. Four-panel interface:
 
 ### Bottom Navigation Panels
-1. **LLM** - Terminal with Claude Code (or another CLI assistant) running in the sandbox
-2. **Code** - File browser for viewing project files with syntax highlighting
+1. **Agent** - Terminal with Claude Code (or another CLI assistant) running in the sandbox
+2. **Explore** - File browser for viewing project files with syntax highlighting
 3. **Terminal** - Standard bash shell for running applications, tests, and commands
 4. **Git** - Git status viewer for reviewing and committing changes
 
@@ -36,13 +36,13 @@ See [docs/authentication.md](docs/authentication.md) for complete authentication
 
 ## UI Features by Panel
 
-### LLM Panel
+### Agent Panel
 - xterm.js terminal connected to sandbox
 - Mobile keyboard toolbar (Esc, arrows, Enter)
 - Session persistence (reconnects to same shell)
 - Visual viewport handling for mobile keyboard
 
-### Code Panel
+### Explore Panel
 - File explorer with folder navigation
 - Syntax-highlighted code viewer (powered by highlight.js)
 - Touch-friendly file browsing
@@ -57,7 +57,7 @@ See [docs/authentication.md](docs/authentication.md) for complete authentication
 
 ### Terminal Panel
 - Standard bash shell for direct command execution
-- Runs independently from LLM terminal
+- Runs independently from Agent terminal
 - Full xterm.js terminal with keyboard toolbar support
 - Session persistence (reconnects to same shell)
 - Ideal for running apps, tests, build commands, etc.
@@ -136,14 +136,14 @@ docker-compose up -d webview
 // Terminal input/output with routing
 {
   type: 'terminal_data',
-  terminal: 'llm' | 'terminal',  // Route to LLM or shell terminal
+  terminal: 'agent' | 'terminal',  // Route to Agent or shell terminal
   data: '<base64-encoded-data>'
 }
 
 // Terminal resize
 {
   type: 'resize',
-  terminal: 'llm' | 'terminal',
+  terminal: 'agent' | 'terminal',
   rows: 24,
   cols: 80
 }
@@ -184,7 +184,7 @@ docker-compose up -d webview
 - 8080 → webview (nginx)
 - 8081 → bridge (WebSocket)
 - 2222 → sandbox (SSH)
-- 5432 → postgres (not used by detach.it currently)
+- 5432 → postgres (not currently used)
 
 ## Environments
 
