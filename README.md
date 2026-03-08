@@ -1,15 +1,15 @@
-# Detach
-
-Mobile-first terminal and Git UI for managing AI coding agents asynchronously.
+<p align="center">
+  <img src="assets/detach-logo.png" alt="Detach" width="150">
+</p>
+<h1 align="center">Detach</h1>
+<p align="center">
+  Mobile-first UI for managing AI coding agents while remaining in the driving seat.
+</p>
 
 ## Description
 
-A web-based interface that connects to a remote sandbox where AI agents (like Claude Code) execute coding tasks. Features a four-panel mobile-optimized interface:
-
-1. **Agent** - Interactive terminal with Claude Code AI assistant
-2. **Explore** - Read-only file browser with syntax highlighting
-3. **Terminal** - Standard bash shell for running apps and commands
-4. **Git** - Visual Git UI for staging, committing, pulling, and pushing changes
+A web-based progressive web app that connects to a remote sandbox where AI agents (currently only Claude Code) execute coding tasks.
+After each task finishes, a notification is received and it's possible to review, refine and commit the changes from the mobile app itself.
 
 ## Components
 
