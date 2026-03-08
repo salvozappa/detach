@@ -116,7 +116,7 @@ SSH into the VPS and clone Detach:
 
 ```bash
 ssh detach@<vps-ip>
-git clone https://github.com/YOUR_USER/detach.git
+git clone https://github.com/salvozappa/detach.git
 cd detach
 ./install.sh
 ```

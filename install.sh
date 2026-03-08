@@ -209,6 +209,8 @@ main() {
     # 1. Get repository URL
     echo "Step 1: Repository Configuration"
     echo "---------------------------------"
+    echo "Enter the URL of the project repository you want the AI agent to work on."
+    echo ""
     local repo_url
     repo_url=$(prompt "Git repository URL (SSH or HTTPS)")
 
