@@ -24,15 +24,14 @@ After each task finishes, a notification is received and it's possible to review
 ## Quick Start
 
 **Local development:**
+
+Copy `.env.example` to `.env` and customize values, then:
+
 ```bash
 make setup           # Generate keys and .env (one-time)
 docker compose up    # Start all services
                      # Open the URL shown by make setup (includes auth token)
 ```
-
-**Manual setup:** Copy `.env.example` to `.env` and customize values, then run `docker compose up`.
-
-**Production:** Use `./install.sh` for interactive setup with deploy keys and HTTPS.
 
 ## SSH Keys
 
