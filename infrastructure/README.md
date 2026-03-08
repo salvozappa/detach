@@ -1,6 +1,6 @@
 # VPS Infrastructure Setup
 
-This directory contains configuration and deployment scripts for running detach.it on a VPS for nightly testing.
+This directory contains configuration and deployment scripts for running Detach on a VPS.
 
 ## Files
 
@@ -51,10 +51,10 @@ ssh deploy@<vps-public-ip>
 
 ### 2.5. Setup GitHub Deploy Key (One-time)
 
-The GitHub deploy key is stored in the repository at `keys/github_deploy_key`. The deploy script automatically syncs it to the VPS.
+The GitHub deploy key is stored in the repository at `keys/deploy_key`. The deploy script automatically syncs it to the VPS.
 
 **Add the public key to GitHub (one-time):**
-1. Copy contents of `keys/github_deploy_key.pub`
+1. Copy contents of `keys/deploy_key.pub`
 2. Go to your GitHub repository's Settings → Deploy keys
 3. Click "Add deploy key"
 4. Title: "VPS Nightly Server"
@@ -63,7 +63,7 @@ The GitHub deploy key is stored in the repository at `keys/github_deploy_key`. T
 7. Click "Add key"
 
 The deploy script will automatically:
-- Copy the key to `~/.ssh/github_deploy_key` on the VPS
+- Copy the key to `~/.ssh/deploy_key` on the VPS
 - Configure SSH to use it for GitHub
 
 ### 3. Deploy Application
@@ -90,7 +90,6 @@ The script will:
 - Connect to the VPS via SSH
 - Detect if this is a first-time deployment
 - Clone the repository (first time only)
-- Generate SSH keys for sandbox (first time only)
 - Pull latest changes from git
 - Build Docker containers
 - Restart services

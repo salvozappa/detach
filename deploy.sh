@@ -79,12 +79,12 @@ check_ssh_connectivity() {
 }
 
 # Sync GitHub deploy key from local repo to VPS
-sync_github_deploy_key() {
+sync_deploy_key() {
     echo ""
     echo "Syncing GitHub deploy key to VPS..."
 
-    LOCAL_KEY="keys/github_deploy_key"
-    LOCAL_KEY_PUB="keys/github_deploy_key.pub"
+    LOCAL_KEY="keys/deploy_key"
+    LOCAL_KEY_PUB="keys/deploy_key.pub"
 
     # Check local key exists
     if [ ! -f "$LOCAL_KEY" ]; then
@@ -94,18 +94,18 @@ sync_github_deploy_key() {
     fi
 
     # Copy key to VPS
-    scp $SSH_OPTS "$LOCAL_KEY" "$REMOTE_USER@$REMOTE_HOST:~/.ssh/github_deploy_key"
-    scp $SSH_OPTS "$LOCAL_KEY_PUB" "$REMOTE_USER@$REMOTE_HOST:~/.ssh/github_deploy_key.pub"
+    scp $SSH_OPTS "$LOCAL_KEY" "$REMOTE_USER@$REMOTE_HOST:~/.ssh/deploy_key"
+    scp $SSH_OPTS "$LOCAL_KEY_PUB" "$REMOTE_USER@$REMOTE_HOST:~/.ssh/deploy_key.pub"
 
     # Set permissions and configure SSH
-    ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "chmod 600 ~/.ssh/github_deploy_key ~/.ssh/github_deploy_key.pub"
+    ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "chmod 600 ~/.ssh/deploy_key ~/.ssh/deploy_key.pub"
 
     # Create SSH config for GitHub if not exists
     ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "grep -q 'Host github.com' ~/.ssh/config 2>/dev/null || cat >> ~/.ssh/config << 'EOF'
 Host github.com
     HostName github.com
     User git
-    IdentityFile ~/.ssh/github_deploy_key
+    IdentityFile ~/.ssh/deploy_key
     IdentitiesOnly yes
 EOF
 chmod 600 ~/.ssh/config"
@@ -122,7 +122,7 @@ setup_git_repo() {
     REPO_URL=$(git remote get-url origin 2>/dev/null || echo "git@github.com:YOUR_USER/YOUR_REPO.git")
     if ! ssh_exec "cd $DEPLOY_DIR && git clone $REPO_URL ." "Cloning repository"; then
         echo "ERROR: Failed to clone repository. Check GitHub deploy key permissions."
-        echo "Ensure the public key (keys/github_deploy_key.pub) is added to your repo's deploy keys."
+        echo "Ensure the public key (keys/deploy_key.pub) is added to your repo's deploy keys."
         exit 1
     fi
 
@@ -319,7 +319,7 @@ check_ssh_connectivity
 
 # Sync GitHub deploy key (needed for git mode)
 if [ "$DEPLOYMENT_MODE" = "git" ]; then
-    sync_github_deploy_key
+    sync_deploy_key
 fi
 
 check_remote_prerequisites
