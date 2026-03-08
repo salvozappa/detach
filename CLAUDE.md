@@ -197,7 +197,7 @@ docker-compose up -d webview
 
 ## Debugging
 
-You have full ssh access to the remote machine where the nightly instance is hosted, at the FQDN nightly01.tail5fb253.ts.net. You can access the docker containers and their logs for debugging purposes.
+You have full ssh access to the remote machine where the nightly instance is hosted (set via DETACH_REMOTE_HOST env var). You can access the docker containers and their logs for debugging purposes.
 
 You can ask the human in the loop for any webview frontend logs, investigation, or HAR traces.
 
@@ -243,7 +243,7 @@ docker logs detach-bridge 2>&1 | grep 'abc123'
 
 **Remote nightly instance:**
 ```bash
-ssh nightly01.tail5fb253.ts.net "docker logs -f detach-bridge 2>&1 | grep '\[WS'"
+ssh $DETACH_REMOTE_HOST "docker logs -f detach-bridge 2>&1 | grep '\[WS'"
 ```
 
 **PWA frontend logs (via WebSocket forwarding):**
@@ -255,7 +255,7 @@ docker logs -f detach-bridge 2>&1 | grep '\[CLIENT'
 docker logs -f detach-bridge 2>&1 | grep '\[CLIENT:TOOLBAR'
 
 # Remote nightly instance
-ssh nightly01.tail5fb253.ts.net "docker logs -f detach-bridge 2>&1 | grep '\[CLIENT'"
+ssh $DETACH_REMOTE_HOST "docker logs -f detach-bridge 2>&1 | grep '\[CLIENT'"
 ```
 
 ### Debugging WebSocket Connection Issues

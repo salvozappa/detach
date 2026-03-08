@@ -28,7 +28,7 @@ See detailed steps below for first-time setup.
 Use `vps-config-init.yaml` as your cloud-init user data when creating a VPS instance.
 
 **What it sets up:**
-- Two users: `sal` and `detach-dev` with SSH key authentication
+- Two users: `deploy` and `detach-dev` with SSH key authentication
 - Docker and Docker Compose
 - Firewall (UFW) allowing SSH
 - Security: fail2ban, auto-updates, hardened SSH
@@ -46,7 +46,7 @@ After VPS boots up (wait ~2-3 minutes):
 
 ```bash
 # SSH into VPS
-ssh sal@<vps-public-ip>
+ssh deploy@<vps-public-ip>
 ```
 
 ### 2.5. Setup GitHub Deploy Key (One-time)
@@ -55,7 +55,7 @@ The GitHub deploy key is stored in the repository at `keys/github_deploy_key`. T
 
 **Add the public key to GitHub (one-time):**
 1. Copy contents of `keys/github_deploy_key.pub`
-2. Go to: https://github.com/salvozappa/detach.it/settings/keys
+2. Go to your GitHub repository's Settings → Deploy keys
 3. Click "Add deploy key"
 4. Title: "VPS Nightly Server"
 5. Paste public key
@@ -68,11 +68,12 @@ The deploy script will automatically:
 
 ### 3. Deploy Application
 
-**For a new VPS:** First, update the server hostname in the deploy script:
+**For a new VPS:** Set the required environment variables:
 
 ```bash
-# Edit deploy.sh in repository root
-# Change REMOTE_HOST to your VPS IP or hostname
+export DETACH_REMOTE_HOST=<your-vps-ip-or-hostname>
+export DETACH_REMOTE_USER=deploy    # optional, defaults to current user
+export DETACH_DEPLOY_DIR=/home/deploy/detach  # optional
 ```
 
 Then run the deploy script from your local machine:
@@ -107,10 +108,10 @@ If you need to run commands directly on the VPS:
 
 ```bash
 # SSH into VPS
-ssh sal@<vps-ip-or-hostname>
+ssh deploy@<vps-ip-or-hostname>
 
 # Navigate to project
-cd ~/detach.it
+cd ~/detach
 
 # View logs
 docker-compose -f docker-compose.prod.yml logs -f
@@ -155,13 +156,13 @@ docker ps
 
 ### View application logs
 ```bash
-cd ~/detach.it
+cd ~/detach
 docker-compose -f docker-compose.prod.yml logs -f
 ```
 
 ### Restart services
 ```bash
-cd ~/detach.it
+cd ~/detach
 docker-compose -f docker-compose.prod.yml restart
 ```
 
@@ -183,7 +184,7 @@ If you see `ssh: handshake failed: ssh: unable to authenticate` in bridge logs:
 
 ```bash
 # Check if keys have correct permissions and ownership
-cd ~/detach.it
+cd ~/detach
 ls -la keys/
 
 # The dev.pub file must be owned by UID 1001 (container's detach-dev user)

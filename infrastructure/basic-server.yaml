@@ -3,12 +3,12 @@ hostname: sandbox
 timezone: UTC
 
 users:
-  - name: sal
+  - name: deploy
     groups: [sudo, docker]
     shell: /bin/bash
     lock_passwd: true
     ssh_authorized_keys:
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFf42z1a2X8TPK1YD0LyVRY8OeeBIrG0JPl48Z+/m6Gw sal@Salvatores-MacBook-Pro.local
+      - YOUR_SSH_PUBLIC_KEY_HERE
     sudo: ALL=(ALL) NOPASSWD:ALL
 
 package_update: true

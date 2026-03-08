@@ -11,7 +11,8 @@ BODY="This is a test notification triggered at $(date '+%H:%M:%S')"
 
 echo "Sending $HOOK_TYPE notification to nightly..."
 
-ssh nightly01.tail5fb253.ts.net "curl -s -X POST 'http://localhost:8081/api/hook' \
+REMOTE_HOST="${DETACH_REMOTE_HOST:?Set DETACH_REMOTE_HOST to your VPS IP or hostname}"
+ssh "$REMOTE_HOST" "curl -s -X POST 'http://localhost:8081/api/hook' \
     -H 'Content-Type: application/json' \
     -d '{\"hookType\":\"$HOOK_TYPE\",\"title\":\"$TITLE\",\"body\":\"$BODY\"}'"
 

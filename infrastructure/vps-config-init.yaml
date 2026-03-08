@@ -3,12 +3,12 @@ hostname: sandbox
 timezone: UTC
 
 users:
-  - name: sal
+  - name: deploy
     groups: [sudo, admin, users]
     shell: /bin/bash
     lock_passwd: true
     ssh_authorized_keys:
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFf42z1a2X8TPK1YD0LyVRY8OeeBIrG0JPl48Z+/m6Gw sal@Salvatores-MacBook-Pro.local
+      - YOUR_SSH_PUBLIC_KEY_HERE
     sudo: ALL=(ALL) NOPASSWD:ALL
 
   - name: detach-dev
@@ -72,7 +72,7 @@ runcmd:
   # Docker Setup
   - systemctl enable docker
   - systemctl start docker
-  - usermod -aG docker sal
+  - usermod -aG docker deploy
   - usermod -aG docker detach-dev
 
   # Firewall Setup
@@ -87,21 +87,21 @@ runcmd:
   - ufw --force enable
 
   # Development Directory Setup
-  - mkdir -p /home/sal/projects
-  - chown -R sal:sal /home/sal/projects
-  - chmod -R 755 /home/sal/projects
+  - mkdir -p /home/deploy/projects
+  - chown -R deploy:deploy /home/deploy/projects
+  - chmod -R 755 /home/deploy/projects
 
   - mkdir -p /home/detach-dev/projects
   - chown -R detach-dev:detach-dev /home/detach-dev/projects
   - chmod -R 755 /home/detach-dev/projects
 
   # Setup detach.it deployment directory
-  - mkdir -p /home/sal/detach.it/keys
-  - chown -R sal:sal /home/sal/detach.it
-  - chmod -R 755 /home/sal/detach.it
+  - mkdir -p /home/deploy/detach/keys
+  - chown -R deploy:deploy /home/deploy/detach
+  - chmod -R 755 /home/deploy/detach
 
   # Add GitHub to known_hosts
-  - sudo -u sal ssh-keyscan github.com >> /home/sal/.ssh/known_hosts 2>/dev/null
+  - sudo -u deploy ssh-keyscan github.com >> /home/deploy/.ssh/known_hosts 2>/dev/null
 
   # Fail2ban Setup
   - systemctl enable fail2ban

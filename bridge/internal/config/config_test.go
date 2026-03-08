@@ -23,8 +23,8 @@ func TestLoad_Defaults(t *testing.T) {
 
 	cfg := Load()
 
-	if cfg.SandboxHost != "77.42.17.162" {
-		t.Errorf("expected default SandboxHost '77.42.17.162', got %q", cfg.SandboxHost)
+	if cfg.SandboxHost != "sandbox" {
+		t.Errorf("expected default SandboxHost 'sandbox', got %q", cfg.SandboxHost)
 	}
 	if cfg.SandboxPort != "22" {
 		t.Errorf("expected default SandboxPort '22', got %q", cfg.SandboxPort)

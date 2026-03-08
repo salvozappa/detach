@@ -4,9 +4,9 @@ set -e
 # Restart remote containers without rebuilding
 # Use deploy-to-vps.sh for full deployments with code changes
 
-REMOTE_HOST="77.42.17.162"
-REMOTE_USER="sal"
-DEPLOY_DIR="/home/sal/detach.it"
+REMOTE_HOST="${DETACH_REMOTE_HOST:?Set DETACH_REMOTE_HOST to your VPS IP or hostname}"
+REMOTE_USER="${DETACH_REMOTE_USER:-$(whoami)}"
+DEPLOY_DIR="${DETACH_DEPLOY_DIR:-/home/$REMOTE_USER/detach}"
 COMPOSE_FILE="docker-compose.prod.yml"
 SSH_OPTS="-o ConnectTimeout=10 -o BatchMode=yes"
 

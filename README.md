@@ -6,8 +6,8 @@ Mobile-first terminal and Git UI for managing AI coding agents asynchronously.
 
 A web-based interface that connects to a remote sandbox where AI agents (like Claude Code) execute coding tasks. Features a four-panel mobile-optimized interface:
 
-1. **LLM** - Interactive terminal with Claude Code AI assistant
-2. **Code** - Read-only file browser with syntax highlighting
+1. **Agent** - Interactive terminal with Claude Code AI assistant
+2. **Explore** - Read-only file browser with syntax highlighting
 3. **Terminal** - Standard bash shell for running apps and commands
 4. **Git** - Visual Git UI for staging, committing, pulling, and pushing changes
 
@@ -94,8 +94,21 @@ For deploying to a VPS for nightly testing or production:
 1. **Provision VPS** with `infrastructure/vps-config-init.yaml` as cloud-init
 2. **Setup GitHub Deploy Key**: See [infrastructure/README.md](infrastructure/README.md)
 
-### Deploy
-Run `./deploy.sh` from your local machine (supports git pull or rsync modes)
+### Configure and deploy
+
+Set the required environment variables for deployment scripts:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DETACH_REMOTE_HOST` | Yes | VPS IP or hostname |
+| `DETACH_REMOTE_USER` | No | SSH user (defaults to current user) |
+| `DETACH_DEPLOY_DIR` | No | Deploy directory (defaults to `/home/$USER/detach`) |
+
+```bash
+export DETACH_REMOTE_HOST=your-vps-ip-or-hostname
+./deploy.sh             # Deploy via git pull
+./deploy.sh --rsync     # Deploy uncommitted local changes
+```
 
 See [infrastructure/README.md](infrastructure/README.md) for complete deployment guide.
 

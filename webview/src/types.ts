@@ -123,8 +123,8 @@ export const TOKEN_STORAGE_KEY = "detach_token";
 
 export const WS_HOST =
   typeof window !== "undefined"
-    ? window.location.host || "nightly01.tail5fb253.ts.net"
-    : "nightly01.tail5fb253.ts.net";
+    ? window.location.host || "localhost"
+    : "localhost";
 export const WS_PORT = "8081";
 
 export const USERNAME = "detach-dev";

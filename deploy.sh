@@ -4,9 +4,9 @@ set -e
 # Remote Deployment Script for detach.it
 # Deploys to VPS from local machine via SSH
 
-REMOTE_HOST="nightly01.tail5fb253.ts.net"
-REMOTE_USER="sal"
-DEPLOY_DIR="/home/sal/detach.it"
+REMOTE_HOST="${DETACH_REMOTE_HOST:?Set DETACH_REMOTE_HOST to your VPS IP or hostname}"
+REMOTE_USER="${DETACH_REMOTE_USER:-$(whoami)}"
+DEPLOY_DIR="${DETACH_DEPLOY_DIR:-/home/$REMOTE_USER/detach}"
 COMPOSE_FILE="docker-compose.prod.yml"
 SSH_OPTS="-o ConnectTimeout=10 -o BatchMode=yes"
 
@@ -72,7 +72,7 @@ check_ssh_connectivity() {
         echo "Please ensure:"
         echo "  1. VPS is running"
         echo "  2. SSH key is configured for user 'sal'"
-        echo "  3. Server is reachable at 77.42.17.162"
+        echo "  3. Server is reachable at $REMOTE_HOST"
         exit 1
     fi
     echo "✓ SSH connection verified"
@@ -119,10 +119,10 @@ setup_git_repo() {
     echo "Setting up git repository..."
 
     # Clone the repository
-    if ! ssh_exec "cd $DEPLOY_DIR && git clone git@github.com:salvozappa/detach.it.git ." "Cloning repository"; then
+    REPO_URL=$(git remote get-url origin 2>/dev/null || echo "git@github.com:YOUR_USER/YOUR_REPO.git")
+    if ! ssh_exec "cd $DEPLOY_DIR && git clone $REPO_URL ." "Cloning repository"; then
         echo "ERROR: Failed to clone repository. Check GitHub deploy key permissions."
-        echo "Ensure the public key (keys/github_deploy_key.pub) is added to:"
-        echo "  https://github.com/salvozappa/detach.it/settings/keys"
+        echo "Ensure the public key (keys/github_deploy_key.pub) is added to your repo's deploy keys."
         exit 1
     fi
 
