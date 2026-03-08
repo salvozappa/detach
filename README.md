@@ -54,6 +54,12 @@ Set `SKIP_AUTHENTICATION=1` (or `true`, `yes`) to disable authentication. Any ot
 
 See [docs/authentication.md](docs/authentication.md) for complete authentication specification.
 
+## Push Notifications
+
+Detach can send push notifications to your device when tasks complete or require approval. Requires VAPID keys (generated during `install.sh` setup).
+
+See [docs/notifications.md](docs/notifications.md) for setup and configuration.
+
 ## Ports
 
 - `8080` - Web UI
