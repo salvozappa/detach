@@ -115,3 +115,7 @@ See [infrastructure/README.md](infrastructure/README.md) for complete deployment
 ### Access
 - **Development**: `http://localhost:8080`
 - **VPS**: `http://<vps-ip>:8080`
+
+## Disclaimer
+
+This is a hobby project and is provided as-is. While I've tried to follow security best practices, the code has not been thoroughly audited — run it at your own risk. I don't provide support, maintenance, or accept feature requests. Forks and contributions are welcome.
