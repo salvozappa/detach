@@ -14,7 +14,7 @@ After each task finishes, a notification is received and it's possible to review
 ## Demo
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/511d16c1-bfdc-40f6-afac-12459f2c0230" width="300"></video>
+  <img src="assets/screencast.gif" alt="Detach demo" width="300">
 </p>
 
 ## Components
