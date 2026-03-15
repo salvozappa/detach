@@ -22,6 +22,7 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  8192,
 	WriteBufferSize: 8192,
+	// TODO: validate Origin header against configured domain
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
