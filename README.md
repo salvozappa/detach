@@ -14,7 +14,7 @@ After each task finishes, a notification is received and it's possible to review
 ## Demo
 
 <p align="center">
-  <video src="assets/screencast.mp4" width="300" autoplay loop muted playsinline></video>
+  <video src="https://github.com/user-attachments/assets/511d16c1-bfdc-40f6-afac-12459f2c0230" width="300"></video>
 </p>
 
 ## Components
