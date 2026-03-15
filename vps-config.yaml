@@ -27,6 +27,7 @@ packages:
   - ca-certificates
   - nodejs
   - npm
+  - qrencode
 
 write_files:
   - path: /etc/apt/apt.conf.d/20auto-upgrades
