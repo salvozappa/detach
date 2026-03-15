@@ -11,6 +11,12 @@
 A web-based progressive web app that connects to a remote sandbox where AI agents (currently only Claude Code) execute coding tasks.
 After each task finishes, a notification is received and it's possible to review, refine and commit the changes from the mobile app itself.
 
+## Demo
+
+<p align="center">
+  <video src="assets/screencast.mp4" width="300" autoplay loop muted playsinline></video>
+</p>
+
 ## Components
 
 - **Webview** - Frontend (HTML/CSS/JS) with xterm.js terminal and Git UI
